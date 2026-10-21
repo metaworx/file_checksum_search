@@ -88,6 +88,17 @@ with when it last changed beside it.
 The group's header shows one preview, how many files there are,
 and the size of each:
 its files share their content, so one picture and one size describe them all.
+
+With *All algorithms*,
+the same files are found under each algorithm that hashed them.
+Groups of exactly the same files are shown as one,
+its header a line for each algorithm and hash.
+**Verify** and the group's actions use the first line,
+in the order of the **Algorithm** list.
+Groups that differ by a file stay apart.
+So **Load more** may add fewer groups than **Per page** says:
+a group it loads may join one already shown.
+
 A file someone shared with you says whose it is and where you find it,
 `bob: My Projects/report.pdf`,
 behind a share glyph — and nothing of the owner's folders above the share,
@@ -207,7 +218,7 @@ and a bar above the list helps choose across the page.
   The confirmation still says in how many groups no copy stays.
 - A file listed in two groups is one row:
   choosing it in one chooses it in the other.
-  It is listed so where the page shows more than one algorithm.
+  It is listed so where its groups under two algorithms differ by a file.
 - **Deselect all** clears the choice; **Cancel** ends it.
 - Each group's header says how many of its rows are chosen.
 

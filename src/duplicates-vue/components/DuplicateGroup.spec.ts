@@ -143,6 +143,18 @@ describe('DuplicateGroup, the header', () => {
 		expect(mounted().find('[data-testid="fcias-group-mimetype"]').exists()).toBe(false)
 	})
 
+	// Groups of the same rows merged on the page: a line for each pair,
+	// the type once, on the first.
+	it('shows each algorithm and hash of a merged group on a line of its own', () => {
+		const hashes = [{ algo: 'sha1', hash_value: 'aaf4c61d' }, { algo: 'md5', hash_value: '5d41402a' }]
+		const wrapper = mounted({ algo: 'sha1', hash_value: 'aaf4c61d', hashes, mimetype: 'text/plain' })
+
+		expect(wrapper.findAll('[data-testid="fcias-group-algo"]').map((cell) => cell.text())).toEqual(['SHA1', 'MD5'])
+		expect(wrapper.findAll('[data-testid="fcias-group-hash"]').map((cell) => cell.text())).toEqual(['aaf4c61d', '5d41402a'])
+		expect(wrapper.findAll('[data-testid="fcias-group-mimetype"]')).toHaveLength(1)
+		expect(mounted().findAll('[data-testid="fcias-group-hash"]')).toHaveLength(1)
+	})
+
 	// The files share their content, and so their size: once, under the count.
 	it('shows the count, and each file\'s size under it', () => {
 		const files = [

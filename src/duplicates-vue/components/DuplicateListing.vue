@@ -150,7 +150,7 @@ const {
 	verifyGroups,
 	verifyFile,
 	fileUrl,
-} = useDuplicates()
+} = useDuplicates(() => props.algorithmIds)
 
 /**
  * The hash field reloads as it is typed, but not per keystroke: a hash is

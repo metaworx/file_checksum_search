@@ -1,0 +1,27 @@
+{
+	"schema": 1,
+	"app": "file_checksum_search",
+	"note": "Two copies of one content, stated under SHA-1 and MD5, for the Duplicates spec's case that shows the two groups as one. A folder and a content of their own, so no other case sees them. Import with --user, as the other fixtures are.",
+	"hashes": [
+		{
+			"path": "fcias-e2e-merged/x.txt",
+			"algo": "sha1",
+			"hash": "fc0d3e24e586b74040e8c7bc204e16eb9e28761e"
+		},
+		{
+			"path": "fcias-e2e-merged/y.txt",
+			"algo": "sha1",
+			"hash": "fc0d3e24e586b74040e8c7bc204e16eb9e28761e"
+		},
+		{
+			"path": "fcias-e2e-merged/x.txt",
+			"algo": "md5",
+			"hash": "17f15d26a133a90ad5920c82d40cba05"
+		},
+		{
+			"path": "fcias-e2e-merged/y.txt",
+			"algo": "md5",
+			"hash": "17f15d26a133a90ad5920c82d40cba05"
+		}
+	]
+}

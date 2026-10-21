@@ -59,7 +59,15 @@ const resolveFiles = [ 'one.txt', 'two.txt', 'three.txt' ]
 const RESOLVE_CONTENT = 'fcias resolve'
 const RESOLVE_HASH = '6f9b3d2b51ba91aaae04bcc3b20b03d2aded95ac'
 
-const recalcUrl = '**/ocs/v2.php/apps/file_checksum_search/api/v1/file/*/recalc*'
+// Two copies of their own, as tests/e2e/fixtures/merged.json states them
+// under SHA-1 and MD5: two groups on the server, one on the page.
+const mergedDir = 'fcias-e2e-merged'
+const mergedFiles = [ 'x.txt', 'y.txt' ]
+const MERGED_CONTENT = 'fcias merged'
+const MERGED_SHA1 = 'fc0d3e24e586b74040e8c7bc204e16eb9e28761e'
+const MERGED_MD5 = '17f15d26a133a90ad5920c82d40cba05'
+
+const recalcUrl ='**/ocs/v2.php/apps/file_checksum_search/api/v1/file/*/recalc*'
 
 const webdavUrl = ( path ) => `/remote.php/dav/files/${ adminUser }${ path }`
 
@@ -164,10 +172,28 @@ describe( 'FCIAS Duplicates page', () => {
 				} )
 			}
 
+			cy.request( {
+				method: 'MKCOL',
+				url: webdavUrl( `/${ mergedDir }` ),
+				auth: { user: adminUser, pass: adminPassword },
+				failOnStatusCode: false,
+			} )
+
+			for ( const name of mergedFiles ) {
+				cy.request( {
+					method: 'PUT',
+					url: webdavUrl( `/${ mergedDir }/${ name }` ),
+					auth: { user: adminUser, pass: adminPassword },
+					headers: { 'Content-Type': 'text/plain' },
+					body: MERGED_CONTENT,
+				} )
+			}
+
 			cy.resetFciasState( occ )
 			cy.importFciasFixture( occ, 'duplicates', adminUser )
 			cy.importFciasFixture( occ, 'empty-files', adminUser )
 			cy.importFciasFixture( occ, 'resolve', adminUser )
+			cy.importFciasFixture( occ, 'merged', adminUser )
 		} )
 	} )
 
@@ -596,15 +622,40 @@ describe( 'FCIAS Duplicates page', () => {
 	} )
 
 	// One group a load: Load more adds the next under it, and goes once
-	// there are no more. The run's two groups are all there are.
+	// there are no more. The run's four groups are all there are, and
+	// three on the page: the last joins the merged pair's first.
 	it( 'loads more groups under those shown', () => {
 		cy.visit( `${ DUPLICATES_URL }#mine?limit=1` )
 		cy.get( '.db-group', { timeout: FIND_TIMEOUT } ).should( 'have.length', 1 )
 
 		cy.get( '[data-testid="fcias-load-more"]' ).click()
-
 		cy.get( '.db-group', { timeout: FIND_TIMEOUT } ).should( 'have.length', 2 )
-		cy.get( '[data-testid="fcias-load-more"]' ).should( 'not.exist' )
+		cy.get( '[data-testid="fcias-load-more"]' ).click()
+		cy.get( '.db-group', { timeout: FIND_TIMEOUT } ).should( 'have.length', 3 )
+		cy.get( '[data-testid="fcias-load-more"]' ).click()
+
+		cy.get( '[data-testid="fcias-load-more"]', { timeout: FIND_TIMEOUT } ).should( 'not.exist' )
+		cy.get( '.db-group' ).should( 'have.length', 3 )
+	} )
+
+	// The same files under SHA-1 and MD5 are one group, a line for each:
+	// MD5's is listed first, SHA-1's after Load more joins it, and leads,
+	// as the algorithm list names it first.
+	it( 'shows the same files under two algorithms as one group', () => {
+		const texts = ( testid, expected ) => cy.get( `.db-group [data-testid="${ testid }"]` ).should( ( $cells ) => {
+			expect( [ ...$cells ].map( ( cell ) => cell.textContent.trim() ) ).to.deep.equal( expected )
+		} )
+
+		cy.visit( `${ DUPLICATES_URL }#mine?path=/${ mergedDir }&limit=1` )
+		cy.get( '.db-group', { timeout: FIND_TIMEOUT } ).should( 'have.length', 1 )
+		texts( 'fcias-group-hash', [ MERGED_MD5 ] )
+
+		cy.get( '[data-testid="fcias-load-more"]' ).click()
+
+		cy.get( '[data-testid="fcias-load-more"]', { timeout: FIND_TIMEOUT } ).should( 'not.exist' )
+		cy.get( '.db-group' ).should( 'have.length', 1 )
+		texts( 'fcias-group-hash', [ MERGED_SHA1, MERGED_MD5 ] )
+		texts( 'fcias-group-algo', [ 'SHA1', 'MD5' ] )
 	} )
 
 	// Across the page: a folder that holds every copy is left alone, a

@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, type MockInstance, vi } from 'vitest'
+import { nextTick, ref } from 'vue'
 import { type DuplicateGroup, useDuplicates } from './useDuplicates'
 
 // Both substitute placeholders the way the real ones do; a stand-in that
@@ -441,6 +442,65 @@ describe('useDuplicates', () => {
 		expect(String(fetchMock.mock.calls[0][0])).toContain('offset=0')
 		expect(groups.value.map((group) => group.hash_value)).toEqual(['at0', 'at7', 'at9'])
 		expect(hasMore.value).toBe(true)
+	})
+
+	/** A server listing $groups, one to an offset, as many as asked from where asked. */
+	function serverOf(groups: DuplicateGroup[]): MockInstance<typeof fetch> {
+		return vi.spyOn(globalThis, 'fetch').mockImplementation((url) => {
+			const query = new URL(String(url), 'https://cloud.test').searchParams
+			const from = Number(query.get('offset'))
+			const to = from + Number(query.get('limit'))
+			return Promise.resolve(jsonResponse({
+				duplicates: groups.slice(from, to).map((group) => structuredClone(group)),
+				pagination: { next_offset: to < groups.length ? to : null },
+			}))
+		})
+	}
+
+	const rows = (...ids: number[]) => ids.map((fileid) => ({ fileid, path: `/f${fileid}`, name: `f${fileid}` }))
+
+	// The server lists md5 first; sha1 leads, as the list names it first.
+	// A reload reads the three groups fetched, not the two shown.
+	it('merges a group of the same rows into one shown, and reloads as many as were fetched', async () => {
+		const fetchMock = serverOf([
+			{ algo: 'md5', hash_value: 'm', file_count: 2, files: rows(1, 2) },
+			{ algo: 'sha1', hash_value: 's', file_count: 2, files: rows(1, 2) },
+			{ algo: 'sha1', hash_value: 'o', file_count: 2, files: rows(3, 4) },
+		])
+		const { groups, limit, load, loadMore, reload } = useDuplicates(() => ['sha1', 'md5'])
+		limit.value = 1
+
+		await load()
+		await loadMore()
+
+		expect(groups.value).toHaveLength(1)
+		expect(groups.value[0].hash_value).toBe('s')
+		expect(groups.value[0].hashes).toEqual([{ algo: 'sha1', hash_value: 's' }, { algo: 'md5', hash_value: 'm' }])
+
+		await loadMore()
+		fetchMock.mockClear()
+		await reload()
+
+		expect(String(fetchMock.mock.calls[0][0])).toContain('limit=3')
+		expect(groups.value.map((group) => group.hash_value)).toEqual(['s', 'o'])
+	})
+
+	it('puts the pairs in the list\'s order once the list arrives', async () => {
+		serverOf([
+			{ algo: 'md5', hash_value: 'm', file_count: 2, files: rows(1, 2) },
+			{ algo: 'sha1', hash_value: 's', file_count: 2, files: rows(1, 2) },
+		])
+		const ids = ref<string[]>([])
+		const { groups, load } = useDuplicates(() => ids.value)
+
+		await load()
+		expect(groups.value[0].algo).toBe('md5')
+
+		ids.value = ['sha1', 'md5']
+		await nextTick()
+
+		expect(groups.value[0].algo).toBe('sha1')
+		expect(groups.value[0].hash_value).toBe('s')
 	})
 
 	// Each group's type, while the server detects types; asked otherwise,

@@ -40,6 +40,9 @@ the first stable release.
 - Duplicates page: *Load more* adds the next groups under those shown,
   in place of Previous and Next; the address no longer holds `offset`.
 
+- Duplicates page: groups of the same files under several algorithms
+  are one, a line in its header for each algorithm and hash.
+
 ### Fixed
 
 - `GET /api/v1/duplicates` and the Duplicates page: a page no longer

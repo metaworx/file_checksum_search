@@ -5,13 +5,14 @@
  * Composable for duplicate group fetching and hash verification.
  */
 
-import { reactive, toRefs } from 'vue'
+import { reactive, toRefs, watch } from 'vue'
 import { generateOcsUrl } from '@nextcloud/router'
 import { OCS_API_V1 } from '../../routes'
 import { fetchFeatures, mimeTypeSwitchedOff } from '../../features'
 import { rowLink } from '../../fileLink'
 import { t } from '../../l10n'
 import type { RowAction } from '../duplicateActions'
+import { mergeIdentical, orderPairs } from '../identicalGroups'
 
 declare const OC: {
 	requestToken: string
@@ -42,9 +43,20 @@ export interface DuplicateFileItem {
 	verify_error?: string
 }
 
+/** One algorithm and the hash it gives a group's content. */
+export interface GroupHash {
+	algo: string
+	hash_value: string
+}
+
 export interface DuplicateGroup {
 	algo: string
 	hash_value: string
+	/**
+	 * Every algorithm and hash, where the page merged groups of the same
+	 * rows into this one, the group's own first; absent on a group of one.
+	 */
+	hashes?: GroupHash[]
 	file_count: number
 	/** The empty files' group: its hash is its algorithm's checksum of no input. */
 	empty?: boolean
@@ -103,7 +115,12 @@ interface State {
 	scope: DuplicateScope | null
 }
 
-export function useDuplicates() {
+/**
+ * The listing's state and requests. $algorithms is the instance's list of
+ * algorithms, in its order: groups of the same rows are merged on the page,
+ * their pairs in that order, the first the group's own.
+ */
+export function useDuplicates(algorithms: () => string[] = () => []) {
 	const state = reactive<State>({
 		algo: '',
 		hash: '',
@@ -125,6 +142,13 @@ export function useDuplicates() {
 	})
 
 	let abortController: AbortController | null = null
+
+	// How many groups the server sent from the start, before the page
+	// merged those of the same rows: what a reload asks for again.
+	let fetched = 0
+
+	// The list arrives on its own; groups merged before it get its order.
+	watch(algorithms, (ids) => orderPairs(state.groups, ids))
 
 	// Set when a verification run stopped early on the recalc rate limit,
 	// so the next run resumes instead of replaying what it already did.
@@ -247,16 +271,19 @@ export function useDuplicates() {
 			}
 			if (page === 'refused') {
 				state.groups = []
+				fetched = 0
 				state.error = REFUSED()
 				endAt(null)
 				return
 			}
-			state.groups = page.groups
+			state.groups = mergeIdentical(page.groups, algorithms())
+			fetched = page.groups.length
 			endAt(page.nextOffset)
 		} catch (err) {
 			if (err instanceof DOMException && err.name === 'AbortError') return
 			state.error = FAILED()
 			state.groups = []
+			fetched = 0
 			endAt(null)
 		} finally {
 			if (!signal.aborted) {
@@ -265,7 +292,11 @@ export function useDuplicates() {
 		}
 	}
 
-	/** The next page, after the groups shown: they stay, and so does what was chosen among them. */
+	/**
+	 * The next page, after the groups shown: they stay, and so does what was
+	 * chosen among them. A group of the same rows as one shown joins it, so
+	 * a load may add fewer groups than it asked for.
+	 */
 	async function loadMore(): Promise<void> {
 		if (state.nextOffset === null || state.loading) {
 			return
@@ -283,7 +314,8 @@ export function useDuplicates() {
 				state.error = REFUSED()
 				return
 			}
-			state.groups = [...state.groups, ...page.groups]
+			state.groups = mergeIdentical([...state.groups, ...page.groups], algorithms())
+			fetched += page.groups.length
 			endAt(page.nextOffset)
 		} catch (err) {
 			if (err instanceof DOMException && err.name === 'AbortError') return
@@ -297,13 +329,13 @@ export function useDuplicates() {
 
 	/**
 	 * The groups shown, read again after something changed them: as many
-	 * as are shown, from the start, in requests of at most 500. A group
+	 * as were fetched, from the start, in requests of at most 500. A group
 	 * that is no longer a duplicate is gone; the rest keep their place on
 	 * the page, which stays as it is while they are read.
 	 */
 	async function reload(): Promise<void> {
 		const signal = newSignal()
-		const wanted = Math.max(state.limit, state.groups.length)
+		const wanted = Math.max(state.limit, fetched)
 		const groups: DuplicateGroup[] = []
 		let offset: number | null = 0
 
@@ -315,6 +347,7 @@ export function useDuplicates() {
 				}
 				if (page === 'refused') {
 					state.groups = []
+					fetched = 0
 					state.error = REFUSED()
 					endAt(null)
 					return
@@ -322,7 +355,8 @@ export function useDuplicates() {
 				groups.push(...page.groups)
 				offset = page.nextOffset
 			}
-			state.groups = groups
+			state.groups = mergeIdentical(groups, algorithms())
+			fetched = groups.length
 			endAt(offset)
 		} catch (err) {
 			if (err instanceof DOMException && err.name === 'AbortError') return

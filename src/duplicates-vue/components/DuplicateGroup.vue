@@ -37,6 +37,7 @@ import { fileLabel, labelKind, trashLabel, versionLabel } from '../../fileLabel'
 import { groupPreviewUrl } from '../../fileLink'
 import type { DuplicateGroup as GroupType } from '../composables/useDuplicates'
 import { choosable } from '../pageSelection'
+import { pairsOf } from '../identicalGroups'
 import type { RowAction } from '../duplicateActions'
 import { formatDateTime, n, t } from '../../l10n'
 
@@ -223,6 +224,9 @@ const statusText = computed(() => {
 
 const fileCount = computed(() => n('file_checksum_search', '%n file', '%n files', props.group.file_count))
 
+/** The header's algorithms and hashes, a line each: more than one where the page merged groups of the same rows. */
+const pairs = computed(() => pairsOf(props.group))
+
 /**
  * Each file's size, once for the group: they share their content, and so
  * their size. Null where the server gave none.
@@ -289,18 +293,25 @@ function toggle(): void {
 				<span data-testid="fcias-group-count">{{ fileCount }}</span>
 				<span v-if="eachSize" class="db-each-size" data-testid="fcias-group-size">{{ eachSize }}</span>
 			</span>
-			<span class="db-algo-cell">
-				<span class="db-algo-badge">{{ group.algo.toUpperCase() }}</span>
-			</span>
-			<span class="db-hash-cell">
-				<!-- TRANSLATORS: a label on a group of duplicates whose files are all empty (zero bytes) -->
-				<span v-if="group.empty" class="db-empty-badge" data-testid="fcias-empty-group">{{ t('file_checksum_search', 'Empty files') }}</span>
-				<span class="db-hash">{{ group.hash_value }}</span>
-				<!-- One per group: the files share their content, and so its type. -->
-				<span v-if="group.mimetype"
-					class="db-mimetype"
-					data-testid="fcias-group-mimetype"
-					:title="TITLES.mimetype">{{ group.mimetype }}</span>
+			<!-- A line for each algorithm the same rows are listed under, the
+			     group's own first, which its actions and Verify use; what
+			     describes the content, once, on that first line. -->
+			<span class="db-pairs">
+				<template v-for="(pair, index) in pairs" :key="pair.algo">
+					<span class="db-algo-cell" data-testid="fcias-group-algo">
+						<span class="db-algo-badge">{{ pair.algo.toUpperCase() }}</span>
+					</span>
+					<span class="db-hash-cell">
+						<!-- TRANSLATORS: a label on a group of duplicates whose files are all empty (zero bytes) -->
+						<span v-if="index === 0 && group.empty" class="db-empty-badge" data-testid="fcias-empty-group">{{ t('file_checksum_search', 'Empty files') }}</span>
+						<span class="db-hash" data-testid="fcias-group-hash">{{ pair.hash_value }}</span>
+						<!-- One per group: the files share their content, and so its type. -->
+						<span v-if="index === 0 && group.mimetype"
+							class="db-mimetype"
+							data-testid="fcias-group-mimetype"
+							:title="TITLES.mimetype">{{ group.mimetype }}</span>
+					</span>
+				</template>
 			</span>
 			<span class="db-status-cell">
 				<!-- What the page's choice holds here, seen without opening the group. -->
@@ -468,6 +479,17 @@ function toggle(): void {
 	color: var(--color-text-maxcontrast);
 	white-space: nowrap;
 	font-variant-numeric: tabular-nums;
+}
+
+/* The algorithm and hash columns, a line for each pair: its own grid, so
+   that a hash that wraps keeps its badge beside it. */
+.db-pairs {
+	grid-column: span 2;
+	display: grid;
+	grid-template-columns: 84px minmax(0, 1fr);
+	gap: 4px 12px;
+	align-items: center;
+	min-width: 0;
 }
 
 .db-algo-badge {

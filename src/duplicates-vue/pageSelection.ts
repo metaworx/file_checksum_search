@@ -4,7 +4,8 @@
  *
  * The rows chosen across the Duplicates page, by file id: one choice for
  * the page, so that a file listed in two groups — the same content under
- * two algorithms — is chosen, or not, in both.
+ * two algorithms, in groups that differ by a row — is chosen, or not, in
+ * both.
  *
  * Choosing across the page — a pattern, the versions, every duplicate, the
  * choice inverted — keeps one copy of each group unless asked not to: a

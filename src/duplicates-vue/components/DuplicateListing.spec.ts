@@ -414,18 +414,45 @@ describe('DuplicateListing, choosing across the page', () => {
 		expect(deleteGroups.mock.calls[1][0]).toEqual([{ algo: 'sha1', hash_value: 'dd', fileIds: [7], mergeInto: null }])
 	})
 
-	// A file listed under two algorithms is one row to delete, sent once.
+	// A file listed under two algorithms, in groups that differ by a row,
+	// is one row to delete, sent once.
 	it('sends a file listed in two groups once', async () => {
 		vi.stubGlobal('fetch', vi.fn(() => Promise.resolve(new Response(JSON.stringify({
 			duplicates: [
 				{ ...GROUP, algo: 'sha1', hash_value: 'ee', files: [row(1, '/Backup/e.txt'), row(2, '/Docs/e.txt')] },
-				{ ...GROUP, algo: 'md5', hash_value: 'ff', files: [row(1, '/Backup/e.txt'), row(2, '/Docs/e.txt')] },
+				{ ...GROUP, algo: 'md5', hash_value: 'ff', files: [row(1, '/Backup/e.txt'), row(2, '/Docs/e.txt'), row(3, '/Docs/f.txt')] },
 			],
 			canRecalc: true,
 		}), { status: 200 }))))
 		deleteGroups.mockReset()
 		deleteGroups.mockResolvedValue([])
 		const wrapper = await selectingPage()
+
+		await wrapper.find('#fcias-duplicates-select-pattern').setValue('/Backup')
+		await wrapper.find('[data-testid="fcias-select-matching"]').trigger('click')
+		await wrapper.find('[data-testid="fcias-delete-page"]').trigger('click')
+		await flushPromises()
+
+		expect(deleteGroups.mock.calls[0][0]).toEqual([{ algo: 'sha1', hash_value: 'ee', fileIds: [1], mergeInto: null }])
+	})
+
+	// Groups of the same rows are one on the page (D13-A): listed md5 first,
+	// they lead with sha1, as the algorithm list names it first, and are
+	// deleted through it.
+	it('shows groups of the same rows as one, and deletes through its first pair', async () => {
+		vi.stubGlobal('fetch', vi.fn(() => Promise.resolve(new Response(JSON.stringify({
+			duplicates: [
+				{ ...GROUP, algo: 'md5', hash_value: 'ff', files: [row(1, '/Backup/e.txt'), row(2, '/Docs/e.txt')] },
+				{ ...GROUP, algo: 'sha1', hash_value: 'ee', files: [row(2, '/Docs/e.txt'), row(1, '/Backup/e.txt')] },
+			],
+			canRecalc: true,
+		}), { status: 200 }))))
+		deleteGroups.mockReset()
+		deleteGroups.mockResolvedValue([])
+		const wrapper = await selectingPage()
+
+		expect(wrapper.findAll('.db-group')).toHaveLength(1)
+		expect(wrapper.findAll('[data-testid="fcias-group-hash"]').map((cell) => cell.text())).toEqual(['ee', 'ff'])
 
 		await wrapper.find('#fcias-duplicates-select-pattern').setValue('/Backup')
 		await wrapper.find('[data-testid="fcias-select-matching"]').trigger('click')
@@ -453,7 +480,7 @@ describe('DuplicateListing, loading more', () => {
 	// The next groups are added under those shown, from where the server
 	// said; the button goes once there are no more.
 	it('adds the next groups under those shown, and offers no more at the end', async () => {
-		const second = { ...GROUP, hash_value: 'bbf4c61ddcc5e8a2dabede0f3b482cd9aea9434d' }
+		const second = { ...GROUP, hash_value: 'bbf4c61ddcc5e8a2dabede0f3b482cd9aea9434d', files: GROUP.files.map((file) => ({ ...file, fileid: file.fileid + 10 })) }
 		const fetchMock = vi.fn((url: string) => Promise.resolve(new Response(JSON.stringify(url.includes('offset=0')
 			? { duplicates: [GROUP], pagination: { next_offset: 4 }, canRecalc: true }
 			: { duplicates: [second], pagination: { next_offset: null }, canRecalc: true }), { status: 200 })))

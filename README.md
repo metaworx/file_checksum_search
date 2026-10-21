@@ -1029,6 +1029,8 @@ Features:
 - Expandable groups showing file paths, each with when it last changed;
   the header in columns: one preview, the count over each file's size,
   since the files share their content, the algorithm and the hash
+- The same files hashed under several algorithms as one group,
+  a line in its header for each algorithm and hash
 - On **Mine**, a menu on each row: **Move to trash** or **Delete permanently**,
   confirmed with the earlier versions that go along listed;
   **Restore** for a copy in the trash, to its place, its folders made again;
