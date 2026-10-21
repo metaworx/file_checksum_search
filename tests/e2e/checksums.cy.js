@@ -30,7 +30,8 @@ const FIND_TIMEOUT = 60000
 // A fixed directory, not a timestamped one. Every run used to leave another
 // `fcias-e2e-sidebar-<ts>` folder behind, and two more files with the same
 // content; the accumulation is what eventually broke the duplicates spec.
-// Re-running overwrites these two instead.
+// Re-running overwrites these two instead, and before() deletes the versions
+// that overwriting makes.
 const dupDir = 'fcias-e2e-sidebar'
 const fileNameA = 'a.txt'
 const fileNameB = 'b.txt'
@@ -152,12 +153,20 @@ describe( 'FCIAS checksums sidebar', () => {
 				fileIdB = extractFileId( res )
 			} )
 
+			// The versions those writes made of an earlier run's two files: the
+			// files' checksums passed to them, and a version is listed in its
+			// group as a file is, so each re-run on the same instance added two
+			// to the group the cross-account case counts. By path, and by
+			// account — without one, occ would delete every account's versions.
+			cy.exec( `${ occ } versions:cleanup --path=/${ adminUser }/files/${ dupDir } ${ adminUser }`, { failOnNonZeroExit: false } )
+
 			// Both hashed here, over the API as the administrator, so no case
 			// depends on an earlier one having clicked Recalculate: the
 			// cross-account case reads file A's hash off the sidebar, and used
 			// to find it there only because the first case had put it there.
-			// Also this app's rows for accounts an earlier run deleted, so a
-			// count of files in a group is a count of files that exist.
+			// Also this app's rows for accounts an earlier run deleted, and for
+			// the versions just deleted, so a count of files in a group is a
+			// count of files that exist.
 			cy.exec( `${ occ } fcias:repair --step orphaned-metadata`, { failOnNonZeroExit: false } )
 			cy.then( () => {
 				for ( const id of [ fileIdA, fileIdB ] ) {
