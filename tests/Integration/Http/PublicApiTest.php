@@ -348,6 +348,71 @@ class PublicApiTest
 	}
 
 	/**
+	 * Asked, the own listing says what the caller may do to each file: the
+	 * seeded pair are theirs, to the trash or for good.
+	 */
+	public function testTheOwnListingSaysWhatMayBeDoneWhenAsked(): void
+	{
+		$asked = $this->httpGet( "/api/v1/duplicates?algo=sha1&hash=$this->sharedSha1Hash&actions=1" );
+		$plain = $this->httpGet( "/api/v1/duplicates?algo=sha1&hash=$this->sharedSha1Hash" );
+
+		$this->assertSame(
+			[ [ 'trash', 'delete' ], [ 'trash', 'delete' ] ],
+			array_column( $asked['duplicates'][0]['files'] ?? [], 'actions' ),
+		);
+		$this->assertArrayNotHasKey( 'actions', $plain['duplicates'][0]['files'][0] ?? [], 'only when asked: it opens a node per row' );
+	}
+
+	/**
+	 * A dry run answers per row and deletes nothing.
+	 *
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
+	public function testDeletingDuplicatesDryRunDeletesNothing(): void
+	{
+		$response = $this->httpPost(
+			'/api/v1/duplicates/delete',
+			[
+				'fileIds' => [ $this->testFileId1, $this->testFileId2 ],
+				'algo'    => 'sha1',
+				'hash'    => $this->sharedSha1Hash,
+				'dryRun'  => true,
+			],
+		);
+
+		$this->assertSame( [ 'ready', 'ready' ], array_column( $response['results'] ?? [], 'status' ) );
+		$this->assertSame( [ 'trash', 'trash' ], array_column( $response['results'] ?? [], 'action' ) );
+
+		$userFolder = Server::get( IRootFolder::class )
+		                    ->getUserFolder( self::$testUser )
+		;
+
+		$this->assertNotNull( $userFolder->getFirstNodeById( $this->testFileId1 ) );
+		$this->assertNotNull( $userFolder->getFirstNodeById( $this->testFileId2 ) );
+	}
+
+	/**
+	 * A body without rows, or without an algorithm and a hash to hold them
+	 * to, is refused before anything is opened.
+	 */
+	public function testDeletingDuplicatesRefusesAnIncompleteBody(): void
+	{
+		foreach (
+			[
+				[ 'algo' => 'sha1', 'hash' => $this->sharedSha1Hash ],
+				[ 'fileIds' => [ $this->testFileId1 ], 'algo' => 'nope', 'hash' => $this->sharedSha1Hash ],
+				[ 'fileIds' => [ $this->testFileId1 ], 'algo' => 'sha1', 'hash' => 'not hex' ],
+			] as $body
+		)
+		{
+			$response = $this->httpPost( '/api/v1/duplicates/delete', $body );
+
+			$this->assertFalse( $response['success'] ?? null, (string) json_encode( $body ) );
+			$this->assertArrayNotHasKey( 'results', $response );
+		}
+	}
+
+	/**
 	 * Two empty files beside the seeded pair: the listing leaves their group
 	 * out until asked, and marks it when it lists it. The per-file lookup,
 	 * which names the file, answers with the group and its mark. Against a

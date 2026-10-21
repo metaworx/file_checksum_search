@@ -619,6 +619,21 @@ msgstr "内部サーバーエラーが発生しました。"
 msgid "Invalid request body."
 msgstr "リクエストの本文が無効です。"
 
+msgid "It could not be deleted."
+msgstr "削除できませんでした。"
+
+msgid "It is not among your files."
+msgstr "あなたのファイルの中にありません。"
+
+msgid "It is shared with you. Leave the share in Files instead."
+msgstr "あなたと共有されているファイルです。代わりに「ファイル」で共有から抜けてください。"
+
+msgid "Its content changed after the list was loaded."
+msgstr "一覧の読み込み後に内容が変更されました。"
+
+msgid "Its versions cannot be deleted here."
+msgstr "そのバージョンはここでは削除できません。"
+
 msgid "Last updated"
 msgstr "最終更新"
 
@@ -1149,6 +1164,9 @@ msgstr "このルールが対象とするチームフォルダーです。すべ
 msgid "The team folder this rule names, or the app that provides it, is not available, so the rule can never match."
 msgstr "このルールが指定するチームフォルダー、またはそれを提供するアプリが利用できないため、このルールが一致することはありません。"
 
+msgid "The trash is not available, so it can only be deleted permanently."
+msgstr "ゴミ箱が利用できないため、完全に削除することしかできません。"
+
 #. TRANSLATORS: "Add rule" is the button on each of these rows, "Save" the dialog's button; translate them as those buttons do
 msgid "These places exist on this server but have no catch-all rule of their own, so their files are decided by a more general rule, or by none at all. \"Add rule\" opens the dialog with a catch-all rule for the place; it is only stored once you click \"Save\" there."
 msgstr "これらの場所はこのサーバー上に存在しますが、独自の包括ルールがありません。そのため、そのファイルの扱いは、より一般的なルールによって決まるか、どのルールによっても決まりません。「ルールを追加」をクリックすると、その場所の包括ルールが入力された状態でダイアログが開きます。ルールが保存されるのは、ダイアログで「保存」をクリックしたときです。"
@@ -1333,6 +1351,9 @@ msgstr "ルールを編集する権限がありません。管理者にお問い
 msgid "You are not allowed to manage this rule."
 msgstr "このルールを管理する権限がありません。"
 
+msgid "You may not delete it."
+msgstr "削除する権限がありません。"
+
 msgid "You may only reorder your own rules."
 msgstr "並べ替えられるのは自分のルールのみです。"
 
@@ -1341,6 +1362,10 @@ msgstr "あなた自身のファイル"
 
 msgid "Your preferred algorithm"
 msgstr "あなたが優先するアルゴリズム"
+
+#. TRANSLATORS: algo and hash are parameter names; keep them
+msgid "algo must name an algorithm, and hash its checksum in hexadecimal."
+msgstr "algo にはアルゴリズムを、hash にはそのチェックサムを 16 進数で指定する必要があります。"
 
 msgid "app password deleted — the grant remains"
 msgstr "アプリパスワードは削除済み（承認は残っています）"
@@ -1369,6 +1394,11 @@ msgstr "削除：{deleted}、未完了"
 #. TRANSLATORS: a background job's last run ended with an error; {reason} is the error as the server logs it, in English
 msgid "failed: {reason}"
 msgstr "失敗：{reason}"
+
+#. TRANSLATORS: fileIds is a parameter name; keep it
+#, php-format
+msgid "fileIds must be a list of 1 to %s integers."
+msgstr "fileIds は 1 から %s 個の整数のリストである必要があります。"
 
 #. TRANSLATORS: fileIds is a parameter name; keep it
 msgid "fileIds must be a non-empty list of integers."

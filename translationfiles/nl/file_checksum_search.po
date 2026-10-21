@@ -621,6 +621,21 @@ msgstr "Interne serverfout."
 msgid "Invalid request body."
 msgstr "Ongeldige inhoud van het verzoek."
 
+msgid "It could not be deleted."
+msgstr "Kon niet worden verwijderd."
+
+msgid "It is not among your files."
+msgstr "Staat niet tussen je bestanden."
+
+msgid "It is shared with you. Leave the share in Files instead."
+msgstr "Het is met je gedeeld. Verlaat in plaats daarvan de deling in Bestanden."
+
+msgid "Its content changed after the list was loaded."
+msgstr "De inhoud is gewijzigd nadat de lijst was geladen."
+
+msgid "Its versions cannot be deleted here."
+msgstr "De versies kunnen hier niet worden verwijderd."
+
 msgid "Last updated"
 msgstr "Laatst bijgewerkt"
 
@@ -1153,6 +1168,9 @@ msgstr "De teammap die deze regel betreft. Alle leden zien dezelfde bestanden, e
 msgid "The team folder this rule names, or the app that provides it, is not available, so the rule can never match."
 msgstr "De teammap die deze regel noemt, of de app die hem levert, is niet beschikbaar, dus kan de regel nooit overeenkomen."
 
+msgid "The trash is not available, so it can only be deleted permanently."
+msgstr "De prullenbak is niet beschikbaar, dus het kan alleen definitief worden verwijderd."
+
 #. TRANSLATORS: "Add rule" is the button on each of these rows, "Save" the dialog's button; translate them as those buttons do
 msgid "These places exist on this server but have no catch-all rule of their own, so their files are decided by a more general rule, or by none at all. \"Add rule\" opens the dialog with a catch-all rule for the place; it is only stored once you click \"Save\" there."
 msgstr "Deze locaties bestaan op deze server, maar hebben geen eigen vangnetregel; over hun bestanden beslist dus een algemenere regel, of helemaal geen. “Regel toevoegen” opent het dialoogvenster met een vangnetregel voor de locatie; die wordt pas opgeslagen als je daar op “Opslaan” klikt."
@@ -1337,6 +1355,9 @@ msgstr "Je mag geen regels bewerken. Neem contact op met een beheerder."
 msgid "You are not allowed to manage this rule."
 msgstr "Je mag deze regel niet beheren."
 
+msgid "You may not delete it."
+msgstr "Je mag het niet verwijderen."
+
 msgid "You may only reorder your own rules."
 msgstr "Je mag alleen je eigen regels herschikken."
 
@@ -1345,6 +1366,10 @@ msgstr "Je eigen bestand"
 
 msgid "Your preferred algorithm"
 msgstr "Je voorkeursalgoritme"
+
+#. TRANSLATORS: algo and hash are parameter names; keep them
+msgid "algo must name an algorithm, and hash its checksum in hexadecimal."
+msgstr "algo moet een algoritme noemen, en hash de controlesom ervan in hexadecimale vorm."
 
 msgid "app password deleted — the grant remains"
 msgstr "appwachtwoord verwijderd – de vrijgave blijft bestaan"
@@ -1374,6 +1399,11 @@ msgstr "verwijderd {deleted}, nog niet voltooid"
 #. TRANSLATORS: a background job's last run ended with an error; {reason} is the error as the server logs it, in English
 msgid "failed: {reason}"
 msgstr "mislukt: {reason}"
+
+#. TRANSLATORS: fileIds is a parameter name; keep it
+#, php-format
+msgid "fileIds must be a list of 1 to %s integers."
+msgstr "fileIds moet een lijst van 1 tot %s gehele getallen zijn."
 
 #. TRANSLATORS: fileIds is a parameter name; keep it
 msgid "fileIds must be a non-empty list of integers."

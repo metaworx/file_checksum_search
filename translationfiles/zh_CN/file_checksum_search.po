@@ -619,6 +619,21 @@ msgstr "服务器内部错误。"
 msgid "Invalid request body."
 msgstr "无效的请求正文。"
 
+msgid "It could not be deleted."
+msgstr "无法删除。"
+
+msgid "It is not among your files."
+msgstr "不在您的文件中。"
+
+msgid "It is shared with you. Leave the share in Files instead."
+msgstr "这是与您共享的文件。请改为在“文件”中离开共享。"
+
+msgid "Its content changed after the list was loaded."
+msgstr "列表加载后其内容已更改。"
+
+msgid "Its versions cannot be deleted here."
+msgstr "无法在此处删除其版本。"
+
 msgid "Last updated"
 msgstr "最后更新"
 
@@ -1149,6 +1164,9 @@ msgstr "此规则针对的团队文件夹。每个成员看到的都是相同的
 msgid "The team folder this rule names, or the app that provides it, is not available, so the rule can never match."
 msgstr "此规则指定的团队文件夹或提供它的应用不可用，因此该规则永远不会匹配。"
 
+msgid "The trash is not available, so it can only be deleted permanently."
+msgstr "回收站不可用，因此只能永久删除。"
+
 #. TRANSLATORS: "Add rule" is the button on each of these rows, "Save" the dialog's button; translate them as those buttons do
 msgid "These places exist on this server but have no catch-all rule of their own, so their files are decided by a more general rule, or by none at all. \"Add rule\" opens the dialog with a catch-all rule for the place; it is only stored once you click \"Save\" there."
 msgstr "这些区域存在于此服务器上，但没有自己的兜底规则，因此其文件由更通用的规则决定，或者根本没有规则决定。“添加规则”会打开对话框，并为该区域预设一条兜底规则；只有在您点击对话框中的“保存”后，该规则才会被存储。"
@@ -1333,6 +1351,9 @@ msgstr "您无权编辑规则。请联系管理员。"
 msgid "You are not allowed to manage this rule."
 msgstr "您无权管理此规则。"
 
+msgid "You may not delete it."
+msgstr "您无权删除它。"
+
 msgid "You may only reorder your own rules."
 msgstr "您只能对自己的规则重新排序。"
 
@@ -1341,6 +1362,10 @@ msgstr "您自己的文件"
 
 msgid "Your preferred algorithm"
 msgstr "您的首选算法"
+
+#. TRANSLATORS: algo and hash are parameter names; keep them
+msgid "algo must name an algorithm, and hash its checksum in hexadecimal."
+msgstr "algo 必须指定一种算法，hash 必须是其十六进制校验和。"
 
 msgid "app password deleted — the grant remains"
 msgstr "应用密码已删除，授权仍保留"
@@ -1369,6 +1394,11 @@ msgstr "已删除：{deleted}，尚未完成"
 #. TRANSLATORS: a background job's last run ended with an error; {reason} is the error as the server logs it, in English
 msgid "failed: {reason}"
 msgstr "失败：{reason}"
+
+#. TRANSLATORS: fileIds is a parameter name; keep it
+#, php-format
+msgid "fileIds must be a list of 1 to %s integers."
+msgstr "fileIds 必须是包含 1 到 %s 个整数的列表。"
 
 #. TRANSLATORS: fileIds is a parameter name; keep it
 msgid "fileIds must be a non-empty list of integers."

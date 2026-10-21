@@ -11,6 +11,7 @@ namespace OCA\FileChecksumSearch\Tests\Unit\Controller;
 
 use OCA\FileChecksumSearch\Controller\PublicApiController;
 use OCA\FileChecksumSearch\Service\AlgorithmCatalogue;
+use OCA\FileChecksumSearch\Service\DuplicateActionService;
 use OCP\Config\IUserConfig;
 use OCP\IAppConfig;
 use OCA\FileChecksumSearch\Public\ChecksumApi;
@@ -63,6 +64,8 @@ class PublicApiControllerTest
 
 	private IAppConfig&MockObject $appConfig;
 
+	private DuplicateActionService&MockObject $duplicateActions;
+
 	private PublicApiController        $controller;
 
 
@@ -108,6 +111,7 @@ class PublicApiControllerTest
 		$this->appConfig->method( 'getValueInt' )
 		                ->willReturn( 21 )
 		;
+		$this->duplicateActions = $this->createMock( DuplicateActionService::class );
 
 		$adminUser = $this->createMock( IUser::class );
 		$adminUser->method( 'getUID' )
@@ -137,6 +141,7 @@ class PublicApiControllerTest
 			$this->confirmation,
 			$this->appConfig,
 			$this->englishL10n(),
+			$this->duplicateActions,
 		);
 	}
 
@@ -180,6 +185,7 @@ class PublicApiControllerTest
 			$confirmation,
 			$this->appConfig,
 			$this->englishL10n(),
+			$this->duplicateActions,
 		);
 	}
 
@@ -339,6 +345,7 @@ class PublicApiControllerTest
 			$this->confirmation,
 			$this->appConfig,
 			$this->englishL10n(),
+			$this->duplicateActions,
 		);
 
 		$listing = [
@@ -411,6 +418,7 @@ class PublicApiControllerTest
 			$this->confirmation,
 			$this->appConfig,
 			$this->englishL10n(),
+			$this->duplicateActions,
 		);
 		$this->api->expects( $this->never() )
 		          ->method( 'getHashesByFileId' )
@@ -458,6 +466,7 @@ class PublicApiControllerTest
 			$this->confirmation,
 			$this->appConfig,
 			$this->englishL10n(),
+			$this->duplicateActions,
 		);
 
 		$this->assertSame( Http::STATUS_FORBIDDEN, $viaToken->getHashes( 42 )->getStatus() );
@@ -484,6 +493,7 @@ class PublicApiControllerTest
 			$this->confirmation,
 			$this->appConfig,
 			$this->englishL10n(),
+			$this->duplicateActions,
 		);
 
 		$this->assertSame( Http::STATUS_OK, $viaPage->getHashes( 42 )->getStatus() );
@@ -525,6 +535,7 @@ class PublicApiControllerTest
 			$this->confirmation,
 			$this->appConfig,
 			$this->englishL10n(),
+			$this->duplicateActions,
 		);
 
 		$this->assertSame( Http::STATUS_OK, $controller->getHashes( 42 )->getStatus() );
@@ -586,6 +597,7 @@ class PublicApiControllerTest
 			$this->confirmation,
 			$this->appConfig,
 			$this->englishL10n(),
+			$this->duplicateActions,
 		);
 
 		$this->assertSame( Http::STATUS_FORBIDDEN, $controller->lookup( 'abc123' )->getStatus() );
@@ -646,6 +658,7 @@ class PublicApiControllerTest
 			$this->confirmation,
 			$this->appConfig,
 			$this->englishL10n(),
+			$this->duplicateActions,
 		);
 
 		[ $session, $groups ] = $this->signedInAs( 'alice' );
@@ -683,6 +696,7 @@ class PublicApiControllerTest
 			$this->confirmation,
 			$this->appConfig,
 			$this->englishL10n(),
+			$this->duplicateActions,
 		);
 		$this->api->expects( $this->once() )
 		          ->method( 'getHashesByFileId' )
@@ -1011,6 +1025,7 @@ class PublicApiControllerTest
 			$this->confirmation,
 			$this->appConfig,
 			$this->englishL10n(),
+			$this->duplicateActions,
 		);
 	}
 
@@ -1059,6 +1074,7 @@ class PublicApiControllerTest
 			$this->confirmation,
 			$this->appConfig,
 			$this->englishL10n(),
+			$this->duplicateActions,
 		);
 
 		$this->api->expects( $this->once() )
@@ -1105,6 +1121,7 @@ class PublicApiControllerTest
 			$this->confirmation,
 			$this->appConfig,
 			$this->englishL10n(),
+			$this->duplicateActions,
 		);
 		$this->api->expects( $this->never() )
 		          ->method( 'getHashesByFileId' )
@@ -1434,6 +1451,7 @@ class PublicApiControllerTest
 			$this->confirmation,
 			$this->appConfig,
 			$this->englishL10n(),
+			$this->duplicateActions,
 		);
 
 		$this->api->expects( $this->never() )
@@ -1479,6 +1497,7 @@ class PublicApiControllerTest
 			$this->confirmation,
 			$this->appConfig,
 			$this->englishL10n(),
+			$this->duplicateActions,
 		);
 
 		$this->api->expects( $this->once() )
@@ -1646,6 +1665,7 @@ class PublicApiControllerTest
 			$this->confirmation,
 			$this->appConfig,
 			$this->englishL10n(),
+			$this->duplicateActions,
 		);
 
 		$this->api->expects( $this->once() )
@@ -1773,6 +1793,7 @@ class PublicApiControllerTest
 			$this->confirmation,
 			$this->appConfig,
 			$this->englishL10n(),
+			$this->duplicateActions,
 		);
 
 		$this->api->expects( $this->once() )
@@ -1826,6 +1847,7 @@ class PublicApiControllerTest
 			$this->confirmation,
 			$this->appConfig,
 			$this->englishL10n(),
+			$this->duplicateActions,
 		);
 	}
 

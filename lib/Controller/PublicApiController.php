@@ -14,6 +14,7 @@ use OCA\FileChecksumSearch\Public\ChecksumApi;
 use OCA\FileChecksumSearch\Service\AlgorithmCatalogue;
 use OCP\Config\IUserConfig;
 use OCA\FileChecksumSearch\Config\ConfigLexicon;
+use OCA\FileChecksumSearch\Service\DuplicateActionService;
 use OCA\FileChecksumSearch\Service\DuplicateService;
 use OCA\FileChecksumSearch\Service\HashListingService;
 use OCP\AppFramework\ApiController;
@@ -70,6 +71,7 @@ class PublicApiController
 		private readonly SudoConfirmation $confirmation,
 		private readonly IAppConfig      $appConfig,
 		private readonly IL10N $l10n,
+		private readonly DuplicateActionService $duplicateActions,
 	)
 	{
 		parent::__construct( $appName, $request );
@@ -815,6 +817,8 @@ class PublicApiController
 	 *
 	 * Empty files are left out unless `includeEmpty` asks for them: they all
 	 * share one checksum per algorithm, and deleting a copy frees nothing.
+	 * With `actions`, each file says what the caller may do to it
+	 * ({@see DuplicateActionService::withActions()}).
 	 *
 	 * @noinspection PhpUnused
 	 */
@@ -831,6 +835,7 @@ class PublicApiController
 		bool    $anywhere = false,
 		bool    $includeEmpty = false,
 		bool    $mimetype = false,
+		bool    $actions = false,
 	): DataResponse
 	{
 		$scope = $this->scopeOrRefusal();
@@ -841,6 +846,17 @@ class PublicApiController
 		}
 
 		$response = $this->duplicatesFor( $scope, $algo, $minCount, $limit, $offset, $hash, $anywhere, $includeEmpty, withMimeType: $mimetype );
+		$user     = $this->userSession->getUser();
+
+		// What the caller may do to each row, which opens a node per row:
+		// asked for, and for one's own files only, as the page acts on no
+		// one else's.
+		if ( $actions && $user !== null && $response->getStatus() === Http::STATUS_OK )
+		{
+			$data               = $response->getData();
+			$data['duplicates'] = $this->duplicateActions->withActions( $user, $data['duplicates'] );
+			$response->setData( $data );
+		}
 
 		// Whether the caller may cross into other accounts at all. Rides on
 		// the listing the page loads anyway, so the page needs no second
@@ -888,6 +904,97 @@ class PublicApiController
 			: $this->markOpenable(
 				$this->duplicatesFor( $scope, $algo, $minCount, $limit, $offset, $hash, $anywhere, $includeEmpty, $this->readsCanonically(), $mimetype ),
 			);
+	}
+
+	/**
+	 * Delete rows of one duplicate group, the caller's own: a file to the
+	 * trash, or for good with `forGood`; a version, a trashed file and a
+	 * version of one for good. The body is JSON,
+	 * `{ "fileIds": [ … ], "algo": "sha1", "hash": "…", "forGood": false,
+	 * "dryRun": true }`: each row must still hold that hash, and a dry run
+	 * acts on nothing. The answer is one result per row
+	 * ({@see DuplicateActionService::delete()}).
+	 *
+	 * @noinspection PhpUnused
+	 */
+	// No #[NoCSRFRequired], for the reason given on recalcHash().
+	#[NoAdminRequired]
+	#[UserRateLimit( limit: 20, period: 60 )]
+	#[ApiRoute( verb: 'POST', url: '/api/v1/duplicates/delete' )]
+	public function deleteDuplicates(): DataResponse
+	{
+		$own  = $this->scopeOrRefusal();
+		$user = $this->userSession->getUser();
+
+		if ( $own instanceof DataResponse || $user === null )
+		{
+			return $own instanceof DataResponse
+				? $own
+				: new DataResponse( [ 'success' => false, 'error' => $this->l10n->t( 'Not logged in.' ) ], Http::STATUS_UNAUTHORIZED );
+		}
+
+		$body    = json_decode( (string) file_get_contents( 'php://input' ), true );
+		$body    = is_array( $body )
+			? $body
+			: [];
+		$fileIds = is_array( $body['fileIds'] ?? null )
+			? array_values( array_filter( $body['fileIds'], 'is_int' ) )
+			: [];
+		$algo    = is_string( $body['algo'] ?? null )
+			? strtolower( $body['algo'] )
+			: '';
+		$hash    = is_string( $body['hash'] ?? null )
+			? strtolower( trim( $body['hash'] ) )
+			: '';
+
+		if ( $fileIds === [] || count( $fileIds ) > DuplicateActionService::MAX_ROWS )
+		{
+			return new DataResponse(
+				// TRANSLATORS: fileIds is a parameter name; keep it
+				[ 'success' => false, 'error' => $this->l10n->t( 'fileIds must be a list of 1 to %s integers.', [ (string) DuplicateActionService::MAX_ROWS ] ) ],
+				Http::STATUS_BAD_REQUEST,
+			);
+		}
+
+		if ( ! $this->catalogue->isValid( $algo ) || preg_match( '/^[0-9a-f]+$/', $hash ) !== 1 )
+		{
+			return new DataResponse(
+				// TRANSLATORS: algo and hash are parameter names; keep them
+				[ 'success' => false, 'error' => $this->l10n->t( 'algo must name an algorithm, and hash its checksum in hexadecimal.' ) ],
+				Http::STATUS_BAD_REQUEST,
+			);
+		}
+
+		try
+		{
+			return new DataResponse(
+				[
+					'results' => $this->duplicateActions->delete(
+						$user,
+						$fileIds,
+						$algo,
+						$hash,
+						( $body['forGood'] ?? false ) === true,
+						( $body['dryRun'] ?? false ) === true,
+					),
+				],
+			);
+		}
+		catch ( Throwable $e )
+		{
+			$this->logger->error(
+				'FCIAS PublicApiController: deleteDuplicates failed',
+				[
+					'app'       => Application::APP_ID,
+					'exception' => $e,
+				],
+			);
+
+			return new DataResponse(
+				[ 'success' => false, 'error' => $this->l10n->t( 'Internal server error.' ) ],
+				Http::STATUS_INTERNAL_SERVER_ERROR,
+			);
+		}
 	}
 
 	/**

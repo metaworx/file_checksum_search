@@ -16,6 +16,10 @@ the first stable release.
 - `GET /api/v1/duplicates`: each file carries `mtime` and `size`, and
   the Duplicates page shows them, with one preview per group.
 
+- `POST /api/v1/duplicates/delete`: a duplicate group's rows deleted, a
+  file to the trash or for good, with a dry run; `actions=1` on the
+  listing says what each row allows.
+
 ## [0.29.1] - 2026-10-21
 
 ### Fixed

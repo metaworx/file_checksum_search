@@ -625,6 +625,21 @@ msgstr "Wewnętrzny błąd serwera."
 msgid "Invalid request body."
 msgstr "Nieprawidłowa treść żądania."
 
+msgid "It could not be deleted."
+msgstr "Nie udało się usunąć."
+
+msgid "It is not among your files."
+msgstr "Nie ma tego wśród Twoich plików."
+
+msgid "It is shared with you. Leave the share in Files instead."
+msgstr "Udostępniono Ci to. Zamiast tego opuść udostępnienie w aplikacji Pliki."
+
+msgid "Its content changed after the list was loaded."
+msgstr "Zawartość zmieniła się po wczytaniu listy."
+
+msgid "Its versions cannot be deleted here."
+msgstr "Wersji nie można tutaj usunąć."
+
 msgid "Last updated"
 msgstr "Ostatnia aktualizacja"
 
@@ -1161,6 +1176,9 @@ msgstr "Folder zespołu, którego dotyczy ta reguła. Każdy członek widzi te s
 msgid "The team folder this rule names, or the app that provides it, is not available, so the rule can never match."
 msgstr "Folder zespołu wskazany przez tę regułę lub aplikacja, która go udostępnia, są niedostępne, więc reguła nigdy nie może pasować."
 
+msgid "The trash is not available, so it can only be deleted permanently."
+msgstr "Kosz jest niedostępny, więc można to usunąć tylko trwale."
+
 #. TRANSLATORS: "Add rule" is the button on each of these rows, "Save" the dialog's button; translate them as those buttons do
 msgid "These places exist on this server but have no catch-all rule of their own, so their files are decided by a more general rule, or by none at all. \"Add rule\" opens the dialog with a catch-all rule for the place; it is only stored once you click \"Save\" there."
 msgstr "Te miejsca istnieją na tym serwerze, ale nie mają własnej reguły zbiorczej, więc o ich plikach decyduje ogólniejsza reguła albo żadna. „Dodaj regułę” otwiera okno dialogowe z regułą zbiorczą dla danego miejsca; reguła zostanie zapisana dopiero po kliknięciu tam „Zapisz”."
@@ -1345,6 +1363,9 @@ msgstr "Nie możesz edytować reguł. Skontaktuj się z administratorem."
 msgid "You are not allowed to manage this rule."
 msgstr "Nie możesz zarządzać tą regułą."
 
+msgid "You may not delete it."
+msgstr "Nie masz uprawnień, aby to usunąć."
+
 msgid "You may only reorder your own rules."
 msgstr "Możesz zmieniać kolejność tylko własnych reguł."
 
@@ -1353,6 +1374,10 @@ msgstr "Twój własny plik"
 
 msgid "Your preferred algorithm"
 msgstr "Twój preferowany algorytm"
+
+#. TRANSLATORS: algo and hash are parameter names; keep them
+msgid "algo must name an algorithm, and hash its checksum in hexadecimal."
+msgstr "algo musi wskazywać algorytm, a hash jego sumę kontrolną w zapisie szesnastkowym."
 
 msgid "app password deleted — the grant remains"
 msgstr "hasło aplikacji usunięte – upoważnienie pozostaje"
@@ -1384,6 +1409,11 @@ msgstr "usunięte {deleted}, jeszcze niezakończone"
 #. TRANSLATORS: a background job's last run ended with an error; {reason} is the error as the server logs it, in English
 msgid "failed: {reason}"
 msgstr "niepowodzenie: {reason}"
+
+#. TRANSLATORS: fileIds is a parameter name; keep it
+#, php-format
+msgid "fileIds must be a list of 1 to %s integers."
+msgstr "fileIds musi być listą od 1 do %s liczb całkowitych."
 
 #. TRANSLATORS: fileIds is a parameter name; keep it
 msgid "fileIds must be a non-empty list of integers."

@@ -623,6 +623,21 @@ msgstr "Errore interno del server."
 msgid "Invalid request body."
 msgstr "Corpo della richiesta non valido."
 
+msgid "It could not be deleted."
+msgstr "Eliminazione non riuscita."
+
+msgid "It is not among your files."
+msgstr "Non è tra i tuoi file."
+
+msgid "It is shared with you. Leave the share in Files instead."
+msgstr "È condiviso con te. Abbandona invece la condivisione in File."
+
+msgid "Its content changed after the list was loaded."
+msgstr "Il contenuto è cambiato dopo il caricamento dell'elenco."
+
+msgid "Its versions cannot be deleted here."
+msgstr "Le sue versioni non possono essere eliminate qui."
+
 msgid "Last updated"
 msgstr "Ultimo aggiornamento"
 
@@ -1157,6 +1172,9 @@ msgstr "La cartella del team che questa regola riguarda. Ogni membro vede gli st
 msgid "The team folder this rule names, or the app that provides it, is not available, so the rule can never match."
 msgstr "La cartella del team indicata da questa regola, o l'app che la fornisce, non è disponibile, quindi la regola non può mai trovare corrispondenza."
 
+msgid "The trash is not available, so it can only be deleted permanently."
+msgstr "Il cestino non è disponibile, quindi è possibile solo eliminarlo definitivamente."
+
 #. TRANSLATORS: "Add rule" is the button on each of these rows, "Save" the dialog's button; translate them as those buttons do
 msgid "These places exist on this server but have no catch-all rule of their own, so their files are decided by a more general rule, or by none at all. \"Add rule\" opens the dialog with a catch-all rule for the place; it is only stored once you click \"Save\" there."
 msgstr "Queste aree esistono su questo server ma non hanno una propria regola di ripiego, quindi sui loro file decide una regola più generale, oppure nessuna. “Aggiungi regola” apre la finestra di dialogo con una regola di ripiego per l'area; viene memorizzata solo quando lì fai clic su “Salva”."
@@ -1341,6 +1359,9 @@ msgstr "Non ti è consentito modificare le regole. Contatta un amministratore."
 msgid "You are not allowed to manage this rule."
 msgstr "Non ti è consentito gestire questa regola."
 
+msgid "You may not delete it."
+msgstr "Non hai il permesso di eliminarlo."
+
 msgid "You may only reorder your own rules."
 msgstr "Puoi riordinare solo le tue regole."
 
@@ -1349,6 +1370,10 @@ msgstr "Un tuo file"
 
 msgid "Your preferred algorithm"
 msgstr "Il tuo algoritmo preferito"
+
+#. TRANSLATORS: algo and hash are parameter names; keep them
+msgid "algo must name an algorithm, and hash its checksum in hexadecimal."
+msgstr "algo deve indicare un algoritmo e hash il suo checksum in esadecimale."
 
 msgid "app password deleted — the grant remains"
 msgstr "password dell'applicazione eliminata – l'autorizzazione resta"
@@ -1379,6 +1404,11 @@ msgstr "eliminati {deleted}, non ancora completata"
 #. TRANSLATORS: a background job's last run ended with an error; {reason} is the error as the server logs it, in English
 msgid "failed: {reason}"
 msgstr "non riuscita: {reason}"
+
+#. TRANSLATORS: fileIds is a parameter name; keep it
+#, php-format
+msgid "fileIds must be a list of 1 to %s integers."
+msgstr "fileIds deve essere un elenco da 1 a %s numeri interi."
 
 #. TRANSLATORS: fileIds is a parameter name; keep it
 msgid "fileIds must be a non-empty list of integers."
