@@ -36,3 +36,28 @@ export function rowLink(row: { fileid: number, version?: { fileid: number }, tra
 
 	return fileLink(row.version?.fileid ?? row.fileid)
 }
+
+/** Twice the side a group's thumbnail is shown at, so a dense screen shows it sharp. */
+const PREVIEW_SIZE = 64
+
+/**
+ * One thumbnail for a group of duplicates. Its files share their content,
+ * so any of them shows it: core's preview of the first file the viewer can
+ * open, falling back to its type's icon; else the trash's preview of the
+ * first file in the trash. Null for a group of versions only, and for one
+ * whose files the viewer cannot open, whose previews would be refused.
+ */
+export function groupPreviewUrl(files: Array<{ fileid: number, version?: object, trash?: object, openable?: boolean }>): string | null {
+	const size = `x=${PREVIEW_SIZE}&y=${PREVIEW_SIZE}&a=1`
+	const file = files.find((row) => !row.version && !row.trash && row.openable !== false)
+
+	if (file) {
+		return `${generateUrl(FRONTEND.preview)}?fileId=${file.fileid}&${size}&mimeFallback=1`
+	}
+
+	const trashed = files.find((row) => !row.version && row.trash && row.openable !== false)
+
+	return trashed
+		? `${generateUrl(FRONTEND.trashPreview)}?fileId=${trashed.fileid}&${size}`
+		: null
+}

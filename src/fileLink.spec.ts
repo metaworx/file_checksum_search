@@ -4,7 +4,30 @@
  */
 
 import { describe, expect, it } from 'vitest'
-import { fileLink, rowLink } from './fileLink'
+import { fileLink, groupPreviewUrl, rowLink } from './fileLink'
+
+// Files sharing a full hash share their content, and so their preview: one
+// per group, from the first row that can show it.
+describe('groupPreviewUrl', () => {
+	const DELETED = { deletedAt: '2023-11-14T22:13:20+00:00' }
+	const VERSION = { fileid: 7, timestamp: '2023-11-14T22:13:20+00:00' }
+
+	it('asks core for the first file the viewer can open, with its type\'s icon to fall back on', () => {
+		const url = groupPreviewUrl([{ fileid: 3, version: VERSION }, { fileid: 4, openable: false }, { fileid: 5 }, { fileid: 6 }])
+
+		expect(url).toMatch(/\/core\/preview\?fileId=5&/)
+		expect(url).toContain('mimeFallback=1')
+	})
+
+	it('asks the trash where only a file in it can show the content', () => {
+		expect(groupPreviewUrl([{ fileid: 3, version: VERSION }, { fileid: 8, trash: DELETED }])).toMatch(/\/apps\/files_trashbin\/preview\?fileId=8&/)
+	})
+
+	it('has none for versions only, nor for files the viewer cannot open', () => {
+		expect(groupPreviewUrl([{ fileid: 3, version: VERSION }, { fileid: 9, version: VERSION, trash: DELETED }])).toBeNull()
+		expect(groupPreviewUrl([{ fileid: 4, openable: false }, { fileid: 8, trash: DELETED, openable: false }])).toBeNull()
+	})
+})
 
 describe('rowLink', () => {
 	// Files keeps a file's versions in its details and opens none itself.

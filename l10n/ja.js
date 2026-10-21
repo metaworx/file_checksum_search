@@ -311,6 +311,7 @@ OC.L10N.register(
     "Show in Duplicates" : "「重複ファイル」で表示",
     "Show only groups whose hash matches this" : "ハッシュがこれに一致する重複グループのみ表示",
     "Show only groups whose hash matches what you type. Whole values come first, then those that start with what you typed. Turn on \"Match anywhere in the hash\" to match it in the middle of a hash too. Upper case is fine." : "入力した内容にハッシュが一致する重複グループのみを表示します。完全一致が先に、続いて入力した文字列で始まるものが表示されます。ハッシュの途中にも一致させるには、「ハッシュ内で部分一致」をオンにしてください。大文字でも構いません。",
+    "Size and last change" : "サイズと最終変更日時",
     "Smallest group to list: files sharing a checksum, 2 to 100" : "表示する最小の重複グループ：同じチェックサムを持つファイル数（2～100）",
     "Specific rules" : "個別ルール",
     "Status" : "ステータス",

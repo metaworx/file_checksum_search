@@ -6,12 +6,14 @@
  * Collapsible duplicate group display.
  */
 
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
+import { formatFileSize } from '@nextcloud/files'
 import NcButton from '@nextcloud/vue/components/NcButton'
 import LocationIcon from '../../components/LocationIcon.vue'
 import { fileLabel, labelKind, trashLabel, versionLabel } from '../../fileLabel'
+import { groupPreviewUrl } from '../../fileLink'
 import type { DuplicateGroup as GroupType } from '../composables/useDuplicates'
-import { n, t } from '../../l10n'
+import { formatDateTime, n, t } from '../../l10n'
 
 // canVerify defaults to true: Vue reads an absent boolean prop as false.
 const props = withDefaults(defineProps<{
@@ -47,6 +49,30 @@ const fileCount = computed(() => n('file_checksum_search', '%n file', '%n files'
 /** Whether the group holds a file to read: a version, or a file in the trash, is not read again. */
 const readable = computed(() => props.group.files.some((file) => !file.version && !file.trash))
 
+/** One thumbnail for the group: its files share their content, and so their preview. */
+const previewUrl = computed(() => groupPreviewUrl(props.group.files))
+
+/** Hidden once it fails to load: a broken image tells nobody anything. */
+const previewFailed = ref(false)
+watch(previewUrl, () => {
+	previewFailed.value = false
+})
+
+/**
+ * A row's size, and its date where its label does not already carry one:
+ * a version's label says when its file had that content.
+ */
+function fileMeta(file: GroupType['files'][number]): string {
+	const parts: string[] = []
+	if (file.size !== undefined && file.size >= 0) {
+		parts.push(formatFileSize(file.size))
+	}
+	if (file.mtime !== undefined && !file.version) {
+		parts.push(formatDateTime(new Date(file.mtime * 1000)))
+	}
+	return parts.join(' · ')
+}
+
 const TITLES = {
 	verifyAll: t('file_checksum_search', 'Read every file in this group again, recalculate its checksum and compare'),
 	verify: t('file_checksum_search', 'Read this file again, recalculate its checksum and compare'),
@@ -55,6 +81,8 @@ const TITLES = {
 	notYoursSpoken: t('file_checksum_search', '(not in your files)'),
 	// TRANSLATORS: the tooltip of a duplicate group's MIME type: it comes from what the files hold, not from their names
 	mimetype: t('file_checksum_search', 'MIME type, detected from the content'),
+	// TRANSLATORS: the tooltip of a file's size and last change, shown beside it in a group of duplicates
+	meta: t('file_checksum_search', 'Size and last change'),
 }
 
 /** Why a file's verification failed: the error, or the hash it has now. */
@@ -72,7 +100,16 @@ function toggle(): void {
 <template>
 	<div class="db-group" :class="{ open }">
 		<div class="db-group-header" @click="toggle">
-			<div>
+			<div class="db-group-heading">
+				<!-- Decorative beside the rows that name the files: what they
+				     hold, once, since a shared hash is shared content. -->
+				<img v-if="previewUrl && !previewFailed"
+					class="db-preview"
+					data-testid="fcias-group-preview"
+					:src="previewUrl"
+					alt=""
+					loading="lazy"
+					@error="previewFailed = true">
 				<span class="db-algo-badge">{{ group.algo.toUpperCase() }}</span>
 				<!-- TRANSLATORS: a label on a group of duplicates whose files are all empty (zero bytes) -->
 				<span v-if="group.empty" class="db-empty-badge" data-testid="fcias-empty-group">{{ t('file_checksum_search', 'Empty files') }}</span>
@@ -129,6 +166,10 @@ function toggle(): void {
 						<span v-if="file.verified === true" class="db-verified">✓</span>
 						<span v-else-if="file.verified === false" class="db-mismatch">✗ ({{ mismatchText(file) }})</span>
 					</span>
+					<span v-if="fileMeta(file)"
+						class="db-file-meta"
+						data-testid="fcias-file-meta"
+						:title="TITLES.meta">{{ fileMeta(file) }}</span>
 					<!-- A version is not read again: it holds what its file held,
 					     and nothing writes to it; nor is a file in the trash. -->
 					<NcButton
@@ -263,8 +304,34 @@ function toggle(): void {
 
 /* min-width lets the path shrink instead of pushing the button out. */
 .db-file-label {
+	flex: 1 1 auto;
 	min-width: 0;
 	word-break: break-all;
+}
+
+/* Beside the button rather than under the path: the sizes and dates of a
+   group's rows stack in a column, where they can be compared. */
+.db-file-meta {
+	flex: 0 0 auto;
+	font-size: 12px;
+	color: var(--color-text-maxcontrast);
+	white-space: nowrap;
+	font-variant-numeric: tabular-nums;
+}
+
+/* min-width lets a long hash wrap instead of pushing the count out. */
+.db-group-heading {
+	min-width: 0;
+}
+
+/* Inline with the badges, as they flow, centred on their line. */
+.db-preview {
+	width: 32px;
+	height: 32px;
+	object-fit: cover;
+	vertical-align: middle;
+	border-radius: var(--border-radius);
+	margin-inline-end: 8px;
 }
 
 .db-file-item a {

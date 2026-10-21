@@ -311,6 +311,7 @@ OC.L10N.register(
     "Show in Duplicates" : "Show in Duplicates",
     "Show only groups whose hash matches this" : "Show only groups whose hash matches this",
     "Show only groups whose hash matches what you type. Whole values come first, then those that start with what you typed. Turn on \"Match anywhere in the hash\" to match it in the middle of a hash too. Upper case is fine." : "Show only groups whose hash matches what you type. Whole values come first, then those that start with what you typed. Turn on \"Match anywhere in the hash\" to match it in the middle of a hash too. Upper case is fine.",
+    "Size and last change" : "Size and last change",
     "Smallest group to list: files sharing a checksum, 2 to 100" : "Smallest group to list: files sharing a checksum, 2 to 100",
     "Specific rules" : "Specific rules",
     "Status" : "Status",

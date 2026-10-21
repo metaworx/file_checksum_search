@@ -311,6 +311,7 @@ OC.L10N.register(
     "Show in Duplicates" : "In “Duplicaten” tonen",
     "Show only groups whose hash matches this" : "Alleen groepen tonen waarvan de hash hiermee overeenkomt",
     "Show only groups whose hash matches what you type. Whole values come first, then those that start with what you typed. Turn on \"Match anywhere in the hash\" to match it in the middle of a hash too. Upper case is fine." : "Alleen groepen tonen waarvan de hash overeenkomt met wat je typt. Volledige waarden komen eerst, daarna de waarden die beginnen met wat je hebt getypt. Schakel “Overal in de hash zoeken” in om het ook midden in een hash te vinden. Hoofdletters zijn geen probleem.",
+    "Size and last change" : "Grootte en laatste wijziging",
     "Smallest group to list: files sharing a checksum, 2 to 100" : "Kleinste groep om te tonen: bestanden met dezelfde controlesom, 2 tot en met 100",
     "Specific rules" : "Specifieke regels",
     "Status" : "Status",

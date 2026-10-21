@@ -309,6 +309,7 @@
     "Show in Duplicates" : "Unter „Duplikate“ anzeigen",
     "Show only groups whose hash matches this" : "Nur Gruppen zeigen, deren Hash zu dieser Eingabe passt",
     "Show only groups whose hash matches what you type. Whole values come first, then those that start with what you typed. Turn on \"Match anywhere in the hash\" to match it in the middle of a hash too. Upper case is fine." : "Nur Gruppen zeigen, deren Hash zu Ihrer Eingabe passt. Vollständige Treffer kommen zuerst, dann Hashes, die mit Ihrer Eingabe beginnen. Aktivieren Sie „An beliebiger Stelle im Hash suchen“, damit die Eingabe auch mitten in einem Hash gefunden wird. Groß- und Kleinschreibung spielt keine Rolle.",
+    "Size and last change" : "Größe und letzte Änderung",
     "Smallest group to list: files sharing a checksum, 2 to 100" : "Kleinste aufzulistende Gruppe: Dateien mit gleicher Prüfsumme, 2 bis 100",
     "Specific rules" : "Spezifische Regeln",
     "Status" : "Status",

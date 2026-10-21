@@ -1035,6 +1035,10 @@ msgstr "N'afficher que les groupes dont l'empreinte correspond à cette saisie"
 msgid "Show only groups whose hash matches what you type. Whole values come first, then those that start with what you typed. Turn on \"Match anywhere in the hash\" to match it in the middle of a hash too. Upper case is fine."
 msgstr "N'afficher que les groupes dont l'empreinte correspond à votre saisie. Les valeurs complètes viennent en premier, puis celles qui commencent par ce que vous avez saisi. Activez « Rechercher n'importe où dans l'empreinte » pour la trouver aussi au milieu d'une empreinte. Les majuscules sont acceptées."
 
+#. TRANSLATORS: the tooltip of a file's size and last change, shown beside it in a group of duplicates
+msgid "Size and last change"
+msgstr "Taille et dernière modification"
+
 msgid "Smallest group to list: files sharing a checksum, 2 to 100"
 msgstr "Plus petit groupe à afficher : fichiers ayant la même somme de contrôle, de 2 à 100"
 

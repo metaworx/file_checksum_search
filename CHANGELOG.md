@@ -11,6 +11,11 @@ the first stable release.
 
 ## [Unreleased]
 
+### Added
+
+- `GET /api/v1/duplicates`: each file carries `mtime` and `size`, and
+  the Duplicates page shows them, with one preview per group.
+
 ## [0.29.1] - 2026-10-21
 
 ### Fixed

@@ -311,6 +311,7 @@ OC.L10N.register(
     "Show in Duplicates" : "Afficher dans Doublons",
     "Show only groups whose hash matches this" : "N'afficher que les groupes dont l'empreinte correspond à cette saisie",
     "Show only groups whose hash matches what you type. Whole values come first, then those that start with what you typed. Turn on \"Match anywhere in the hash\" to match it in the middle of a hash too. Upper case is fine." : "N'afficher que les groupes dont l'empreinte correspond à votre saisie. Les valeurs complètes viennent en premier, puis celles qui commencent par ce que vous avez saisi. Activez « Rechercher n'importe où dans l'empreinte » pour la trouver aussi au milieu d'une empreinte. Les majuscules sont acceptées.",
+    "Size and last change" : "Taille et dernière modification",
     "Smallest group to list: files sharing a checksum, 2 to 100" : "Plus petit groupe à afficher : fichiers ayant la même somme de contrôle, de 2 à 100",
     "Specific rules" : "Règles spécifiques",
     "Status" : "Statut",

@@ -882,9 +882,28 @@ class HashIndexServiceTest
 	}
 
 	/**
+	 * Every listed file carries its time and size, as the lookup read them:
+	 * choosing which copy to keep needs more than a path.
+	 */
+	public function testListedFilesCarryTheirTimeAndSize(): void
+	{
+		$this->duplicates->method( 'findAllDuplicates' )
+		                 ->willReturn( [ $this->group( 'abc', [ 42, 108 ] ) ] )
+		;
+		$this->filecacheService->method( 'batchLookupFilecachePaths' )
+		                       ->willReturn( $this->paths( [ 42, 108 ] ) )
+		;
+
+		$files = $this->service->listDuplicatesForUser( 'bob' )['duplicates'][0]['files'];
+
+		$this->assertSame( [ 1700000042, 1700000108 ], array_column( $files, 'mtime' ) );
+		$this->assertSame( [ 1042, 1108 ], array_column( $files, 'size' ) );
+	}
+
+	/**
 	 * @param  int[]  $fileIds
 	 *
-	 * @return array<int, array{path: string, name: string, storage_id: string, user: string}>
+	 * @return array<int, array{path: string, name: string, storage_id: string, owner: string, location: string, mtime: int, size: int}>
 	 */
 	private function paths( array $fileIds ): array
 	{
@@ -898,6 +917,8 @@ class HashIndexServiceTest
 				'storage_id' => 'home::bob',
 				'owner'      => 'bob',
 				'location'   => "home:bob//f$fileId.pdf",
+				'mtime'      => 1700000000 + $fileId,
+				'size'       => 1000 + $fileId,
 			];
 		}
 

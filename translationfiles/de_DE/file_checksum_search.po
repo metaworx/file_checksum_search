@@ -1031,6 +1031,10 @@ msgstr "Nur Gruppen zeigen, deren Hash zu dieser Eingabe passt"
 msgid "Show only groups whose hash matches what you type. Whole values come first, then those that start with what you typed. Turn on \"Match anywhere in the hash\" to match it in the middle of a hash too. Upper case is fine."
 msgstr "Nur Gruppen zeigen, deren Hash zu Ihrer Eingabe passt. Vollständige Treffer kommen zuerst, dann Hashes, die mit Ihrer Eingabe beginnen. Aktivieren Sie „An beliebiger Stelle im Hash suchen“, damit die Eingabe auch mitten in einem Hash gefunden wird. Groß- und Kleinschreibung spielt keine Rolle."
 
+#. TRANSLATORS: the tooltip of a file's size and last change, shown beside it in a group of duplicates
+msgid "Size and last change"
+msgstr "Größe und letzte Änderung"
+
 msgid "Smallest group to list: files sharing a checksum, 2 to 100"
 msgstr "Kleinste aufzulistende Gruppe: Dateien mit gleicher Prüfsumme, 2 bis 100"
 

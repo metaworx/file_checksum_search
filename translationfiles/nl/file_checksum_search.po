@@ -1031,6 +1031,10 @@ msgstr "Alleen groepen tonen waarvan de hash hiermee overeenkomt"
 msgid "Show only groups whose hash matches what you type. Whole values come first, then those that start with what you typed. Turn on \"Match anywhere in the hash\" to match it in the middle of a hash too. Upper case is fine."
 msgstr "Alleen groepen tonen waarvan de hash overeenkomt met wat je typt. Volledige waarden komen eerst, daarna de waarden die beginnen met wat je hebt getypt. Schakel “Overal in de hash zoeken” in om het ook midden in een hash te vinden. Hoofdletters zijn geen probleem."
 
+#. TRANSLATORS: the tooltip of a file's size and last change, shown beside it in a group of duplicates
+msgid "Size and last change"
+msgstr "Grootte en laatste wijziging"
+
 msgid "Smallest group to list: files sharing a checksum, 2 to 100"
 msgstr "Kleinste groep om te tonen: bestanden met dezelfde controlesom, 2 tot en met 100"
 

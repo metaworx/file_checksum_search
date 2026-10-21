@@ -323,6 +323,31 @@ class PublicApiTest
 	}
 
 	/**
+	 * Each listed file carries its time and size as the filecache holds
+	 * them: choosing which copy to keep needs more than a path.
+	 *
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
+	public function testListedDuplicatesCarryTheirTimeAndSize(): void
+	{
+		$response = $this->httpGet( "/api/v1/duplicates?algo=sha1&hash=$this->sharedSha1Hash" );
+		$files    = array_column( $response['duplicates'][0]['files'] ?? [], null, 'fileid' );
+
+		$userFolder = Server::get( IRootFolder::class )
+		                    ->getUserFolder( self::$testUser )
+		;
+
+		foreach ( [ $this->testFileId1, $this->testFileId2 ] as $fileId )
+		{
+			$node = $userFolder->getFirstNodeById( $fileId );
+
+			$this->assertArrayHasKey( $fileId, $files );
+			$this->assertSame( $node?->getMTime(), $files[ $fileId ]['mtime'] );
+			$this->assertSame( $node?->getSize(), $files[ $fileId ]['size'] );
+		}
+	}
+
+	/**
 	 * Two empty files beside the seeded pair: the listing leaves their group
 	 * out until asked, and marks it when it lists it. The per-file lookup,
 	 * which names the file, answers with the group and its mark. Against a

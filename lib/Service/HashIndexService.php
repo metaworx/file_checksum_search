@@ -397,9 +397,11 @@ class HashIndexService
 	 *
 	 * @return array{duplicates: array<int, array{algo: string, hash_value: string, file_count: int, empty: bool,
 	 *                            files: array<int, array{fileid: int, path: string, name: string, owner: ?string,
-	 *                            location: string}>}>, total_groups: int, pagination: array{offset: int, limit: int}}
+	 *                            location: string, mtime: int, size: int}>}>, total_groups: int,
+	 *                            pagination: array{offset: int, limit: int}}
 	 *         `path` is the first named account's path for the file, with a
 	 *         leading slash; for the whole instance, its path below its area.
+	 *         `mtime` and `size` as {@see FilecacheService::batchLookupFilecachePaths()}.
 	 */
 	public function listDuplicatesForUser(
 		string|array|null $userId,
@@ -482,6 +484,8 @@ class HashIndexService
 							'name'     => $seen['name'],
 							'owner'    => $seen['owner'] ?? null,
 							'location' => $seen['location'],
+							'mtime'    => $seen['mtime'],
+							'size'     => $seen['size'],
 						]
 							+ ( isset( $seen['version'] ) ? [ 'version' => $seen['version'] ] : [] )
 							+ ( isset( $seen['trash'] ) ? [ 'trash' => $seen['trash'] ] : [] );
@@ -527,7 +531,7 @@ class HashIndexService
 	 *                                                   null for every file.
 	 * @param  bool                      $withLocalPath  As {@see FilecacheService::batchLookupFilecachePaths()}.
 	 *
-	 * @return array<int, array{path: string, name: string, storage: int, storage_id: string, internal_path: string, owner: ?string, location: string, local_path?: ?string, file?: array{fileid: int, internal_path: string, path: string, location: string, name: string}, version?: array{fileid: int, timestamp: string}, trash?: array{deletedAt: string}}>
+	 * @return array<int, array{path: string, name: string, storage: int, storage_id: string, internal_path: string, owner: ?string, location: string, mtime: int, size: int, local_path?: ?string, file?: array{fileid: int, internal_path: string, path: string, location: string, name: string}, version?: array{fileid: int, timestamp: string}, trash?: array{deletedAt: string}}>
 	 */
 	public function batchLookupFilecachePaths(
 		array             $fileIds,

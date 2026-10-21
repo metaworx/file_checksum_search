@@ -98,3 +98,38 @@ describe('DuplicateGroup, the MIME type', () => {
 		expect(mounted().find('[data-testid="fcias-group-mimetype"]').exists()).toBe(false)
 	})
 })
+
+describe('DuplicateGroup, choosing between copies', () => {
+	const files = [
+		{ fileid: 1, path: '/a.pdf', name: 'a.pdf', mtime: 1700000000, size: 2048 },
+		{ fileid: 3, path: 'versions:///b.pdf', name: 'b.pdf', mtime: 1700000500, size: 2048, version: { fileid: 2, timestamp: '2023-11-14T22:13:20+00:00' } },
+	]
+
+	it('shows each row\'s size, and the date a version\'s label does not already carry', () => {
+		const metas = mounted({ files }).findAll('.db-file-item').map((item) => item.find('[data-testid="fcias-file-meta"]').text())
+
+		expect(metas[0]).toMatch(/^2 KB · \S/)
+		expect(metas[1]).toBe('2 KB')
+	})
+
+	it('shows nothing for a row the server gave neither', () => {
+		expect(mounted().find('[data-testid="fcias-file-meta"]').exists()).toBe(false)
+	})
+
+	// One thumbnail: a shared hash is shared content.
+	it('shows one preview on the header, and hides it when it fails to load', async () => {
+		const wrapper = mounted({ files })
+		const previews = wrapper.findAll('[data-testid="fcias-group-preview"]')
+
+		expect(previews).toHaveLength(1)
+		expect(previews[0].attributes('src')).toMatch(/\/core\/preview\?fileId=1&/)
+
+		await previews[0].trigger('error')
+
+		expect(wrapper.find('[data-testid="fcias-group-preview"]').exists()).toBe(false)
+	})
+
+	it('shows none for a group of versions only', () => {
+		expect(mounted({ files: [files[1]] }).find('[data-testid="fcias-group-preview"]').exists()).toBe(false)
+	})
+})

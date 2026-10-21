@@ -30,6 +30,10 @@ export interface DuplicateFileItem {
 	version?: { fileid: number, timestamp: string }
 	/** Present on a file in the trash: when it was deleted. */
 	trash?: { deletedAt: string }
+	/** When the row was last changed, in seconds since the epoch; a version's is when it was kept. */
+	mtime?: number
+	/** The row's size in bytes. */
+	size?: number
 	verified?: boolean
 	verified_hash?: string
 	verify_error?: string

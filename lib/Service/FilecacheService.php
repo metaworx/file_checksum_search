@@ -1621,12 +1621,14 @@ class FilecacheService
 	 *         default: it costs a user lookup per home storage, and most
 	 *         callers render rows for people.
 	 *
-	 * @return array<int, array{path: string, name: string, storage: int, storage_id: string, internal_path: string, owner: ?string, location: string, local_path?: ?string, file?: array{fileid: int, internal_path: string, path: string, location: string, name: string}, version?: array{fileid: int, timestamp: string}, trash?: array{deletedAt: string}}>
+	 * @return array<int, array{path: string, name: string, storage: int, storage_id: string, internal_path: string, owner: ?string, location: string, mtime: int, size: int, local_path?: ?string, file?: array{fileid: int, internal_path: string, path: string, location: string, name: string}, version?: array{fileid: int, timestamp: string}, trash?: array{deletedAt: string}}>
 	 *         `path` is the file's path below its area, with a leading slash
 	 *         — the owner's view of a home file — and `internal_path` the
 	 *         filecache's; `owner` is the uid a home file belongs to, null for
 	 *         a group folder or an external storage, which have none;
-	 *         `location` is {@see FileLocation::describe()}. A version's
+	 *         `location` is {@see FileLocation::describe()}; `mtime` and
+	 *         `size` are the filecache's for the row itself, so a version's
+	 *         time is when it was kept, not `version.timestamp`. A version's
 	 *         `path`, `name` and `location` are its file's, and a trashed
 	 *         file's those of its place before the deletion, the first two
 	 *         after {@see schemeOf()}; it carries `file` and `version` or
@@ -1652,7 +1654,7 @@ class FilecacheService
 
 		$qb = $this->db->getQueryBuilder();
 
-		$qb->select( 'fc.fileid', 'fc.path', 'fc.name', 'fc.storage', 's.id' )
+		$qb->select( 'fc.fileid', 'fc.path', 'fc.name', 'fc.storage', 'fc.mtime', 'fc.size', 's.id' )
 		   ->from( 'filecache', 'fc' )
 		   ->innerJoin(
 			   'fc',
@@ -1707,6 +1709,8 @@ class FilecacheService
 				'internal_path' => (string) $row['path'],
 				'owner'         => $location->owner,
 				'location'      => $location->describe(),
+				'mtime'         => (int) $row['mtime'],
+				'size'          => (int) $row['size'],
 			];
 
 			$locations[] = $location;

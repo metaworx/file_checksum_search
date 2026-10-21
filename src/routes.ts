@@ -104,6 +104,10 @@ export const FRONTEND = {
 	fileLink: '/f/{fileid}',
 	/** Files' trash, where a deleted file can be restored ({@see rowLink}) */
 	trashLink: '/apps/files/trashbin/{fileid}',
+	/** Core's thumbnail of a file the viewer can open, by `fileId` ({@see groupPreviewUrl}) */
+	preview: '/core/preview',
+	/** The trash's thumbnail of a file in the viewer's trash, by `fileId` ({@see groupPreviewUrl}) */
+	trashPreview: '/apps/files_trashbin/preview',
 	/** The Duplicates page; its tab, filters and scope ride in the fragment ({@see urlState}). */
 	duplicates: '/apps/file_checksum_search/duplicates',
 } as const

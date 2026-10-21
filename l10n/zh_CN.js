@@ -311,6 +311,7 @@ OC.L10N.register(
     "Show in Duplicates" : "在“重复文件”中显示",
     "Show only groups whose hash matches this" : "仅显示哈希值与此相符的文件组",
     "Show only groups whose hash matches what you type. Whole values come first, then those that start with what you typed. Turn on \"Match anywhere in the hash\" to match it in the middle of a hash too. Upper case is fine." : "仅显示哈希值与您的输入相符的文件组。完全匹配的值排在最前，其后是以您输入的内容开头的值。开启“在哈希值的任意位置匹配”，即可同时匹配哈希值中间的部分。不区分大小写。",
+    "Size and last change" : "大小和最后更改时间",
     "Smallest group to list: files sharing a checksum, 2 to 100" : "列出的最小文件组：校验和相同的文件数，2 到 100",
     "Specific rules" : "特定规则",
     "Status" : "状态",
