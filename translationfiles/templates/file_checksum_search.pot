@@ -710,6 +710,10 @@ msgstr ""
 msgid "Listing every rule requires administrator rights."
 msgstr ""
 
+#. TRANSLATORS a button under the duplicate groups: show the next ones after those already shown
+msgid "Load more"
+msgstr ""
+
 msgid "Loading checksums …"
 msgstr ""
 
@@ -797,9 +801,6 @@ msgid "Network error"
 msgstr ""
 
 msgid "New rule"
-msgstr ""
-
-msgid "Next"
 msgstr ""
 
 msgid "Nextcloud still lists the file, and its storage no longer has it, so its checksums were deleted; scanning the files brings the list in line where a scan can reach the file"
@@ -971,9 +972,6 @@ msgstr ""
 
 #. TRANSLATORS prefill: fill the list of the picker before anything is typed
 msgid "Prefill up to"
-msgstr ""
-
-msgid "Previous"
 msgstr ""
 
 msgid "Priority"

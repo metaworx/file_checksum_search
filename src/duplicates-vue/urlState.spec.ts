@@ -44,11 +44,13 @@ describe('listingFromParams', () => {
 	// `limit=` with nothing after it was read as 0 and clamped to 1: a
 	// page of one group from an address that named no limit at all.
 	it('reads an empty value as missing, not as zero', () => {
-		const params = new URLSearchParams('limit=&minCount=&offset=%20')
+		const params = new URLSearchParams('limit=&minCount=')
 		expect(listingFromParams(params)).toEqual(LISTING_DEFAULTS)
 	})
 
-	it('reads every field, trimmed and typed', () => {
+	// The page loads more rather than paging: how far an older address had
+	// paged is no filter, and is not read.
+	it('reads every field, trimmed and typed, and ignores an offset', () => {
 		const params = new URLSearchParams('hash=%20ABC%20&anywhere=1&path=%20%2FPhotos%2F2019%20&algo=sha256&includeEmpty=1&minCount=3&limit=10&offset=20')
 		expect(listingFromParams(params)).toEqual({
 			hash: 'ABC',
@@ -58,15 +60,14 @@ describe('listingFromParams', () => {
 			includeEmpty: true,
 			minCount: 3,
 			limit: 10,
-			offset: 20,
 		})
 	})
 
 	it('clamps the numbers to what the fields accept and falls back on nonsense', () => {
-		const params = new URLSearchParams('minCount=0&limit=9999&offset=-5')
-		expect(listingFromParams(params)).toMatchObject({ minCount: 2, limit: 500, offset: 0 })
-		expect(listingFromParams(new URLSearchParams('minCount=x&limit=y&offset=z')))
-			.toMatchObject({ minCount: 2, limit: 50, offset: 0 })
+		const params = new URLSearchParams('minCount=0&limit=9999')
+		expect(listingFromParams(params)).toMatchObject({ minCount: 2, limit: 500 })
+		expect(listingFromParams(new URLSearchParams('minCount=x&limit=y')))
+			.toMatchObject({ minCount: 2, limit: 50 })
 	})
 
 	it('cuts a path longer than the field takes', () => {
@@ -129,7 +130,7 @@ describe('fragmentFor', () => {
 	})
 
 	it('round-trips through parse', () => {
-		const listing = { hash: 'DEADBEEF', anywhere: true, path: '/Archive/**/*.pdf', algo: 'sha256', includeEmpty: true, minCount: 3, limit: 25, offset: 50 }
+		const listing = { hash: 'DEADBEEF', anywhere: true, path: '/Archive/**/*.pdf', algo: 'sha256', includeEmpty: true, minCount: 3, limit: 25 }
 		const scope = { all: false, users: ['alice'], groups: ['team', 'other'] }
 		const { tab, params } = parseFragment(fragmentFor('others', listing, scope))
 		expect(tab).toBe('others')
@@ -141,7 +142,7 @@ describe('fragmentFor', () => {
 describe('sameParams', () => {
 	it('compares every field', () => {
 		expect(sameParams({ ...LISTING_DEFAULTS }, { ...LISTING_DEFAULTS })).toBe(true)
-		expect(sameParams({ ...LISTING_DEFAULTS }, { ...LISTING_DEFAULTS, offset: 1 })).toBe(false)
+		expect(sameParams({ ...LISTING_DEFAULTS }, { ...LISTING_DEFAULTS, limit: 1 })).toBe(false)
 		expect(sameParams({ ...LISTING_DEFAULTS }, { ...LISTING_DEFAULTS, includeEmpty: true })).toBe(false)
 		expect(sameParams({ ...LISTING_DEFAULTS }, { ...LISTING_DEFAULTS, path: 'Backup' })).toBe(false)
 	})

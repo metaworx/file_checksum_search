@@ -16,7 +16,10 @@ import { MAX_PATTERN_LENGTH } from './pathPattern'
 
 export type Tab = 'mine' | 'others' | 'help'
 
-/** What one listing shows: the filters and the page. */
+/**
+ * What one listing shows: the filters. Not how far it was read: *Load more*
+ * appends, and an `offset` in an older address is ignored.
+ */
 export interface ListingParams {
 	hash: string
 	anywhere: boolean
@@ -27,7 +30,6 @@ export interface ListingParams {
 	includeEmpty: boolean
 	minCount: number
 	limit: number
-	offset: number
 }
 
 export const LISTING_DEFAULTS: Readonly<ListingParams> = Object.freeze({
@@ -38,7 +40,6 @@ export const LISTING_DEFAULTS: Readonly<ListingParams> = Object.freeze({
 	includeEmpty: false,
 	minCount: 2,
 	limit: 50,
-	offset: 0,
 })
 
 /** The tab a fragment names, and whatever follows its `?`. */
@@ -80,7 +81,6 @@ export function listingFromParams(params: URLSearchParams, algorithmIds: readonl
 		includeEmpty: params.get('includeEmpty') === '1',
 		minCount: bounded(params.get('minCount'), 2, 100, LISTING_DEFAULTS.minCount),
 		limit: bounded(params.get('limit'), 1, 500, LISTING_DEFAULTS.limit),
-		offset: bounded(params.get('offset'), 0, Number.MAX_SAFE_INTEGER, 0),
 	}
 }
 
@@ -109,7 +109,6 @@ export function sameParams(a: ListingParams, b: ListingParams): boolean {
 		&& a.includeEmpty === b.includeEmpty
 		&& a.minCount === b.minCount
 		&& a.limit === b.limit
-		&& a.offset === b.offset
 }
 
 /** The fragment for a tab and what it shows; defaults are left unsaid. */
@@ -139,9 +138,6 @@ export function fragmentFor(tab: Tab, listing: ListingParams | null = null, scop
 		}
 		if (listing.limit !== LISTING_DEFAULTS.limit) {
 			params.set('limit', String(listing.limit))
-		}
-		if (listing.offset > 0) {
-			params.set('offset', String(listing.offset))
 		}
 	}
 

@@ -709,6 +709,10 @@ msgstr "Lazy (delete checksums now, recalculate later)"
 msgid "Listing every rule requires administrator rights."
 msgstr "Listing every rule requires administrator rights."
 
+#. TRANSLATORS a button under the duplicate groups: show the next ones after those already shown
+msgid "Load more"
+msgstr "Load more"
+
 msgid "Loading checksums …"
 msgstr "Loading checksums …"
 
@@ -797,9 +801,6 @@ msgstr "Network error"
 
 msgid "New rule"
 msgstr "New rule"
-
-msgid "Next"
-msgstr "Next"
 
 msgid "Nextcloud still lists the file, and its storage no longer has it, so its checksums were deleted; scanning the files brings the list in line where a scan can reach the file"
 msgstr "Nextcloud still lists the file, and its storage no longer has it, so its checksums were deleted; scanning the files brings the list in line where a scan can reach the file"
@@ -971,9 +972,6 @@ msgstr "Preferred algorithm saved."
 #. TRANSLATORS prefill: fill the list of the picker before anything is typed
 msgid "Prefill up to"
 msgstr "Prefill up to"
-
-msgid "Previous"
-msgstr "Previous"
 
 msgid "Priority"
 msgstr "Priority"

@@ -37,6 +37,9 @@ the first stable release.
 - Duplicates page: *Verify all* and *Verify* in a menu on each group and
   row; the header in columns; badges for a version and a verified file.
 
+- Duplicates page: *Load more* adds the next groups under those shown,
+  in place of Previous and Next; the address no longer holds `offset`.
+
 ### Fixed
 
 - `GET /api/v1/duplicates` and the Duplicates page: a page no longer

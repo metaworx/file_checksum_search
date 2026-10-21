@@ -271,18 +271,19 @@ describe( 'FCIAS Duplicates page', () => {
 
 	// Every control says what it is, with a label a reader can see and a
 	// help button beside it. By the `for`, not the caption.
-	it( 'labels the algorithm, min, limit and hash controls', () => {
+	it( 'labels the algorithm, min, limit, hash and path controls', () => {
 		cy.visit( DUPLICATES_URL )
 		for ( const id of [
 			'fcias-duplicates-algorithm',
 			'fcias-duplicates-min',
 			'fcias-duplicates-limit',
 			'fcias-duplicates-hash',
+			'fcias-duplicates-path',
 		] ) {
 			cy.get( `label[for="${ id }"]`, { timeout: FIND_TIMEOUT } ).should( 'exist' )
 			cy.get( `#${ id }` ).should( 'exist' )
 		}
-		cy.get( '.db-label .fcias-help-icon' ).should( 'have.length', 4 )
+		cy.get( '.db-label .fcias-help-icon' ).should( 'have.length', 5 )
 	} )
 
 	// The tab asks the server who may be named, and shows the listing on its

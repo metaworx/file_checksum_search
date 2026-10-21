@@ -716,6 +716,10 @@ msgstr "Différé (supprimer les sommes de contrôle maintenant, recalculer plus
 msgid "Listing every rule requires administrator rights."
 msgstr "Lister toutes les règles nécessite les droits d'administrateur."
 
+#. TRANSLATORS a button under the duplicate groups: show the next ones after those already shown
+msgid "Load more"
+msgstr "Charger plus"
+
 msgid "Loading checksums …"
 msgstr "Chargement des sommes de contrôle…"
 
@@ -805,9 +809,6 @@ msgstr "Erreur réseau"
 
 msgid "New rule"
 msgstr "Nouvelle règle"
-
-msgid "Next"
-msgstr "Suivant"
 
 msgid "Nextcloud still lists the file, and its storage no longer has it, so its checksums were deleted; scanning the files brings the list in line where a scan can reach the file"
 msgstr "Nextcloud répertorie encore le fichier, mais son stockage ne le contient plus, si bien que ses sommes de contrôle ont été supprimées ; une analyse des fichiers remet la liste à jour là où elle atteint le fichier"
@@ -981,9 +982,6 @@ msgstr "Algorithme préféré enregistré."
 #. TRANSLATORS prefill: fill the list of the picker before anything is typed
 msgid "Prefill up to"
 msgstr "Préremplir jusqu'à"
-
-msgid "Previous"
-msgstr "Précédent"
 
 msgid "Priority"
 msgstr "Priorité"

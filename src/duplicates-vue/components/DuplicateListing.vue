@@ -106,19 +106,18 @@ const {
 	algo,
 	minCount,
 	limit,
-	offset,
 	groups,
 	loading,
+	loadingMore,
 	hasMore,
 	verifying,
 	error,
 	load,
+	loadMore,
+	reload,
 	verifyGroups,
 	verifyFile,
 	fileUrl,
-	resetOffset,
-	prevPage,
-	nextPage,
 } = useDuplicates()
 
 /**
@@ -131,10 +130,7 @@ let hashTimer: ReturnType<typeof setTimeout> | undefined
 function onHashInput(value: string | number): void {
 	hash.value = String(value)
 	clearTimeout(hashTimer)
-	hashTimer = setTimeout(() => {
-		resetOffset()
-		load()
-	}, 300)
+	hashTimer = setTimeout(load, 300)
 }
 
 /** The path filter reloads as it is typed, after the same pause as the hash. */
@@ -143,17 +139,13 @@ let pathTimer: ReturnType<typeof setTimeout> | undefined
 function onPathInput(value: string | number): void {
 	path.value = String(value)
 	clearTimeout(pathTimer)
-	pathTimer = setTimeout(() => {
-		resetOffset()
-		load()
-	}, 300)
+	pathTimer = setTimeout(load, 300)
 }
 
 function onAnywhere(value: boolean): void {
 	anywhere.value = value
 	// Only worth re-asking when there is a term for it to change.
 	if (hash.value.trim()) {
-		resetOffset()
 		load()
 	}
 }
@@ -175,7 +167,6 @@ const awaitingScope = computed(
 
 watch(() => props.scope, (value) => {
 	activeScope.value = value
-	resetOffset()
 	if (!awaitingScope.value) {
 		load()
 	} else {
@@ -194,7 +185,6 @@ watch(loading, (now, before) => {
 })
 
 function refresh(): void {
-	resetOffset()
 	load()
 }
 
@@ -231,16 +221,6 @@ function onLimit(value: string | number): void {
 	refresh()
 }
 
-function onPrevPage(): void {
-	prevPage()
-	load()
-}
-
-function onNextPage(): void {
-	nextPage()
-	load()
-}
-
 function currentParams(): ListingParams {
 	return {
 		hash: hash.value,
@@ -250,7 +230,6 @@ function currentParams(): ListingParams {
 		includeEmpty: includeEmpty.value,
 		minCount: minCount.value,
 		limit: limit.value,
-		offset: offset.value,
 	}
 }
 
@@ -272,7 +251,6 @@ function applyParams(next: ListingParams, force = false): void {
 	includeEmpty.value = next.includeEmpty
 	minCount.value = next.minCount
 	limit.value = next.limit
-	offset.value = next.offset
 	if (!awaitingScope.value) {
 		load()
 	} else {
@@ -289,7 +267,7 @@ watch(() => props.params, (next) => {
 // The URL follows the controls. Reported on every change, a keystroke in
 // the hash field included; the page replaces the address rather than
 // pushing it, so that costs no history.
-watch([hash, anywhere, path, algo, includeEmpty, minCount, limit, offset], () => {
+watch([hash, anywhere, path, algo, includeEmpty, minCount, limit], () => {
 	emit('update:params', currentParams())
 })
 
@@ -444,7 +422,7 @@ async function onConfirmDelete(): Promise<void> {
 		toastError(NETWORK_ERROR)
 	} finally {
 		acting.value = false
-		load()
+		reload()
 	}
 }
 
@@ -481,7 +459,7 @@ async function undoTrash(group: GroupType, fileIds: number[]): Promise<void> {
 		toastError(NETWORK_ERROR)
 	} finally {
 		acting.value = false
-		load()
+		reload()
 	}
 }
 
@@ -498,7 +476,7 @@ async function restore(group: GroupType, fileId: number, as: RestoreAs): Promise
 		toastError(NETWORK_ERROR)
 	} finally {
 		acting.value = false
-		load()
+		reload()
 	}
 }
 
@@ -674,12 +652,12 @@ onBeforeUnmount(() => {
 			@confirm="onConfirmDelete"
 			@close="confirming = null" />
 
-		<div class="db-pagination">
-			<NcButton v-if="offset > 0" @click="onPrevPage">
-				← {{ t('file_checksum_search', 'Previous') }}
-			</NcButton>
-			<NcButton v-if="hasMore" @click="onNextPage">
-				{{ t('file_checksum_search', 'Next') }} →
+		<!-- Appends, rather than paging: what is shown, and what is chosen
+		     among it, stays, so a choice can span more than one load. -->
+		<div v-if="hasMore && !loading && !awaitingScope" class="db-pagination">
+			<NcButton data-testid="fcias-load-more" :disabled="loadingMore" @click="loadMore">
+				<!-- TRANSLATORS: a button under the duplicate groups: show the next ones after those already shown -->
+				{{ t('file_checksum_search', 'Load more') }}
 			</NcButton>
 		</div>
 	</div>

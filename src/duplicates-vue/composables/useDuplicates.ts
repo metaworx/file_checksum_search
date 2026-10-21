@@ -80,15 +80,18 @@ interface State {
 	/** List the empty files' groups too, which the server leaves out by default. */
 	includeEmpty: boolean
 	minCount: number
+	/** How many groups a load asks for, the first and each one more. */
 	limit: number
-	offset: number
 	/**
-	 * Where the next page starts, as the server said: it counts groups the
-	 * viewer never sees, so it is not offset + limit. Null on the last page.
+	 * Where the next load starts, as the server said: it counts groups the
+	 * viewer never sees, so it is not the number shown. Null at the end.
 	 */
 	nextOffset: number | null
 	groups: DuplicateGroup[]
+	/** A fresh load: the listing waits for it. */
 	loading: boolean
+	/** One more page on its way; the groups shown stay. */
+	loadingMore: boolean
 	hasMore: boolean
 	verifying: boolean
 	error: string | null
@@ -109,10 +112,10 @@ export function useDuplicates() {
 		includeEmpty: false,
 		minCount: 2,
 		limit: 50,
-		offset: 0,
 		nextOffset: null,
 		groups: [],
 		loading: false,
+		loadingMore: false,
 		hasMore: false,
 		verifying: false,
 		error: null,
@@ -123,108 +126,207 @@ export function useDuplicates() {
 
 	let abortController: AbortController | null = null
 
-	/** The offsets of the pages before this one, for Previous: the server's offsets cannot be counted back. */
-	const previousOffsets: number[] = []
-
 	// Set when a verification run stopped early on the recalc rate limit,
 	// so the next run resumes instead of replaying what it already did.
 	let verifyInterrupted = false
 
-	async function load(): Promise<void> {
+	/** The most groups one request may ask for, as the server takes it. */
+	const MOST_PER_REQUEST = 500
+
+	/** A page of groups, or the cross-account route's refusal. */
+	type Page = { groups: DuplicateGroup[], nextOffset: number | null } | 'refused'
+
+	/** A new request, the one before it cancelled: its answer would be out of date. */
+	function newSignal(): AbortSignal {
 		abortController?.abort()
 		abortController = new AbortController()
-		const { signal } = abortController
+		return abortController.signal
+	}
 
-		state.loading = true
-		state.error = null
+	/**
+	 * One page of groups from $offset. Null where a newer request began
+	 * while the features were read; that one answers.
+	 */
+	async function fetchPage(offset: number, limit: number, signal: AbortSignal): Promise<Page | null> {
+		const params = new URLSearchParams({
+			limit: String(limit),
+			offset: String(offset),
+			minCount: String(state.minCount),
+		})
+		if (state.algo) {
+			params.set('algo', state.algo)
+		}
+		if (state.hash.trim()) {
+			params.set('hash', state.hash.trim())
+			if (state.anywhere) {
+				params.set('anywhere', '1')
+			}
+		}
+		if (state.path.trim()) {
+			params.set('path', state.path.trim())
+		}
+		if (state.includeEmpty) {
+			params.set('includeEmpty', '1')
+		}
+		// Each group's type, while the server detects types: asked for
+		// otherwise, the listing would be refused.
+		const asked = (await fetchFeatures()).mimetype
+		if (asked) {
+			params.set('mimetype', '1')
+		}
+		// A newer load() began while the features were read: it asks.
+		if (signal.aborted) {
+			return null
+		}
 
-		try {
-			const params = new URLSearchParams({
-				limit: String(state.limit),
-				offset: String(state.offset),
-				minCount: String(state.minCount),
-			})
-			if (state.algo) {
-				params.set('algo', state.algo)
-			}
-			if (state.hash.trim()) {
-				params.set('hash', state.hash.trim())
-				if (state.anywhere) {
-					params.set('anywhere', '1')
-				}
-			}
-			if (state.path.trim()) {
-				params.set('path', state.path.trim())
-			}
-			if (state.includeEmpty) {
-				params.set('includeEmpty', '1')
-			}
-			// Each group's type, while the server detects types: asked for
-			// otherwise, the listing would be refused.
-			const asked = (await fetchFeatures()).mimetype
-			if (asked) {
-				params.set('mimetype', '1')
-			}
-			// A newer load() began while the features were read: it asks.
-			if (signal.aborted) {
-				return
-			}
+		// A scope means the cross-account route. It carries the password
+		// confirmation the tab has already been through; a 403 here means
+		// the thirty minutes ran out, and the listing says so rather than
+		// silently showing one's own files as if nothing happened.
+		const scoped = state.scope !== null
+		const route = scoped ? OCS_API_V1.sudoFindAllDuplicates : OCS_API_V1.findAllDuplicates
 
-			// A scope means the cross-account route. It carries the password
-			// confirmation the tab has already been through; a 403 here means
-			// the thirty minutes ran out, and the listing says so rather than
-			// silently showing one's own files as if nothing happened.
-			const scoped = state.scope !== null
-			const route = scoped ? OCS_API_V1.sudoFindAllDuplicates : OCS_API_V1.findAllDuplicates
+		// What may be done to each row: on one's own listing, the only
+		// one the page acts on.
+		if (!scoped) {
+			params.set('actions', '1')
+		}
 
-			// What may be done to each row: on one's own listing, the only
-			// one the page acts on.
-			if (!scoped) {
-				params.set('actions', '1')
+		if (scoped && !state.scope!.all) {
+			for (const uid of state.scope!.users) {
+				params.append('users[]', uid)
 			}
+			for (const gid of state.scope!.groups) {
+				params.append('groups[]', gid)
+			}
+		}
 
-			if (scoped && !state.scope!.all) {
-				for (const uid of state.scope!.users) {
-					params.append('users[]', uid)
-				}
-				for (const gid of state.scope!.groups) {
-					params.append('groups[]', gid)
-				}
-			}
-
-			let response = await fetch(`${generateOcsUrl(route)}?${params.toString()}`, { signal })
-			if (await mimeTypeSwitchedOff(response, asked)) {
-				params.delete('mimetype')
-				response = await fetch(`${generateOcsUrl(route)}?${params.toString()}`, { signal })
-			}
-			if (response.status === 403 && scoped) {
-				state.groups = []
-				state.error = t('file_checksum_search', 'That view needs your password confirmed again, or is not yours to look at.')
-				return
-			}
-			if (!response.ok) throw new Error(`HTTP ${response.status}`)
-			const data = (await response.json()) as {
+		let response = await fetch(`${generateOcsUrl(route)}?${params.toString()}`, { signal })
+		if (await mimeTypeSwitchedOff(response, asked)) {
+			params.delete('mimetype')
+			response = await fetch(`${generateOcsUrl(route)}?${params.toString()}`, { signal })
+		}
+		if (response.status === 403 && scoped) {
+			return 'refused'
+		}
+		if (!response.ok) throw new Error(`HTTP ${response.status}`)
+		const data = (await response.json()) as {
 				duplicates?: DuplicateGroup[]
 				pagination?: { next_offset?: number | null }
 				canSudo?: boolean
 				canRecalc?: boolean
 			}
 
-			state.groups = data.duplicates || []
-			state.canRecalc = data.canRecalc !== false
-			if (!scoped) {
-				state.canSudo = data.canSudo === true
+		state.canRecalc = data.canRecalc !== false
+		if (!scoped) {
+			state.canSudo = data.canSudo === true
+		}
+		return { groups: data.duplicates || [], nextOffset: data.pagination?.next_offset ?? null }
+	}
+
+	const REFUSED = () => t('file_checksum_search', 'That view needs your password confirmed again, or is not yours to look at.')
+	const FAILED = () => t('file_checksum_search', 'Could not load the duplicates.')
+
+	/** Where the listing ends, as the last page said. */
+	function endAt(nextOffset: number | null): void {
+		state.nextOffset = nextOffset
+		state.hasMore = nextOffset !== null
+	}
+
+	/** The listing from its start, for filters that changed: the first page. */
+	async function load(): Promise<void> {
+		const signal = newSignal()
+		state.loading = true
+		state.loadingMore = false
+		state.error = null
+
+		try {
+			const page = await fetchPage(0, state.limit, signal)
+			if (page === null) {
+				return
 			}
-			state.nextOffset = data.pagination?.next_offset ?? null
-			state.hasMore = state.nextOffset !== null
+			if (page === 'refused') {
+				state.groups = []
+				state.error = REFUSED()
+				endAt(null)
+				return
+			}
+			state.groups = page.groups
+			endAt(page.nextOffset)
 		} catch (err) {
 			if (err instanceof DOMException && err.name === 'AbortError') return
-			state.error = t('file_checksum_search', 'Could not load the duplicates.')
+			state.error = FAILED()
 			state.groups = []
+			endAt(null)
 		} finally {
 			if (!signal.aborted) {
 				state.loading = false
 			}
+		}
+	}
+
+	/** The next page, after the groups shown: they stay, and so does what was chosen among them. */
+	async function loadMore(): Promise<void> {
+		if (state.nextOffset === null || state.loading) {
+			return
+		}
+		const signal = newSignal()
+		state.loadingMore = true
+		state.error = null
+
+		try {
+			const page = await fetchPage(state.nextOffset, state.limit, signal)
+			if (page === null) {
+				return
+			}
+			if (page === 'refused') {
+				state.error = REFUSED()
+				return
+			}
+			state.groups = [...state.groups, ...page.groups]
+			endAt(page.nextOffset)
+		} catch (err) {
+			if (err instanceof DOMException && err.name === 'AbortError') return
+			state.error = FAILED()
+		} finally {
+			if (!signal.aborted) {
+				state.loadingMore = false
+			}
+		}
+	}
+
+	/**
+	 * The groups shown, read again after something changed them: as many
+	 * as are shown, from the start, in requests of at most 500. A group
+	 * that is no longer a duplicate is gone; the rest keep their place on
+	 * the page, which stays as it is while they are read.
+	 */
+	async function reload(): Promise<void> {
+		const signal = newSignal()
+		const wanted = Math.max(state.limit, state.groups.length)
+		const groups: DuplicateGroup[] = []
+		let offset: number | null = 0
+
+		try {
+			while (offset !== null && groups.length < wanted) {
+				const page = await fetchPage(offset, Math.min(MOST_PER_REQUEST, wanted - groups.length), signal)
+				if (page === null) {
+					return
+				}
+				if (page === 'refused') {
+					state.groups = []
+					state.error = REFUSED()
+					endAt(null)
+					return
+				}
+				groups.push(...page.groups)
+				offset = page.nextOffset
+			}
+			state.groups = groups
+			endAt(offset)
+		} catch (err) {
+			if (err instanceof DOMException && err.name === 'AbortError') return
+			state.error = FAILED()
 		}
 	}
 
@@ -383,32 +485,13 @@ export function useDuplicates() {
 		return rowLink(file)
 	}
 
-	function resetOffset(): void {
-		state.offset = 0
-		previousOffsets.length = 0
-	}
-
-	/** Back to the page this one came from; to the first, for a page opened from the address. */
-	function prevPage(): void {
-		state.offset = previousOffsets.pop() ?? 0
-	}
-
-	function nextPage(): void {
-		if (state.nextOffset === null) {
-			return
-		}
-		previousOffsets.push(state.offset)
-		state.offset = state.nextOffset
-	}
-
 	return {
 		...toRefs(state),
 		load,
+		loadMore,
+		reload,
 		verifyGroups,
 		verifyFile,
 		fileUrl,
-		resetOffset,
-		prevPage,
-		nextPage,
 	}
 }

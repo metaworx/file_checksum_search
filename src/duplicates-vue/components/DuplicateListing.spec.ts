@@ -208,3 +208,30 @@ describe('DuplicateListing, acting on a row', () => {
 		expect(toastError).toHaveBeenCalledWith('It cannot be restored that way.')
 	})
 })
+
+describe('DuplicateListing, loading more', () => {
+	afterEach(() => {
+		vi.unstubAllGlobals()
+		document.body.innerHTML = ''
+	})
+
+	// The next groups are added under those shown, from where the server
+	// said; the button goes once there are no more.
+	it('adds the next groups under those shown, and offers no more at the end', async () => {
+		const second = { ...GROUP, hash_value: 'bbf4c61ddcc5e8a2dabede0f3b482cd9aea9434d' }
+		const fetchMock = vi.fn((url: string) => Promise.resolve(new Response(JSON.stringify(url.includes('offset=0')
+			? { duplicates: [GROUP], pagination: { next_offset: 4 }, canRecalc: true }
+			: { duplicates: [second], pagination: { next_offset: null }, canRecalc: true }), { status: 200 })))
+		vi.stubGlobal('fetch', fetchMock)
+
+		const wrapper = mount(DuplicateListing, { props: { algorithmIds: ['sha1'] }, attachTo: document.body })
+		await flushPromises()
+
+		await wrapper.find('[data-testid="fcias-load-more"]').trigger('click')
+		await flushPromises()
+
+		expect(String(fetchMock.mock.calls.at(-1)?.[0])).toContain('offset=4')
+		expect(wrapper.findAll('.db-group')).toHaveLength(2)
+		expect(wrapper.find('[data-testid="fcias-load-more"]').exists()).toBe(false)
+	})
+})

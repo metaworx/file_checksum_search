@@ -702,6 +702,10 @@ msgstr "遅延（チェックサムを今すぐ削除し、後で再計算）"
 msgid "Listing every rule requires administrator rights."
 msgstr "すべてのルールを一覧表示するには管理者権限が必要です。"
 
+#. TRANSLATORS a button under the duplicate groups: show the next ones after those already shown
+msgid "Load more"
+msgstr "さらに読み込む"
+
 msgid "Loading checksums …"
 msgstr "チェックサムを読み込み中…"
 
@@ -789,9 +793,6 @@ msgstr "ネットワークエラー"
 
 msgid "New rule"
 msgstr "新しいルール"
-
-msgid "Next"
-msgstr "次へ"
 
 msgid "Nextcloud still lists the file, and its storage no longer has it, so its checksums were deleted; scanning the files brings the list in line where a scan can reach the file"
 msgstr "Nextcloudの一覧にはファイルが残っていますが、ストレージにはもう存在しないため、チェックサムは削除されました。スキャンがファイルに届く場合は、ファイルをスキャンすると一覧がストレージと一致します"
@@ -961,9 +962,6 @@ msgstr "優先するアルゴリズムを保存しました。"
 #. TRANSLATORS prefill: fill the list of the picker before anything is typed
 msgid "Prefill up to"
 msgstr "事前表示する最大数"
-
-msgid "Previous"
-msgstr "前へ"
 
 msgid "Priority"
 msgstr "優先度"

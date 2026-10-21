@@ -709,6 +709,10 @@ msgstr "Later (controlesommen nu verwijderen, later opnieuw berekenen)"
 msgid "Listing every rule requires administrator rights."
 msgstr "Voor het weergeven van alle regels zijn beheerdersrechten nodig."
 
+#. TRANSLATORS a button under the duplicate groups: show the next ones after those already shown
+msgid "Load more"
+msgstr "Meer laden"
+
 msgid "Loading checksums …"
 msgstr "Controlesommen laden …"
 
@@ -797,9 +801,6 @@ msgstr "Netwerkfout"
 
 msgid "New rule"
 msgstr "Nieuwe regel"
-
-msgid "Next"
-msgstr "Volgende"
 
 msgid "Nextcloud still lists the file, and its storage no longer has it, so its checksums were deleted; scanning the files brings the list in line where a scan can reach the file"
 msgstr "Nextcloud vermeldt het bestand nog, maar het staat niet meer in de opslag, dus zijn de controlesommen ervan verwijderd; het scannen van de bestanden brengt de lijst weer op orde waar de scan het bestand bereikt"
@@ -971,9 +972,6 @@ msgstr "Voorkeursalgoritme opgeslagen."
 #. TRANSLATORS prefill: fill the list of the picker before anything is typed
 msgid "Prefill up to"
 msgstr "Vooraf vullen tot"
-
-msgid "Previous"
-msgstr "Vorige"
 
 msgid "Priority"
 msgstr "Prioriteit"

@@ -379,30 +379,68 @@ describe('useDuplicates', () => {
 		expect(hasMore.value).toBe(false)
 	})
 
-	// The server counts groups the viewer never sees: the next page starts
-	// where it says, not at offset + limit, and Previous goes back the same way.
-	it('pages from the server\'s next_offset, and back to where it came from', async () => {
-		const fetchMock = vi.spyOn(globalThis, 'fetch').mockImplementation((url) => {
-			const offset = Number(new URL(String(url), 'https://cloud.test').searchParams.get('offset'))
+	/**
+	 * A server whose groups are `at0`, `at7`, `at9`, … one to a raw offset
+	 * of its own: `next_offset` skips groups the viewer never sees.
+	 */
+	function pagedServer(): MockInstance<typeof fetch> {
+		const raw = [0, 7, 9, 12]
+		return vi.spyOn(globalThis, 'fetch').mockImplementation((url) => {
+			const query = new URL(String(url), 'https://cloud.test').searchParams
+			const from = raw.findIndex((offset) => offset >= Number(query.get('offset')))
+			const page = raw.slice(from, from + Number(query.get('limit')))
+			const next = raw[from + page.length] ?? null
 			return Promise.resolve(jsonResponse({
-				duplicates: [{ algo: 'sha1', hash_value: `at${offset}`, file_count: 2, files: [] }],
-				pagination: { offset, limit: 1, next_offset: offset === 0 ? 7 : null },
+				duplicates: page.map((offset) => ({ algo: 'sha1', hash_value: `at${offset}`, file_count: 2, files: [] })),
+				pagination: { offset: Number(query.get('offset')), limit: Number(query.get('limit')), next_offset: next },
 			}))
 		})
-		const { hasMore, limit, load, nextPage, offset, prevPage } = useDuplicates()
+	}
+
+	// The server counts groups the viewer never sees: the next load starts
+	// where it says, not after the groups shown, and adds to them.
+	it('loads more from the server\'s next_offset, after the groups shown', async () => {
+		const fetchMock = pagedServer()
+		const { groups, hasMore, limit, load, loadMore } = useDuplicates()
 		limit.value = 1
 
 		await load()
+		await loadMore()
+
+		expect(String(fetchMock.mock.calls[1][0])).toContain('offset=7')
+		expect(groups.value.map((group) => group.hash_value)).toEqual(['at0', 'at7'])
 		expect(hasMore.value).toBe(true)
 
-		nextPage()
-		expect(offset.value).toBe(7)
-		await load()
-		expect(String(fetchMock.mock.calls[1][0])).toContain('offset=7')
+		await loadMore()
+		await loadMore()
+
+		expect(groups.value.map((group) => group.hash_value)).toEqual(['at0', 'at7', 'at9', 'at12'])
 		expect(hasMore.value).toBe(false)
 
-		prevPage()
-		expect(offset.value).toBe(0)
+		// A fresh load starts over: a filter changed.
+		await load()
+		expect(groups.value.map((group) => group.hash_value)).toEqual(['at0'])
+	})
+
+	// After a deletion the groups are read again: as many as were shown,
+	// not the first load's worth, so the page does not shrink back.
+	it('reloads as many groups as are shown', async () => {
+		const fetchMock = pagedServer()
+		const { groups, hasMore, limit, load, loadMore, reload } = useDuplicates()
+		limit.value = 1
+
+		await load()
+		await loadMore()
+		await loadMore()
+		fetchMock.mockClear()
+
+		await reload()
+
+		expect(fetchMock).toHaveBeenCalledTimes(1)
+		expect(String(fetchMock.mock.calls[0][0])).toContain('limit=3')
+		expect(String(fetchMock.mock.calls[0][0])).toContain('offset=0')
+		expect(groups.value.map((group) => group.hash_value)).toEqual(['at0', 'at7', 'at9'])
+		expect(hasMore.value).toBe(true)
 	})
 
 	// Each group's type, while the server detects types; asked otherwise,

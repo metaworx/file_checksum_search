@@ -716,6 +716,10 @@ msgstr "Diferido (eliminar las sumas de verificación ahora, recalcular más tar
 msgid "Listing every rule requires administrator rights."
 msgstr "Para listar todas las reglas se necesitan derechos de administrador."
 
+#. TRANSLATORS a button under the duplicate groups: show the next ones after those already shown
+msgid "Load more"
+msgstr "Cargar más"
+
 msgid "Loading checksums …"
 msgstr "Cargando sumas de verificación…"
 
@@ -805,9 +809,6 @@ msgstr "Error de red"
 
 msgid "New rule"
 msgstr "Nueva regla"
-
-msgid "Next"
-msgstr "Siguiente"
 
 msgid "Nextcloud still lists the file, and its storage no longer has it, so its checksums were deleted; scanning the files brings the list in line where a scan can reach the file"
 msgstr "Nextcloud aún lista el archivo, pero su almacenamiento ya no lo tiene, así que se eliminaron sus sumas de verificación; escanear los archivos pone la lista al día donde el escaneo alcanza el archivo"
@@ -981,9 +982,6 @@ msgstr "Algoritmo preferido guardado."
 #. TRANSLATORS prefill: fill the list of the picker before anything is typed
 msgid "Prefill up to"
 msgstr "Precargar hasta"
-
-msgid "Previous"
-msgstr "Anterior"
 
 msgid "Priority"
 msgstr "Prioridad"
