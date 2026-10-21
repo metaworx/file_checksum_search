@@ -575,4 +575,69 @@ describe( 'FCIAS Duplicates page', () => {
 		group().find( '.db-file-item' ).should( 'have.length', 3 )
 	} )
 
+	// The path filter keeps the groups with a file it matches: the run's
+	// resolve folder holds one of its groups and not the other.
+	it( 'filters the listing by path, a folder or a name anywhere', () => {
+		const groupOf = ( hash ) => cy.get( '.db-group', { timeout: FIND_TIMEOUT } )
+			.filter( ( _i, el ) => el.querySelector( '.db-hash' )?.textContent?.trim() === hash )
+
+		cy.visit( `${ DUPLICATES_URL }#mine?path=/${ resolveDir }` )
+		cy.get( '#fcias-duplicates-path', { timeout: FIND_TIMEOUT } ).should( 'have.value', `/${ resolveDir }` )
+		groupOf( RESOLVE_HASH ).should( 'have.length', 1 )
+		groupOf( DUP_HASH ).should( 'not.exist' )
+
+		cy.get( '#fcias-duplicates-path' ).clear().type( 'two.txt' )
+		cy.url().should( 'include', 'path=two.txt' )
+		groupOf( RESOLVE_HASH ).should( 'have.length', 1 )
+		groupOf( DUP_HASH ).should( 'not.exist' )
+
+		cy.get( '#fcias-duplicates-path' ).clear().type( '/nowhere-fcias' )
+		cy.contains( '.db-empty', 'No duplicate files found', { timeout: FIND_TIMEOUT } )
+	} )
+
+	// One group a load: Load more adds the next under it, and goes once
+	// there are no more. The run's two groups are all there are.
+	it( 'loads more groups under those shown', () => {
+		cy.visit( `${ DUPLICATES_URL }#mine?limit=1` )
+		cy.get( '.db-group', { timeout: FIND_TIMEOUT } ).should( 'have.length', 1 )
+
+		cy.get( '[data-testid="fcias-load-more"]' ).click()
+
+		cy.get( '.db-group', { timeout: FIND_TIMEOUT } ).should( 'have.length', 2 )
+		cy.get( '[data-testid="fcias-load-more"]' ).should( 'not.exist' )
+	} )
+
+	// Across the page: a folder that holds every copy is left alone, a
+	// name is chosen, and the choice goes through one confirmation and
+	// comes back with Undo.
+	it( 'chooses across the page, deletes the choice, and takes it back', () => {
+		const resolveGroup = () => cy.get( '.db-group', { timeout: FIND_TIMEOUT } )
+			.filter( ( _i, el ) => el.querySelector( '.db-hash' )?.textContent?.trim() === RESOLVE_HASH )
+
+		cy.visit( DUPLICATES_URL )
+		resolveGroup().should( 'have.length', 1 )
+		cy.get( '[data-testid="fcias-start-selecting"]' ).click()
+
+		// The run's three copies are all under its folder.
+		cy.get( '#fcias-duplicates-select-pattern' ).type( `/${ resolveDir }` )
+		cy.get( '[data-testid="fcias-select-matching"]' ).click()
+		resolveGroup().find( '[data-testid="fcias-group-left-alone"]' ).should( 'exist' )
+		cy.get( '[data-testid="fcias-selection-count"]' ).should( 'have.text', '0 rows selected' )
+
+		cy.get( '#fcias-duplicates-select-pattern' ).clear().type( 'two.txt' )
+		cy.get( '[data-testid="fcias-select-matching"]' ).click()
+		resolveGroup().find( '[data-testid="fcias-group-selected"]' ).should( 'have.text', '1 selected' )
+
+		cy.get( '[data-testid="fcias-delete-page"]' ).click()
+		cy.get( '[data-testid="fcias-page-delete-summary"]', { timeout: FIND_TIMEOUT } ).should( 'contain', '1 row goes to the trash.' )
+		cy.get( '[role="dialog"] .dialog__actions button' ).last().click()
+
+		resolveGroup().find( '[data-testid="fcias-trash"]', { timeout: FIND_TIMEOUT } ).should( 'have.length', 1 )
+
+		cy.contains( 'button', /^\s*Undo\s*$/, { timeout: FIND_TIMEOUT } ).click()
+
+		resolveGroup().find( '[data-testid="fcias-trash"]', { timeout: FIND_TIMEOUT } ).should( 'not.exist' )
+		resolveGroup().find( '.db-file-item' ).should( 'have.length', 3 )
+	} )
+
 } )

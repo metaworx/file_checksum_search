@@ -61,7 +61,8 @@ and an **i** button beside the label says what it decides.
   so they would form one large group per algorithm,
   and deleting one frees no space.
   Turned on, their groups are listed too, labelled *Empty files*.
-- **Per page** — how many groups to show per page.
+- **Per page** — how many groups a load shows;
+  **Load more** under the list adds as many again.
 - **Refresh** — reload the list.
 - **Hash** — show only groups whose hash matches what you type.
   Whole values come first, then those that *start* with what you typed,
@@ -72,6 +73,15 @@ and an **i** button beside the label says what it decides.
   match the term anywhere in the hash rather than only at its start.
   Useful when you have a fragment from the middle of a hash; slower to narrow,
   since far more can match.
+- **Path** — show only the groups with a file at this path;
+  each such group keeps its other files.
+  - A name, such as `Backup` or `*.bak`, matches anywhere:
+    a file of that name, or a folder of that name and everything in it.
+  - With a slash, such as `/Photos/2019`, it matches from the top of your files.
+  - `*` stands for any part of a name, `**` for any number of folders,
+    `?` for one character.
+  - Upper case is fine.
+  - A version or a file in the trash is matched by the path its file had.
 
 Each file is listed by the path you know it by,
 with when it last changed beside it.
@@ -163,17 +173,49 @@ it says so where nothing comes back.
 A row that changed since the page was loaded is left alone.
 After a move to the trash, **Undo** on the message brings the file back.
 
-To delete several copies at once, choose **Select** in the group's menu:
-the group opens, each row you may delete gets a checkbox,
-and **Select all** and **Invert selection**, in the same menu, help choose;
-**Cancel** there ends the choice.
-**Delete selected** asks how — to the trash or permanently — and,
+To delete several copies at once, choose **Select** in a group's menu,
+or **Select** beside **Refresh**:
+every row you may delete, in every group shown, gets a checkbox,
+and a bar above the list helps choose across the page.
+
+- **Select all** and **Invert selection**, in a group's menu,
+  choose among that group's rows.
+- **Select by path** and **Select matching** choose,
+  in every group shown, the rows a path matches,
+  as the **Path** filter matches them: `Backup` takes every copy under a folder
+  of that name, `*.bak` every copy with that ending.
+- **Select versions** chooses every earlier version shown.
+- Neither ever takes every copy of a group outside the trash
+  — an earlier version is no copy, since versions expire.
+  Such a group is left as it was, marked *Every copy matched*,
+  and the bar says how many were;
+  choose in it by hand if you mean to.
+- A file listed in two groups is one row:
+  choosing it in one chooses it in the other.
+  It is listed so where the page shows more than one algorithm.
+- **Select none** clears the choice; **Cancel** ends it.
+- Each group's header says how many of its rows are chosen.
+
+**Delete selected** in a group's menu deletes that group's chosen rows.
+It asks how — to the trash or permanently — and,
 where the deleted files have earlier versions and a copy stays,
 which copy takes them: chosen for you where one copy stays,
 yours to choose where several do, or none,
 in which case they go with their files.
 Versions of the very same second as one the copy already has are left out.
 Where no copy would stay outside the trash, the confirmation says so.
+
+**Delete *n* selected**, in the bar, deletes everything chosen on the page,
+through one confirmation.
+It asks how, and whether the deleted files' earlier versions go to the copy
+that stays in each group — the most recently changed where several do —
+or with their files.
+It then says what would happen in sum:
+the rows going to the trash or for good,
+the versions kept or going, the rows that cannot be deleted,
+and the groups in which no copy would stay;
+each group's rows are folded under it.
+**Undo** after a move to the trash brings back everything that went.
 
 Once a single copy is left outside the trash, the group is no longer listed:
 a file and its deleted copies are not a duplicate to clean up.
@@ -206,9 +248,8 @@ your option for all of them at once reads **All my groups**.
 The picker only ever offers what you may have;
 on a large server it searches as you type instead of listing everyone.
 
-The address bar follows what you are looking at — the tab, the filters,
-the page and, on *Others*,
-whose files — so a bookmark brings the same view back,
+The address bar follows what you are looking at — the tab, the filters and,
+on *Others*, whose files — so a bookmark brings the same view back,
 and a link you copy shows a colleague the same search,
 under their own permissions and after their own password.
 
@@ -231,8 +272,9 @@ and a file an administrator's rule excludes from hashing stays excluded.
 A group holding several accounts' copies verifies each row on its own;
 a row you may not reach says so rather than stopping the others.
 
-Your own *Mine* tab is unaffected: it keeps its own filters and page,
+Your own *Mine* tab is unaffected: it keeps its own filters and list,
 and leaving the *Others* tab puts you back among your own files.
+Nothing is chosen or deleted on *Others*.
 
 Click a group header to expand it and see the files in the group.
 A file you hold — your own, or one shared with you — is a link:
@@ -240,8 +282,10 @@ it opens the file's folder in the Files app **in a new tab**,
 with the file's details beside it, rather than the file itself;
 a file you do not hold is plain text,
 because the Files app can only open what is in your files.
-Long lists are paged with **← Previous** and **Next →** at the bottom.
-An empty page says so: *No duplicate files found*.
+A long list shows its first groups, and **Load more** at the bottom adds the
+next ones under them, as many as **Per page** says,
+while what is shown and chosen stays.
+An empty list says so: *No duplicate files found*.
 
 ## Finding files by hash (global search)
 

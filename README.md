@@ -1022,7 +1022,10 @@ each with a Verify button][shot-duplicates-page]
 Features:
 
 - Filter by algorithm (SHA-1, MD5, SHA-256, SHA-512, SHA3-256, SHA3-512, CRC32)
-- Set minimum duplicate count and result limit
+- Set minimum duplicate count and how many groups a load shows;
+  **Load more** adds the next ones under them
+- Filter by path, keeping the groups with a file it matches:
+  a folder, a name anywhere, or a pattern such as `/Archive/**/*.pdf`
 - Expandable groups showing file paths, each with when it last changed;
   the header in columns: one preview, the count over each file's size,
   since the files share their content, the algorithm and the hash
@@ -1036,6 +1039,11 @@ Features:
   **Invert selection** and **Delete selected**,
   confirmed with the way, and the copy that stays to take the deleted files'
   earlier versions, or none
+- **Select** beside **Refresh**: rows chosen across the page,
+  by hand, by path pattern or as earlier versions — never every copy of a
+  group outside the trash — and deleted through one confirmation,
+  each group's versions kept in its most recently changed copy that stays,
+  with one **Undo**
 - Filter by hash, matching at its start or — with **Match anywhere in the hash**
   — anywhere in it
 - Empty files left out, since every one of them shares one checksum and deleting
@@ -1088,7 +1096,7 @@ Authentication via NC session cookie, HTTP Basic Auth, or Bearer token.
 | `/api/v1/file/{fileId}/duplicates` | GET | Find files sharing hash values |
 | `/api/v1/file/{fileId}/recalc` | POST | Recalculate hash |
 | `/api/v1/file/many/recalc` | POST | Recalculate up to 25 files or 100 MiB in one request |
-| `/api/v1/duplicates?algo=<algo>&minCount=<n>&limit=<n>&offset=<n>&hash=<hex>&anywhere=<0\|1>&includeEmpty=<0\|1>` | GET | Duplicate groups among the caller's files; empty files only with `includeEmpty` |
+| `/api/v1/duplicates?algo=<algo>&minCount=<n>&limit=<n>&offset=<n>&hash=<hex>&anywhere=<0\|1>&path=<pattern>&includeEmpty=<0\|1>` | GET | Duplicate groups among the caller's files; empty files only with `includeEmpty`; the next page from `pagination.next_offset` |
 | `/api/v1/hashes?algo=<algo>&limit=<n>&after=<fileid>&since=<date>` | GET | Every hash the caller holds, one entry per file, paged by file id |
 | `/api/v1/status` | GET | Read-only health/status |
 
