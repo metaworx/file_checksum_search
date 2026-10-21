@@ -51,7 +51,7 @@ msgstr[1] "%n pliki"
 msgstr[2] "%n plików"
 msgstr[3] "%n plików"
 
-#. TRANSLATORS: in the bar for choosing rows on the Duplicates page: the groups in which a pattern or Select versions selected nothing, since it matched every copy
+#. TRANSLATORS: in the bar for choosing rows on the Duplicates page: the groups in which choosing across the page selected nothing, since it would have taken every copy
 msgid "%n group left alone, as every copy in it matched"
 msgid_plural "%n groups left alone, as every copy in them matched"
 msgstr[0] "%n grupa pozostawiona bez zmian, bo pasowała każda jej kopia"
@@ -279,6 +279,9 @@ msgstr[3] "Usuwane od {time}, pozostało %n plików"
 msgid "By its name: {type}"
 msgstr "Według nazwy: {type}"
 
+msgid "By path"
+msgstr "Według ścieżki"
+
 msgid "Cancel"
 msgstr "Anuluj"
 
@@ -330,6 +333,10 @@ msgstr "Wybierz konta lub grupy"
 
 msgid "Choose an account or a group above to see its duplicates."
 msgstr "Wybierz powyżej konto lub grupę, aby zobaczyć duplikaty."
+
+#. TRANSLATORS: the tooltip of "Select duplicates" in the bar for choosing rows on the Duplicates page
+msgid "Chooses every row but the oldest copy of each group"
+msgstr "Wybiera każdy wiersz oprócz najstarszej kopii każdej grupy"
 
 msgid "Close"
 msgstr "Zamknij"
@@ -504,6 +511,13 @@ msgstr[3] "Trwale usunięto %n elementu."
 #. TRANSLATORS: beside a file in a list, marking it as in the trash; {date} is when it was deleted
 msgid "Deleted {date}"
 msgstr "Usunięto {date}"
+
+#. TRANSLATORS a button in the bar for choosing rows on the Duplicates page: let go of the rows the path or the versions pick
+msgid "Deselect"
+msgstr "Odznacz"
+
+msgid "Deselect all"
+msgstr "Odznacz wszystko"
 
 msgid "Detect MIME types"
 msgstr "Wykrywaj typy MIME"
@@ -790,7 +804,7 @@ msgstr "Wersji nie można tutaj usunąć."
 msgid "Its versions could not be merged, so it was not deleted."
 msgstr "Nie udało się scalić wersji, więc nie usunięto."
 
-#. TRANSLATORS a switch in the bar for choosing rows on the Duplicates page: selecting by path or the versions leaves each group of duplicates one copy
+#. TRANSLATORS a switch in the bar for choosing rows on the Duplicates page: choosing across the page leaves each group of duplicates one copy
 msgid "Keep one copy"
 msgstr "Zachowaj jedną kopię"
 
@@ -1012,6 +1026,10 @@ msgstr[1] "Wyłączone, zachowane dla %n plików"
 msgstr[2] "Wyłączone, zachowane dla %n plików"
 msgstr[3] "Wyłączone, zachowane dla %n plików"
 
+#. TRANSLATORS: "Select duplicates" and "Invert selection" are buttons beside the switch; translate them as those buttons do
+msgid "On, as choosing starts: choosing by path or the versions, Select duplicates and Invert selection never take a group's last copy, which is its last file, or its last version where it has versions alone. Turning it on lets go of every group chosen whole. Off, they take every match, as for a content that must go everywhere, one holding a password, say. Choosing in a group by hand is never limited; the confirmation says where no copy stays."
+msgstr "Włączone na początku zaznaczania: zaznaczanie według ścieżki lub wersji, „Zaznacz duplikaty” i „Odwróć zaznaczenie” nigdy nie biorą ostatniej kopii grupy, czyli jej ostatniego pliku albo, gdy ma same wersje, ostatniej wersji. Włączenie zwalnia każdą grupę zaznaczoną w całości. Po wyłączeniu biorą każde dopasowanie, jak przy treści, która musi zniknąć wszędzie, na przykład zawierającej hasło. Ręczne zaznaczanie w grupie nigdy nie jest ograniczone; potwierdzenie mówi, gdzie nie zostaje żadna kopia."
+
 #. TRANSLATORS: the status's MIME types row: detection is on, and this many files have a MIME type
 msgid "On, detected for %n file"
 msgid_plural "On, detected for %n files"
@@ -1231,8 +1249,17 @@ msgstr "Zaznacz"
 msgid "Select all"
 msgstr "Zaznacz wszystko"
 
-msgid "Select by path"
-msgstr "Zaznacz według ścieżki"
+#. TRANSLATORS: "Select", "Deselect" and "Keep one copy" are the controls of that name on the page; translate them as those controls do
+msgid "Select chooses every earlier version in every group shown, wherever it is; the path field plays no part. Deselect lets them go. While Keep one copy is on, a group of versions alone keeps one."
+msgstr "„Zaznacz” wybiera każdą wcześniejszą wersję w każdej wyświetlonej grupie, gdziekolwiek się znajduje; pole ścieżki nie ma tu znaczenia. „Odznacz” je zwalnia. Dopóki „Zachowaj jedną kopię” jest włączone, grupa złożona wyłącznie z wersji zachowuje jedną z nich."
+
+#. TRANSLATORS: "Select", "Deselect", "Path" and "Keep one copy" are the controls of that name on the page; translate them as those controls do
+msgid "Select chooses, in every group shown, the rows this path matches, as the Path filter matches them; Deselect lets them go. While Keep one copy is on, a group whose every copy would be chosen is left alone, and says so."
+msgstr "„Zaznacz” wybiera w każdej wyświetlonej grupie wiersze, do których pasuje ta ścieżka, tak jak filtr „Ścieżka”; „Odznacz” je zwalnia. Dopóki „Zachowaj jedną kopię” jest włączone, grupa, której wszystkie kopie zostałyby wybrane, zostaje bez zmian i to sygnalizuje."
+
+#. TRANSLATORS: "Select duplicates" chooses every row but each group's oldest copy; "Select all" every row, while Keep one copy is off
+msgid "Select duplicates"
+msgstr "Zaznacz duplikaty"
 
 #. TRANSLATORS: placeholder of the picker that selects the one team folder a rule addresses
 msgid "Select folder …"
@@ -1241,24 +1268,8 @@ msgstr "Wybierz folder…"
 msgid "Select groups …"
 msgstr "Wybierz grupy…"
 
-msgid "Select matching"
-msgstr "Zaznacz pasujące"
-
-#. TRANSLATORS: "Select matching" is the button beside the field; translate it as that button does
-msgid "Select matching chooses, in every group shown, the rows this path matches, as the Path filter matches them. It never chooses every copy of a group outside the trash; such a group is left alone, and says so."
-msgstr "„Zaznacz pasujące” wybiera w każdej wyświetlonej grupie wiersze, do których pasuje ta ścieżka, tak jak filtr „Ścieżka”. Nigdy nie wybiera wszystkich kopii grupy poza koszem; taka grupa zostaje bez zmian i to sygnalizuje."
-
-msgid "Select none"
-msgstr "Odznacz wszystko"
-
-msgid "Select versions"
-msgstr "Zaznacz wersje"
-
 msgid "Select {name}"
 msgstr "Zaznacz {name}"
-
-msgid "Selecting by path or the versions leaves each group a copy. Turned off, it selects every match, a content's last copy included."
-msgstr "Zaznaczanie według ścieżki lub wersji zostawia każdej grupie jedną kopię. Po wyłączeniu zaznacza każde dopasowanie, łącznie z ostatnią kopią danej treści."
 
 msgid "Selecting would have taken every copy outside the trash, so nothing was selected here. Choose in the group by hand."
 msgstr "Zaznaczenie objęłoby każdą kopię poza koszem, więc nic tu nie zaznaczono. Wybierz w grupie ręcznie."
@@ -1486,7 +1497,7 @@ msgstr "Kosz"
 msgid "Tunables"
 msgstr "Dostrajanie"
 
-#. TRANSLATORS after the count of groups left alone in the bar for choosing rows; "Keep one copy" is the switch beside it, translate it as that switch does
+#. TRANSLATORS after the count of groups left alone in the bar for choosing rows; "Keep one copy" is the switch below it, translate it as that switch does
 msgid "Turn off Keep one copy to select them too."
 msgstr "Wyłącz „Zachowaj jedną kopię”, aby zaznaczyć także je."
 

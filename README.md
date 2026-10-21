@@ -1040,7 +1040,8 @@ Features:
   confirmed with the way, and the copy that stays to take the deleted files'
   earlier versions, or none
 - **Select** beside **Refresh**: rows chosen across the page,
-  by hand, by path pattern or as earlier versions — each group keeping a copy
+  by hand, by path pattern, as earlier versions, as every duplicate but each
+  group's oldest copy, or inverted — each group keeping a copy
   unless **Keep one copy** is off — and deleted through one confirmation,
   each group's versions kept in its most recently changed copy that stays,
   with one **Undo**

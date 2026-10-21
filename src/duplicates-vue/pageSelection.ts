@@ -6,11 +6,12 @@
  * the page, so that a file listed in two groups — the same content under
  * two algorithms — is chosen, or not, in both.
  *
- * Choosing by a rule — a pattern, the versions — keeps one copy of each
- * group unless asked not to: a group whose best copy it would take keeps
- * its choice as it was, and is named, for a person to choose in by hand.
- * Asked not to, a rule takes whatever it matches, a content's every copy
- * included, as one that holds a password must go everywhere.
+ * Choosing across the page — a pattern, the versions, every duplicate, the
+ * choice inverted — keeps one copy of each group unless asked not to: a
+ * group whose best copy it would take keeps its choice as it was, and is
+ * named, for a person to choose in by hand. Asked not to, it takes whatever
+ * it matches, a content's every copy included, as one that holds a
+ * password must go everywhere. Choosing in a group by hand is not limited.
  */
 import type { DuplicateFileItem, DuplicateGroup } from './composables/useDuplicates'
 
@@ -43,47 +44,121 @@ export function bestCopies(group: DuplicateGroup): DuplicateFileItem[] {
 	return files.length > 0 ? files : outside
 }
 
+/** Whether every one of the group's {@link bestCopies} is chosen. */
+function emptiedBy(group: DuplicateGroup, selected: ReadonlySet<number>): boolean {
+	const best = bestCopies(group)
+	return best.length > 0 && best.every((file) => selected.has(file.fileid))
+}
+
+/**
+ * $proposed, less what it changes in a group it would empty of its
+ * {@link bestCopies}: that group's rows keep the choice they had in
+ * $before, wherever else they are listed, and is named. Keeping them can
+ * empty another group sharing a file, so the groups are weighed again
+ * until none is emptied. A group the change leaves as it was is not
+ * weighed: what was chosen in it by hand stands.
+ */
+function guarded(groups: DuplicateGroup[], before: ReadonlySet<number>, proposed: ReadonlySet<number>): Chosen {
+	const result = new Set(proposed)
+	const leftAlone = new Set<string>()
+	const changed = (group: DuplicateGroup) => group.files.some((file) => before.has(file.fileid) !== proposed.has(file.fileid))
+	for (;;) {
+		const emptied = groups.filter((group) => !leftAlone.has(groupKey(group)) && changed(group) && emptiedBy(group, result))
+		if (emptied.length === 0) {
+			return { selected: result, leftAlone: [...leftAlone] }
+		}
+		for (const group of emptied) {
+			leftAlone.add(groupKey(group))
+			group.files.forEach((file) => before.has(file.fileid) ? result.add(file.fileid) : result.delete(file.fileid))
+		}
+	}
+}
+
+/** $proposed as it stands, or, with $keepOne, {@link guarded}. */
+function ruled(groups: DuplicateGroup[], before: ReadonlySet<number>, proposed: Set<number>, keepOne: boolean): Chosen {
+	return keepOne ? guarded(groups, before, proposed) : { selected: proposed, leftAlone: [] }
+}
+
+/** Every row of the groups shown that may be chosen, by file id. */
+function choosableIds(groups: DuplicateGroup[]): number[] {
+	return groups.flatMap((group) => group.files.filter(choosable).map((file) => file.fileid))
+}
+
 /**
  * The rows $matches picks added to $selected. With $keepOne, as the page
  * starts, not in a group where that would take every one of its
- * {@link bestCopies}: leaving a group alone can spare a copy another
- * group's rows would have taken, so the groups are weighed again until
- * none changes.
+ * {@link bestCopies}.
  */
 export function chooseMatching(groups: DuplicateGroup[], selected: ReadonlySet<number>, matches: (file: DuplicateFileItem) => boolean, keepOne = true): Chosen {
-	const candidates = new Map<string, number[]>()
-	for (const group of groups) {
-		const ids = group.files.filter((file) => choosable(file) && !selected.has(file.fileid) && matches(file)).map((file) => file.fileid)
-		if (ids.length > 0) {
-			candidates.set(groupKey(group), ids)
-		}
-	}
+	const proposed = new Set(selected)
+	groups.forEach((group) => group.files.filter((file) => choosable(file) && matches(file)).forEach((file) => proposed.add(file.fileid)))
+	return ruled(groups, selected, proposed, keepOne)
+}
 
+/** The rows $matches picks let go of; letting go never empties a group. */
+export function dropMatching(groups: DuplicateGroup[], selected: ReadonlySet<number>, matches: (file: DuplicateFileItem) => boolean): Set<number> {
+	const next = new Set(selected)
+	groups.forEach((group) => group.files.filter(matches).forEach((file) => next.delete(file.fileid)))
+	return next
+}
+
+/**
+ * Every row that may be chosen turned over: chosen let go, the rest
+ * chosen. With $keepOne, a group it would empty keeps its choice (D10-A).
+ */
+export function invertChoice(groups: DuplicateGroup[], selected: ReadonlySet<number>, keepOne = true): Chosen {
+	const proposed = new Set(selected)
+	new Set(choosableIds(groups)).forEach((id) => selected.has(id) ? proposed.delete(id) : proposed.add(id))
+	return ruled(groups, selected, proposed, keepOne)
+}
+
+/** When a copy last held its content: a version's own time, else the file's last change, in ms. */
+function heldSince(file: DuplicateFileItem): number {
+	return file.version ? new Date(file.version.timestamp).getTime() : (file.mtime ?? 0) * 1000
+}
+
+/**
+ * The copy *Select duplicates* leaves in a group (D12-A): the oldest of its
+ * {@link bestCopies} by when it last changed, the first path where two are
+ * as old. None where one of them may not be deleted: it stays anyway.
+ */
+export function keeperOf(group: DuplicateGroup): number | null {
+	const best = bestCopies(group)
+	if (best.length === 0 || best.some((file) => !choosable(file))) {
+		return null
+	}
+	return [...best].sort((a, b) => heldSince(a) - heldSince(b) || a.path.localeCompare(b.path))[0].fileid
+}
+
+/**
+ * D11-C: with $keepOne, *Select duplicates*, every row that may be chosen
+ * but each group's {@link keeperOf}; without, *Select all*, every row.
+ * Groups sharing files may pick different keepers, so the guard weighs
+ * the result as it weighs a rule's.
+ */
+export function chooseAll(groups: DuplicateGroup[], selected: ReadonlySet<number>, keepOne = true): Chosen {
+	const proposed = new Set([...selected, ...choosableIds(groups)])
 	if (!keepOne) {
-		return { selected: new Set([...selected, ...[...candidates.values()].flat()]), leftAlone: [] }
+		return { selected: proposed, leftAlone: [] }
 	}
+	groups.forEach((group) => {
+		const keeper = keeperOf(group)
+		if (keeper !== null && !selected.has(keeper)) {
+			proposed.delete(keeper)
+		}
+	})
+	return guarded(groups, selected, proposed)
+}
 
-	const leftAlone = new Set<string>()
-	for (;;) {
-		const taken = new Set(selected)
-		for (const [key, ids] of candidates) {
-			if (!leftAlone.has(key)) {
-				ids.forEach((id) => taken.add(id))
-			}
-		}
-		const emptied = groups.filter((group) => {
-			const key = groupKey(group)
-			const best = bestCopies(group)
-			return candidates.has(key)
-				&& !leftAlone.has(key)
-				&& best.length > 0
-				&& best.every((file) => taken.has(file.fileid))
-		})
-		if (emptied.length === 0) {
-			return { selected: taken, leftAlone: [...leftAlone] }
-		}
-		emptied.forEach((group) => leftAlone.add(groupKey(group)))
-	}
+/**
+ * D9-A: Keep one copy turned on lets go of every group chosen whole, and
+ * names it; the files are let go of wherever else they are listed.
+ */
+export function withoutWholeGroups(groups: DuplicateGroup[], selected: ReadonlySet<number>): Chosen {
+	const next = new Set(selected)
+	const whole = groups.filter((group) => emptiedBy(group, selected))
+	whole.forEach((group) => group.files.forEach((file) => next.delete(file.fileid)))
+	return { selected: next, leftAlone: whole.map(groupKey) }
 }
 
 /** The group's rows chosen, in its order. */

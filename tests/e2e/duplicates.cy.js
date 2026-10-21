@@ -636,8 +636,20 @@ describe( 'FCIAS Duplicates page', () => {
 		cy.get( 'body' ).type( '{esc}' )
 		cy.get( '[role="dialog"]' ).should( 'not.exist' )
 		resolveGroup().find( '[data-testid="fcias-trash"]' ).should( 'not.exist' )
-		cy.get( '[data-testid="fcias-select-none"]' ).click()
+
+		// Turned back on, the switch lets go of the group chosen whole.
 		cy.get( '[data-testid="fcias-keep-one"] input' ).check( { force: true } )
+		cy.get( '[data-testid="fcias-selection-count"]' ).should( 'have.text', '0 rows selected' )
+		resolveGroup().find( '[data-testid="fcias-group-left-alone"]' ).should( 'exist' )
+
+		// Every duplicate: two of the three, the oldest kept; turned over,
+		// the oldest alone; then nothing.
+		cy.get( '[data-testid="fcias-select-all"]' ).should( 'have.text', 'Select duplicates' ).click()
+		resolveGroup().find( '[data-testid="fcias-group-selected"]' ).should( 'have.text', '2 selected' )
+		cy.get( '[data-testid="fcias-invert-selection"]' ).click()
+		resolveGroup().find( '[data-testid="fcias-group-selected"]' ).should( 'have.text', '1 selected' )
+		cy.get( '[data-testid="fcias-deselect-all"]' ).click()
+		cy.get( '[data-testid="fcias-selection-count"]' ).should( 'have.text', '0 rows selected' )
 
 		cy.get( '#fcias-duplicates-select-pattern' ).clear().type( 'two.txt' )
 		cy.get( '[data-testid="fcias-select-matching"]' ).click()

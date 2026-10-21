@@ -36,7 +36,18 @@ import {
 } from '../duplicateActions'
 import { sameParams, type ListingParams } from '../urlState'
 import { compilePattern, MAX_PATTERN_LENGTH } from '../pathPattern'
-import { chooseMatching, chosenIn, groupKey, stillListed, withGroupChoice } from '../pageSelection'
+import {
+	chooseAll,
+	chooseMatching,
+	chosenIn,
+	dropMatching,
+	groupKey,
+	invertChoice,
+	stillListed,
+	withGroupChoice,
+	withoutWholeGroups,
+	type Chosen,
+} from '../pageSelection'
 import { type AlgoOption } from '../../algorithms'
 import { toastError, toastSuccess, toastUndo } from '../../toast'
 import { n, t } from '../../l10n'
@@ -84,8 +95,12 @@ const HELP = {
 	limit: t('file_checksum_search', 'How many groups one page shows. Nothing here is read from disk until you verify a group or a file, so a larger page costs a longer query, not longer reads.'),
 	// TRANSLATORS: "Match anywhere in the hash" is the switch beside the field; translate it as that switch does
 	hash: t('file_checksum_search', 'Show only groups whose hash matches what you type. Whole values come first, then those that start with what you typed. Turn on "Match anywhere in the hash" to match it in the middle of a hash too. Upper case is fine.'),
-	// TRANSLATORS: "Select matching" is the button beside the field; translate it as that button does
-	selectPattern: t('file_checksum_search', 'Select matching chooses, in every group shown, the rows this path matches, as the Path filter matches them. It never chooses every copy of a group outside the trash; such a group is left alone, and says so.'),
+	// TRANSLATORS: "Select", "Deselect", "Path" and "Keep one copy" are the controls of that name on the page; translate them as those controls do
+	selectPattern: t('file_checksum_search', 'Select chooses, in every group shown, the rows this path matches, as the Path filter matches them; Deselect lets them go. While Keep one copy is on, a group whose every copy would be chosen is left alone, and says so.'),
+	// TRANSLATORS: "Select", "Deselect" and "Keep one copy" are the controls of that name on the page; translate them as those controls do
+	versions: t('file_checksum_search', 'Select chooses every earlier version in every group shown, wherever it is; the path field plays no part. Deselect lets them go. While Keep one copy is on, a group of versions alone keeps one.'),
+	// TRANSLATORS: "Select duplicates" and "Invert selection" are buttons beside the switch; translate them as those buttons do
+	keepOne: t('file_checksum_search', 'On, as choosing starts: choosing by path or the versions, Select duplicates and Invert selection never take a group\'s last copy, which is its last file, or its last version where it has versions alone. Turning it on lets go of every group chosen whole. Off, they take every match, as for a content that must go everywhere, one holding a password, say. Choosing in a group by hand is never limited; the confirmation says where no copy stays.'),
 	// TRANSLATORS: Backup, *.bak and /Photos/2019 are examples of what to type; keep them as they are
 	path: t('file_checksum_search', 'Show only groups with a file at this path; the group keeps its other files. A name, such as Backup or *.bak, matches anywhere, a file of that name or a folder and everything in it. With a slash, such as /Photos/2019, it matches from the top of your files. * stands for any part of a name, ** for any number of folders, ? for one character. Upper case is fine.'),
 	empty: t('file_checksum_search', 'Every empty file has the same checksum, so all of them form one large group per algorithm, and deleting one frees no space. They are left out unless this is on.'),
@@ -106,7 +121,8 @@ const TITLES = {
 	path: t('file_checksum_search', 'Show only groups with a file at this path'),
 	// TRANSLATORS: the placeholder of the Duplicates page's path filter
 	pathPlaceholder: t('file_checksum_search', 'Folder, name or pattern'),
-	keepOne: t('file_checksum_search', 'Selecting by path or the versions leaves each group a copy. Turned off, it selects every match, a content\'s last copy included.'),
+	// TRANSLATORS: the tooltip of "Select duplicates" in the bar for choosing rows on the Duplicates page
+	selectDuplicates: t('file_checksum_search', 'Chooses every row but the oldest copy of each group'),
 }
 
 const {
@@ -365,28 +381,61 @@ function onChoose(group: GroupType, fileId: number, chosen: boolean): void {
 		: chosenIn(group, selected.value).filter((id) => id !== fileId))
 }
 
-/** The rows a rule picks added, across the groups shown; D1-A, D7-A and D8-A in {@link chooseMatching}. */
-function chooseBy(matches: (file: GroupType['files'][number]) => boolean): void {
-	const chosen = chooseMatching(groups.value, selected.value, matches, keepOne.value)
+/** The choice after a choosing across the page, and the groups it left alone. */
+function applyChosen(chosen: Chosen): void {
 	selected.value = chosen.selected
 	leftAlone.value = new Set(chosen.leftAlone)
 }
 
-function selectVersions(): void {
-	chooseBy((file) => file.version !== undefined)
+const isVersion = (file: GroupType['files'][number]): boolean => file.version !== undefined
+
+/** The path field's pattern as a row test; null for an empty field. */
+function patternTest(): ((file: GroupType['files'][number]) => boolean) | null {
+	const matcher = compilePattern(selectPattern.value)
+	return matcher ? (file) => matcher(file.path) : null
 }
 
 function selectMatching(): void {
-	const matcher = compilePattern(selectPattern.value)
-	if (matcher) {
-		chooseBy((file) => matcher(file.path))
+	const test = patternTest()
+	if (test) {
+		applyChosen(chooseMatching(groups.value, selected.value, test, keepOne.value))
 	}
 }
 
-function selectNone(): void {
-	selected.value = new Set()
-	leftAlone.value = new Set()
+function deselectMatching(): void {
+	const test = patternTest()
+	if (test) {
+		applyChosen({ selected: dropMatching(groups.value, selected.value, test), leftAlone: [] })
+	}
 }
+
+function selectVersions(): void {
+	applyChosen(chooseMatching(groups.value, selected.value, isVersion, keepOne.value))
+}
+
+function deselectVersions(): void {
+	applyChosen({ selected: dropMatching(groups.value, selected.value, isVersion), leftAlone: [] })
+}
+
+/** D11-C: Select duplicates while Keep one copy is on, Select all while it is off. */
+function selectAllOrDuplicates(): void {
+	applyChosen(chooseAll(groups.value, selected.value, keepOne.value))
+}
+
+function invertSelection(): void {
+	applyChosen(invertChoice(groups.value, selected.value, keepOne.value))
+}
+
+function deselectAll(): void {
+	applyChosen({ selected: new Set(), leftAlone: [] })
+}
+
+// D9-A: turned on, the switch lets go of every group chosen whole.
+watch(keepOne, (on) => {
+	if (on) {
+		applyChosen(withoutWholeGroups(groups.value, selected.value))
+	}
+})
 
 // Groups read again keep what is chosen in them, less rows no longer listed.
 watch(groups, (now) => {
@@ -395,7 +444,10 @@ watch(groups, (now) => {
 
 const selectionCount = computed(() => n('file_checksum_search', '%n row selected', '%n rows selected', selected.value.size))
 
-// TRANSLATORS: in the bar for choosing rows on the Duplicates page: the groups in which a pattern or Select versions selected nothing, since it matched every copy
+// TRANSLATORS: "Select duplicates" chooses every row but each group's oldest copy; "Select all" every row, while Keep one copy is off
+const selectAllLabel = computed(() => keepOne.value ? t('file_checksum_search', 'Select duplicates') : t('file_checksum_search', 'Select all'))
+
+// TRANSLATORS: in the bar for choosing rows on the Duplicates page: the groups in which choosing across the page selected nothing, since it would have taken every copy
 const leftAloneCount = computed(() => n('file_checksum_search', '%n group left alone, as every copy in it matched', '%n groups left alone, as every copy in them matched', leftAlone.value.size))
 
 /** True while a deletion or a restore runs: the menus wait for it. */
@@ -814,66 +866,102 @@ onBeforeUnmount(() => {
 				</NcCheckboxRadioSwitch>
 				<HelpPopover :text="HELP.empty" :label="t('file_checksum_search', 'Show empty files')" />
 			</div>
+			<!-- At the end of the row, the table's edge: choosing, then the
+			     listing read again, one size. -->
 			<div class="db-actions">
-				<NcButton variant="primary" @click="refresh">
-					{{ t('file_checksum_search', 'Refresh') }}
-				</NcButton>
 				<!-- Choosing rows across the page, on the viewer's own listing. -->
-				<NcButton v-if="canAct && !selecting" data-testid="fcias-start-selecting" @click="startSelecting">
+				<NcButton v-if="canAct && !selecting"
+					class="db-action-button"
+					data-testid="fcias-start-selecting"
+					@click="startSelecting">
 					{{ t('file_checksum_search', 'Select') }}
+				</NcButton>
+				<NcButton class="db-action-button" variant="primary" @click="refresh">
+					{{ t('file_checksum_search', 'Refresh') }}
 				</NcButton>
 			</div>
 		</div>
 
-		<!-- While rows are chosen: what chooses across every group shown,
-		     and what has been chosen. A group's own menu chooses in it. -->
+		<!-- While rows are chosen: two ways to choose across every group
+		     shown, kept apart; what is chosen; then the choice's own tools at
+		     the start, and Cancel and Delete at the end, as a dialog's
+		     buttons are. The row's ends follow the writing direction. A
+		     group's own menu chooses in it, unlimited. -->
 		<div v-if="selecting && canAct" class="db-selection-bar" data-testid="fcias-selection-bar">
-			<span class="db-field db-field--path">
-				<span class="db-label">
-					<label :for="`${props.idPrefix}-select-pattern`">{{ t('file_checksum_search', 'Select by path') }}</label>
-					<HelpPopover :text="HELP.selectPattern" :label="t('file_checksum_search', 'Select by path')" />
+			<div class="db-bar-row">
+				<div class="db-bar-section db-bar-section--path">
+					<span class="db-label">
+						<label :for="`${props.idPrefix}-select-pattern`">{{ t('file_checksum_search', 'By path') }}</label>
+						<HelpPopover :text="HELP.selectPattern" :label="t('file_checksum_search', 'By path')" />
+					</span>
+					<span class="db-bar-controls">
+						<NcTextField
+							:id="`${props.idPrefix}-select-pattern`"
+							:model-value="selectPattern"
+							:label="t('file_checksum_search', 'By path')"
+							label-outside
+							:maxlength="MAX_PATTERN_LENGTH"
+							:placeholder="TITLES.pathPlaceholder"
+							@update:model-value="selectPattern = String($event)"
+							@keyup.enter="selectMatching" />
+						<NcButton data-testid="fcias-select-matching" :disabled="!selectPattern.trim()" @click="selectMatching">
+							{{ t('file_checksum_search', 'Select') }}
+						</NcButton>
+						<NcButton data-testid="fcias-deselect-matching" :disabled="!selectPattern.trim() || selected.size === 0" @click="deselectMatching">
+							<!-- TRANSLATORS: a button in the bar for choosing rows on the Duplicates page: let go of the rows the path or the versions pick -->
+							{{ t('file_checksum_search', 'Deselect') }}
+						</NcButton>
+					</span>
+				</div>
+				<div class="db-bar-section db-bar-section--versions">
+					<span class="db-label">
+						<span>{{ t('file_checksum_search', 'Versions') }}</span>
+						<HelpPopover :text="HELP.versions" :label="t('file_checksum_search', 'Versions')" />
+					</span>
+					<span class="db-bar-controls">
+						<NcButton data-testid="fcias-select-versions" @click="selectVersions">
+							{{ t('file_checksum_search', 'Select') }}
+						</NcButton>
+						<NcButton data-testid="fcias-deselect-versions" :disabled="selected.size === 0" @click="deselectVersions">
+							{{ t('file_checksum_search', 'Deselect') }}
+						</NcButton>
+					</span>
+				</div>
+			</div>
+			<p class="db-selection-status">
+				<span data-testid="fcias-selection-count">{{ selectionCount }}</span>
+				<span v-if="leftAlone.size > 0" class="db-selection-left-alone" data-testid="fcias-selection-left-alone">{{ leftAloneCount }}</span>
+				<!-- TRANSLATORS: after the count of groups left alone in the bar for choosing rows; "Keep one copy" is the switch below it, translate it as that switch does -->
+				<span v-if="leftAlone.size > 0" class="db-selection-left-alone">{{ t('file_checksum_search', 'Turn off Keep one copy to select them too.') }}</span>
+			</p>
+			<div class="db-bar-row">
+				<span class="db-keep-one" data-testid="fcias-keep-one">
+					<NcCheckboxRadioSwitch v-model="keepOne" type="switch">
+						<!-- TRANSLATORS: a switch in the bar for choosing rows on the Duplicates page: choosing across the page leaves each group of duplicates one copy -->
+						{{ t('file_checksum_search', 'Keep one copy') }}
+					</NcCheckboxRadioSwitch>
+					<HelpPopover :text="HELP.keepOne" :label="t('file_checksum_search', 'Keep one copy')" />
 				</span>
-				<NcTextField
-					:id="`${props.idPrefix}-select-pattern`"
-					:model-value="selectPattern"
-					:label="t('file_checksum_search', 'Select by path')"
-					label-outside
-					:maxlength="MAX_PATTERN_LENGTH"
-					:placeholder="TITLES.pathPlaceholder"
-					@update:model-value="selectPattern = String($event)"
-					@keyup.enter="selectMatching" />
-			</span>
-			<NcButton data-testid="fcias-select-matching" :disabled="!selectPattern.trim()" @click="selectMatching">
-				{{ t('file_checksum_search', 'Select matching') }}
-			</NcButton>
-			<NcButton data-testid="fcias-select-versions" @click="selectVersions">
-				{{ t('file_checksum_search', 'Select versions') }}
-			</NcButton>
-			<span class="db-keep-one" data-testid="fcias-keep-one">
-				<NcCheckboxRadioSwitch
-					v-model="keepOne"
-					type="switch"
-					:title="TITLES.keepOne">
-					<!-- TRANSLATORS: a switch in the bar for choosing rows on the Duplicates page: selecting by path or the versions leaves each group of duplicates one copy -->
-					{{ t('file_checksum_search', 'Keep one copy') }}
-				</NcCheckboxRadioSwitch>
-			</span>
-			<NcButton data-testid="fcias-select-none" :disabled="selected.size === 0" @click="selectNone">
-				{{ t('file_checksum_search', 'Select none') }}
-			</NcButton>
-			<NcButton data-testid="fcias-delete-page"
-				variant="error"
-				:disabled="selected.size === 0 || acting"
-				@click="askToDeletePage">
-				{{ deleteSelectedLabel }}
-			</NcButton>
-			<NcButton data-testid="fcias-stop-selecting" @click="stopSelecting">
-				{{ t('file_checksum_search', 'Cancel') }}
-			</NcButton>
-			<span class="db-selection-count" data-testid="fcias-selection-count">{{ selectionCount }}</span>
-			<span v-if="leftAlone.size > 0" class="db-selection-left-alone" data-testid="fcias-selection-left-alone">{{ leftAloneCount }}</span>
-			<!-- TRANSLATORS: after the count of groups left alone in the bar for choosing rows; "Keep one copy" is the switch beside it, translate it as that switch does -->
-			<span v-if="leftAlone.size > 0" class="db-selection-left-alone">{{ t('file_checksum_search', 'Turn off Keep one copy to select them too.') }}</span>
+				<NcButton data-testid="fcias-select-all" :title="keepOne ? TITLES.selectDuplicates : undefined" @click="selectAllOrDuplicates">
+					{{ selectAllLabel }}
+				</NcButton>
+				<NcButton data-testid="fcias-invert-selection" @click="invertSelection">
+					{{ t('file_checksum_search', 'Invert selection') }}
+				</NcButton>
+				<NcButton data-testid="fcias-deselect-all" :disabled="selected.size === 0" @click="deselectAll">
+					{{ t('file_checksum_search', 'Deselect all') }}
+				</NcButton>
+				<span class="db-bar-spacer" />
+				<NcButton data-testid="fcias-stop-selecting" @click="stopSelecting">
+					{{ t('file_checksum_search', 'Cancel') }}
+				</NcButton>
+				<NcButton data-testid="fcias-delete-page"
+					variant="error"
+					:disabled="selected.size === 0 || acting"
+					@click="askToDeletePage">
+					{{ deleteSelectedLabel }}
+				</NcButton>
+			</div>
 		</div>
 
 		<div class="db-scroll">
@@ -1017,6 +1105,7 @@ onBeforeUnmount(() => {
 	align-self: flex-end;
 }
 
+/* At the row's end, the table's edge, whatever the writing direction. */
 .db-actions {
 	display: flex;
 	gap: 8px;
@@ -1024,14 +1113,19 @@ onBeforeUnmount(() => {
 	align-items: center;
 	/* On the fields' bottom edge, the labels being above the fields. */
 	align-self: flex-end;
+	margin-inline-start: auto;
 }
 
-/* The choosing's own row, set off from the filters as a mode is. */
+/* Select and Refresh side by side, one size. */
+.db-action-button {
+	min-width: 112px;
+}
+
+/* The choosing's own panel, set off from the filters as a mode is. */
 .db-selection-bar {
 	display: flex;
-	flex-wrap: wrap;
-	gap: 8px 12px;
-	align-items: flex-end;
+	flex-direction: column;
+	gap: 8px;
 	margin-bottom: 12px;
 	padding: 8px 12px;
 	border: 1px solid var(--color-border-maxcontrast);
@@ -1039,18 +1133,64 @@ onBeforeUnmount(() => {
 	background: var(--color-background-dark);
 }
 
-/* A switch among buttons, on their middle line. */
-.db-keep-one {
-	align-self: center;
+.db-bar-row {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px 12px;
+	align-items: flex-end;
 }
 
-.db-selection-count {
-	align-self: center;
+.db-bar-section {
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+}
+
+.db-bar-section--path {
+	flex: 1 1 360px;
+	min-width: 0;
+}
+
+/* The versions are no part of the path: set apart by a bar of their own. */
+.db-bar-section--versions {
+	padding-inline-start: 12px;
+	border-inline-start: 2px solid var(--color-border-maxcontrast);
+}
+
+.db-bar-controls {
+	display: flex;
+	gap: 8px;
+	align-items: center;
+}
+
+.db-bar-controls :deep(.input-field) {
+	flex: 1 1 auto;
+}
+
+/* What is chosen, between the ways of choosing and what is done with it. */
+.db-selection-status {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 4px 8px;
+	margin: 0;
 	font-weight: 600;
 }
 
-.db-selection-left-alone {
+/* A switch and its help among buttons, on their middle line. */
+.db-keep-one {
+	display: flex;
+	align-items: center;
+	gap: 2px;
 	align-self: center;
+}
+
+/* Pushes Cancel and Delete to the row's end. */
+.db-bar-spacer {
+	flex: 1 1 0;
+}
+
+.db-selection-left-alone {
+	font-weight: normal;
 	color: var(--color-warning-text);
 }
 

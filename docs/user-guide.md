@@ -179,26 +179,36 @@ every row you may delete, in every group shown, gets a checkbox,
 and a bar above the list helps choose across the page.
 
 - **Select all** and **Invert selection**, in a group's menu,
-  choose among that group's rows.
-- **Select by path** and **Select matching** choose,
-  in every group shown, the rows a path matches,
-  as the **Path** filter matches them: `Backup` takes every copy under a folder
-  of that name, `*.bak` every copy with that ending.
-- **Select versions** chooses every earlier version shown.
+  choose among that group's rows, by hand, and nothing limits them.
+- **By path**, **Select** chooses, in every group shown,
+  the rows a path matches, as the **Path** filter matches them —
+  `Backup` every copy under a folder of that name, `*.bak` every copy with that
+  ending — and **Deselect** lets them go.
+- **Versions**, **Select** chooses every earlier version shown,
+  wherever it is — the path plays no part — and **Deselect** lets them go.
 - **Keep one copy**, on as choosing starts, leaves each group its last copy:
   its last file, or, in a group of earlier versions alone, its last version
   — beside a file, a version is no copy, as it goes with its file and expires.
-  A group either would empty is left as it was, marked *Every copy matched*,
-  and the bar says how many were.
-- Turned off, both choose every row they match, a group's last copy included:
+  While it is on:
+  - choosing by path or as versions leaves a group it would empty as it was,
+    marked *Every copy matched*, and the bar says how many were;
+  - **Select duplicates** chooses every row but each group's oldest copy,
+    by when it last changed,
+    or every row, where a copy you may not delete stays anyway;
+  - **Invert selection** turns the choice over, and leaves a group it would
+    empty as it was;
+  - turning it back on lets go of every group chosen whole.
+- Turned off, all of these take every row they match,
+  a group's last copy included,
+  and **Select duplicates** becomes **Select all**:
   for a content that must go everywhere, one holding a password say,
   type its hash in **Hash**, turn **Keep one copy** off,
-  and choose `**` with **Select matching**.
+  and choose `**` **By path**.
   The confirmation still says in how many groups no copy stays.
 - A file listed in two groups is one row:
   choosing it in one chooses it in the other.
   It is listed so where the page shows more than one algorithm.
-- **Select none** clears the choice; **Cancel** ends it.
+- **Deselect all** clears the choice; **Cancel** ends it.
 - Each group's header says how many of its rows are chosen.
 
 **Delete selected** in a group's menu deletes that group's chosen rows.

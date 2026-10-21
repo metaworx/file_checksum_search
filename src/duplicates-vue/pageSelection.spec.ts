@@ -5,7 +5,19 @@
 
 import { describe, expect, it } from 'vitest'
 import type { DuplicateFileItem, DuplicateGroup } from './composables/useDuplicates'
-import { bestCopies, chooseMatching, chosenIn, groupKey, stillListed, withGroupChoice } from './pageSelection'
+import {
+	bestCopies,
+	chooseAll,
+	chooseMatching,
+	chosenIn,
+	dropMatching,
+	groupKey,
+	invertChoice,
+	keeperOf,
+	stillListed,
+	withGroupChoice,
+	withoutWholeGroups,
+} from './pageSelection'
 import { compilePattern } from './pathPattern'
 
 const ALL: DuplicateFileItem['actions'] = ['trash', 'delete']
@@ -114,6 +126,75 @@ describe('choosing by a rule', () => {
 
 		expect([...chosen.selected].sort()).toEqual([1, 2, 7])
 		expect(chosen.leftAlone).toEqual([])
+	})
+})
+
+describe('choosing across the page', () => {
+	// A group sharing some files with another: the one left alone keeps
+	// its rows let go of in the other group too, which stays whole.
+	it('keeps a left-alone group\'s files out of a group that shares them', () => {
+		const groups = [
+			group('a', [file(1, '/Backup/a.txt'), file(2, '/Backup/b.txt')]),
+			group('m', [file(1, '/Backup/a.txt'), file(2, '/Backup/b.txt'), file(3, '/Docs/c.txt')], 'md5'),
+		]
+
+		const chosen = chooseMatching(groups, new Set(), inBackup)
+
+		expect([...chosen.selected]).toEqual([])
+		expect(chosen.leftAlone).toEqual(['sha1:a'])
+	})
+
+	it('lets go of what a pattern matches, whatever Keep one copy says', () => {
+		const groups = [group('a', [file(1, '/Backup/a.txt'), file(2, '/Docs/a.txt'), file(3, '/Backup/old/a.txt')])]
+
+		expect([...dropMatching(groups, new Set([1, 2, 3]), inBackup)]).toEqual([2])
+	})
+
+	// D10-A: turned over, with the guard: a group it would empty keeps its choice.
+	it('inverts the choice, and leaves alone a group it would empty', () => {
+		const groups = [
+			group('a', [file(1, '/a.txt'), file(2, '/b.txt'), file(3, '/c.txt')]),
+			group('b', [file(4, '/d.txt'), file(5, '/e.txt')]),
+		]
+
+		const inverted = invertChoice(groups, new Set([1]))
+
+		expect([...inverted.selected].sort()).toEqual([2, 3])
+		expect(inverted.leftAlone).toEqual(['sha1:b'])
+		expect([...invertChoice(groups, new Set([1]), false).selected].sort()).toEqual([2, 3, 4, 5])
+	})
+
+	// D11-C and D12-A: every row but the oldest copy; all of them with the switch off.
+	it('selects the duplicates, keeping each group\'s oldest copy, or everything', () => {
+		const groups = [
+			group('a', [file(1, '/new.txt', { mtime: 300 }), file(2, '/old.txt', { mtime: 100 }), file(3, '/mid.txt', { mtime: 200 })]),
+			group('b', [file(4, '/shared.txt', { actions: [] }), file(5, '/e.txt')]),
+		]
+
+		const duplicates = chooseAll(groups, new Set())
+		expect([...duplicates.selected].sort()).toEqual([1, 3, 5])
+		expect(duplicates.leftAlone).toEqual([])
+
+		expect([...chooseAll(groups, new Set(), false).selected].sort()).toEqual([1, 2, 3, 5])
+	})
+
+	it('keeps the oldest version of a group of versions alone, the first path where two are as old', () => {
+		const at = (timestamp: string) => ({ version: { fileid: 9, timestamp } })
+		expect(keeperOf(group('a', [file(5, 'versions:///b', at('2026-10-21T10:00:00Z')), file(6, 'versions:///a', at('2026-10-20T10:00:00Z'))]))).toBe(6)
+		expect(keeperOf(group('a', [file(7, '/b', { mtime: 1 }), file(8, '/a', { mtime: 1 })]))).toBe(8)
+	})
+
+	// D9-A: the switch turned on lets go of every group chosen whole.
+	it('lets go of the groups chosen whole when Keep one copy is turned on', () => {
+		const groups = [
+			group('a', [file(1, '/a.txt'), file(2, '/b.txt')]),
+			group('b', [file(3, '/c.txt'), file(4, '/d.txt')]),
+		]
+
+		const kept = withoutWholeGroups(groups, new Set([1, 2, 3]))
+
+		expect([...kept.selected]).toEqual([3])
+		expect(kept.leftAlone).toEqual(['sha1:a'])
 	})
 })
 

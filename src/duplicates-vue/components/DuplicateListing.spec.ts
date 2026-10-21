@@ -278,19 +278,71 @@ describe('DuplicateListing, choosing across the page', () => {
 		expect((keepOne().element as HTMLInputElement).checked).toBe(true)
 	})
 
-	it('chooses the versions, chooses none, and leaves choosing on Cancel', async () => {
+	it('chooses the versions and lets them go, deselects all, and leaves choosing on Cancel', async () => {
 		const wrapper = await selectingPage()
 
 		await wrapper.find('[data-testid="fcias-select-versions"]').trigger('click')
 		expect(wrapper.findAll('.db-group')[1].find('[data-testid="fcias-group-selected"]').text()).toBe('1 selected')
 
-		await wrapper.find('[data-testid="fcias-select-none"]').trigger('click')
+		await wrapper.find('[data-testid="fcias-deselect-versions"]').trigger('click')
+		expect(chosen(wrapper)).toEqual([])
+
+		await wrapper.find('[data-testid="fcias-select-versions"]').trigger('click')
+		await wrapper.find('[data-testid="fcias-deselect-all"]').trigger('click')
 		expect(chosen(wrapper)).toEqual([])
 
 		await wrapper.find('[data-testid="fcias-select-versions"]').trigger('click')
 		await wrapper.find('[data-testid="fcias-stop-selecting"]').trigger('click')
 		expect(wrapper.find('[data-testid="fcias-selection-bar"]').exists()).toBe(false)
 		expect(chosen(wrapper)).toEqual([])
+	})
+
+	// A pattern chooses and lets go of what it matches.
+	it('lets go of what the path matches', async () => {
+		const wrapper = await selectingPage()
+
+		await wrapper.find('[data-testid="fcias-select-versions"]').trigger('click')
+		await wrapper.find('#fcias-duplicates-select-pattern').setValue('/Backup')
+		await wrapper.find('[data-testid="fcias-select-matching"]').trigger('click')
+		expect(wrapper.find('[data-testid="fcias-selection-count"]').text()).toBe('2 rows selected')
+
+		await wrapper.find('[data-testid="fcias-deselect-matching"]').trigger('click')
+		expect(wrapper.find('[data-testid="fcias-selection-count"]').text()).toBe('1 row selected')
+	})
+
+	// D11-C: every duplicate while Keep one copy is on, every row while off;
+	// D10-A: the choice turned over, a group it would empty left alone.
+	it('selects the duplicates or all, and inverts the choice', async () => {
+		const wrapper = await selectingPage()
+		const selectAll = () => wrapper.find('[data-testid="fcias-select-all"]')
+
+		expect(selectAll().text()).toBe('Select duplicates')
+		await selectAll().trigger('click')
+		expect(chosen(wrapper)).toEqual(['1 selected', '1 selected', '1 selected'])
+
+		await wrapper.find('[data-testid="fcias-invert-selection"]').trigger('click')
+		expect(chosen(wrapper)).toEqual(['1 selected', '1 selected', '1 selected'])
+
+		await wrapper.find('[data-testid="fcias-keep-one"] input').setValue(false)
+		expect(selectAll().text()).toBe('Select all')
+		await selectAll().trigger('click')
+		expect(wrapper.find('[data-testid="fcias-selection-count"]').text()).toBe('6 rows selected')
+	})
+
+	// D9-A: turned back on, the switch lets go of every group chosen whole.
+	it('lets go of the groups chosen whole when Keep one copy is turned on again', async () => {
+		const wrapper = await selectingPage()
+		const keepOne = () => wrapper.find('[data-testid="fcias-keep-one"] input')
+
+		await keepOne().setValue(false)
+		await wrapper.find('#fcias-duplicates-select-pattern').setValue('/Backup')
+		await wrapper.find('[data-testid="fcias-select-matching"]').trigger('click')
+		expect(chosen(wrapper)).toEqual(['1 selected', '2 selected'])
+
+		await keepOne().setValue(true)
+
+		expect(chosen(wrapper)).toEqual(['1 selected'])
+		expect(wrapper.findAll('.db-group')[2].find('[data-testid="fcias-group-left-alone"]').exists()).toBe(true)
 	})
 
 	// The page's choice goes in one dry run: each group's rows, its versions

@@ -42,7 +42,7 @@ msgid "%n file"
 msgid_plural "%n files"
 msgstr[0] "%n 个文件"
 
-#. TRANSLATORS: in the bar for choosing rows on the Duplicates page: the groups in which a pattern or Select versions selected nothing, since it matched every copy
+#. TRANSLATORS: in the bar for choosing rows on the Duplicates page: the groups in which choosing across the page selected nothing, since it would have taken every copy
 msgid "%n group left alone, as every copy in it matched"
 msgid_plural "%n groups left alone, as every copy in them matched"
 msgstr[0] "%n 个文件组未作更改，因为其中每个副本都匹配"
@@ -243,6 +243,9 @@ msgstr[0] "自 {time} 起正在删除，还剩 %n 个文件"
 msgid "By its name: {type}"
 msgstr "按文件名：{type}"
 
+msgid "By path"
+msgstr "按路径"
+
 msgid "Cancel"
 msgstr "取消"
 
@@ -294,6 +297,10 @@ msgstr "选择账号或群组"
 
 msgid "Choose an account or a group above to see its duplicates."
 msgstr "请在上方选择一个账号或群组，以查看其重复文件。"
+
+#. TRANSLATORS: the tooltip of "Select duplicates" in the bar for choosing rows on the Duplicates page
+msgid "Chooses every row but the oldest copy of each group"
+msgstr "选择除每个文件组中最早的副本之外的所有行"
 
 msgid "Close"
 msgstr "关闭"
@@ -459,6 +466,13 @@ msgstr[0] "已永久删除 %n 项。"
 #. TRANSLATORS: beside a file in a list, marking it as in the trash; {date} is when it was deleted
 msgid "Deleted {date}"
 msgstr "删除于 {date}"
+
+#. TRANSLATORS a button in the bar for choosing rows on the Duplicates page: let go of the rows the path or the versions pick
+msgid "Deselect"
+msgstr "取消选择"
+
+msgid "Deselect all"
+msgstr "全部取消选择"
 
 msgid "Detect MIME types"
 msgstr "检测 MIME 类型"
@@ -736,7 +750,7 @@ msgstr "无法在此处删除其版本。"
 msgid "Its versions could not be merged, so it was not deleted."
 msgstr "无法合并其版本，因此未删除。"
 
-#. TRANSLATORS a switch in the bar for choosing rows on the Duplicates page: selecting by path or the versions leaves each group of duplicates one copy
+#. TRANSLATORS a switch in the bar for choosing rows on the Duplicates page: choosing across the page leaves each group of duplicates one copy
 msgid "Keep one copy"
 msgstr "保留一个副本"
 
@@ -951,6 +965,10 @@ msgstr "已关闭"
 msgid "Off, kept for %n file"
 msgid_plural "Off, kept for %n files"
 msgstr[0] "已关闭，%n 个文件仍保留"
+
+#. TRANSLATORS: "Select duplicates" and "Invert selection" are buttons beside the switch; translate them as those buttons do
+msgid "On, as choosing starts: choosing by path or the versions, Select duplicates and Invert selection never take a group's last copy, which is its last file, or its last version where it has versions alone. Turning it on lets go of every group chosen whole. Off, they take every match, as for a content that must go everywhere, one holding a password, say. Choosing in a group by hand is never limited; the confirmation says where no copy stays."
+msgstr "开始选择时为开启状态：按路径或版本选择、“选择重复项”和“反选”绝不会选中文件组的最后一个副本，即其最后一个文件；若该文件组只有版本，则为其最后一个版本。开启时，会取消选择所有被整体选中的文件组。关闭后，它们会选中所有匹配项，适用于必须在所有位置删除的内容，例如包含密码的内容。在文件组中手动选择从不受限；确认对话框会说明哪些地方不再保留副本。"
 
 #. TRANSLATORS: the status's MIME types row: detection is on, and this many files have a MIME type
 msgid "On, detected for %n file"
@@ -1168,8 +1186,17 @@ msgstr "选择"
 msgid "Select all"
 msgstr "全选"
 
-msgid "Select by path"
-msgstr "按路径选择"
+#. TRANSLATORS: "Select", "Deselect" and "Keep one copy" are the controls of that name on the page; translate them as those controls do
+msgid "Select chooses every earlier version in every group shown, wherever it is; the path field plays no part. Deselect lets them go. While Keep one copy is on, a group of versions alone keeps one."
+msgstr "“选择”会选中显示的每个文件组中的每个早期版本，无论其位于何处；路径栏与此无关。“取消选择”则取消这些选择。开启“保留一个副本”时，仅由版本组成的文件组会保留一个。"
+
+#. TRANSLATORS: "Select", "Deselect", "Path" and "Keep one copy" are the controls of that name on the page; translate them as those controls do
+msgid "Select chooses, in every group shown, the rows this path matches, as the Path filter matches them; Deselect lets them go. While Keep one copy is on, a group whose every copy would be chosen is left alone, and says so."
+msgstr "“选择”会在显示的每个文件组中，按“路径”筛选的方式选择此路径匹配的行；“取消选择”则取消这些选择。开启“保留一个副本”时，所有副本都会被选中的文件组将保持不变，并会标明。"
+
+#. TRANSLATORS: "Select duplicates" chooses every row but each group's oldest copy; "Select all" every row, while Keep one copy is off
+msgid "Select duplicates"
+msgstr "选择重复项"
 
 #. TRANSLATORS: placeholder of the picker that selects the one team folder a rule addresses
 msgid "Select folder …"
@@ -1178,24 +1205,8 @@ msgstr "选择文件夹…"
 msgid "Select groups …"
 msgstr "选择群组…"
 
-msgid "Select matching"
-msgstr "选择匹配项"
-
-#. TRANSLATORS: "Select matching" is the button beside the field; translate it as that button does
-msgid "Select matching chooses, in every group shown, the rows this path matches, as the Path filter matches them. It never chooses every copy of a group outside the trash; such a group is left alone, and says so."
-msgstr "“选择匹配项”会在显示的每个文件组中，按“路径”筛选的方式选择此路径匹配的行。它绝不会选择文件组在回收站之外的所有副本；这样的文件组保持不变，并会标明。"
-
-msgid "Select none"
-msgstr "全不选"
-
-msgid "Select versions"
-msgstr "选择版本"
-
 msgid "Select {name}"
 msgstr "选择 {name}"
-
-msgid "Selecting by path or the versions leaves each group a copy. Turned off, it selects every match, a content's last copy included."
-msgstr "按路径或版本选择时，会为每个文件组保留一个副本。关闭后，将选择所有匹配项，包括某一内容的最后一个副本。"
 
 msgid "Selecting would have taken every copy outside the trash, so nothing was selected here. Choose in the group by hand."
 msgstr "选择将包含回收站之外的所有副本，因此这里未选择任何内容。请在该文件组中手动选择。"
@@ -1423,7 +1434,7 @@ msgstr "回收站"
 msgid "Tunables"
 msgstr "可调参数"
 
-#. TRANSLATORS after the count of groups left alone in the bar for choosing rows; "Keep one copy" is the switch beside it, translate it as that switch does
+#. TRANSLATORS after the count of groups left alone in the bar for choosing rows; "Keep one copy" is the switch below it, translate it as that switch does
 msgid "Turn off Keep one copy to select them too."
 msgstr "关闭“保留一个副本”即可同时选择它们。"
 

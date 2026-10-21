@@ -46,7 +46,7 @@ msgid_plural "%n files"
 msgstr[0] ""
 msgstr[1] ""
 
-#. TRANSLATORS: in the bar for choosing rows on the Duplicates page: the groups in which a pattern or Select versions selected nothing, since it matched every copy
+#. TRANSLATORS: in the bar for choosing rows on the Duplicates page: the groups in which choosing across the page selected nothing, since it would have taken every copy
 msgid "%n group left alone, as every copy in it matched"
 msgid_plural "%n groups left alone, as every copy in them matched"
 msgstr[0] ""
@@ -256,6 +256,9 @@ msgstr[1] ""
 msgid "By its name: {type}"
 msgstr ""
 
+msgid "By path"
+msgstr ""
+
 msgid "Cancel"
 msgstr ""
 
@@ -306,6 +309,10 @@ msgid "Choose accounts or groups"
 msgstr ""
 
 msgid "Choose an account or a group above to see its duplicates."
+msgstr ""
+
+#. TRANSLATORS: the tooltip of "Select duplicates" in the bar for choosing rows on the Duplicates page
+msgid "Chooses every row but the oldest copy of each group"
 msgstr ""
 
 msgid "Close"
@@ -474,6 +481,13 @@ msgstr[1] ""
 
 #. TRANSLATORS: beside a file in a list, marking it as in the trash; {date} is when it was deleted
 msgid "Deleted {date}"
+msgstr ""
+
+#. TRANSLATORS a button in the bar for choosing rows on the Duplicates page: let go of the rows the path or the versions pick
+msgid "Deselect"
+msgstr ""
+
+msgid "Deselect all"
 msgstr ""
 
 msgid "Detect MIME types"
@@ -755,7 +769,7 @@ msgstr ""
 msgid "Its versions could not be merged, so it was not deleted."
 msgstr ""
 
-#. TRANSLATORS a switch in the bar for choosing rows on the Duplicates page: selecting by path or the versions leaves each group of duplicates one copy
+#. TRANSLATORS a switch in the bar for choosing rows on the Duplicates page: choosing across the page leaves each group of duplicates one copy
 msgid "Keep one copy"
 msgstr ""
 
@@ -972,6 +986,10 @@ msgid "Off, kept for %n file"
 msgid_plural "Off, kept for %n files"
 msgstr[0] ""
 msgstr[1] ""
+
+#. TRANSLATORS: "Select duplicates" and "Invert selection" are buttons beside the switch; translate them as those buttons do
+msgid "On, as choosing starts: choosing by path or the versions, Select duplicates and Invert selection never take a group's last copy, which is its last file, or its last version where it has versions alone. Turning it on lets go of every group chosen whole. Off, they take every match, as for a content that must go everywhere, one holding a password, say. Choosing in a group by hand is never limited; the confirmation says where no copy stays."
+msgstr ""
 
 #. TRANSLATORS: the status's MIME types row: detection is on, and this many files have a MIME type
 msgid "On, detected for %n file"
@@ -1190,7 +1208,16 @@ msgstr ""
 msgid "Select all"
 msgstr ""
 
-msgid "Select by path"
+#. TRANSLATORS: "Select", "Deselect" and "Keep one copy" are the controls of that name on the page; translate them as those controls do
+msgid "Select chooses every earlier version in every group shown, wherever it is; the path field plays no part. Deselect lets them go. While Keep one copy is on, a group of versions alone keeps one."
+msgstr ""
+
+#. TRANSLATORS: "Select", "Deselect", "Path" and "Keep one copy" are the controls of that name on the page; translate them as those controls do
+msgid "Select chooses, in every group shown, the rows this path matches, as the Path filter matches them; Deselect lets them go. While Keep one copy is on, a group whose every copy would be chosen is left alone, and says so."
+msgstr ""
+
+#. TRANSLATORS: "Select duplicates" chooses every row but each group's oldest copy; "Select all" every row, while Keep one copy is off
+msgid "Select duplicates"
 msgstr ""
 
 #. TRANSLATORS: placeholder of the picker that selects the one team folder a rule addresses
@@ -1200,23 +1227,7 @@ msgstr ""
 msgid "Select groups …"
 msgstr ""
 
-msgid "Select matching"
-msgstr ""
-
-#. TRANSLATORS: "Select matching" is the button beside the field; translate it as that button does
-msgid "Select matching chooses, in every group shown, the rows this path matches, as the Path filter matches them. It never chooses every copy of a group outside the trash; such a group is left alone, and says so."
-msgstr ""
-
-msgid "Select none"
-msgstr ""
-
-msgid "Select versions"
-msgstr ""
-
 msgid "Select {name}"
-msgstr ""
-
-msgid "Selecting by path or the versions leaves each group a copy. Turned off, it selects every match, a content's last copy included."
 msgstr ""
 
 msgid "Selecting would have taken every copy outside the trash, so nothing was selected here. Choose in the group by hand."
@@ -1445,7 +1456,7 @@ msgstr ""
 msgid "Tunables"
 msgstr ""
 
-#. TRANSLATORS after the count of groups left alone in the bar for choosing rows; "Keep one copy" is the switch beside it, translate it as that switch does
+#. TRANSLATORS after the count of groups left alone in the bar for choosing rows; "Keep one copy" is the switch below it, translate it as that switch does
 msgid "Turn off Keep one copy to select them too."
 msgstr ""
 
