@@ -5758,7 +5758,13 @@ class MetadataService
 			);
 		}
 
+		// Then by what the groups are grouped by, so that the order is total:
+		// groups of one size — most are pairs — came in whatever order the
+		// database chose on each query, and an offset into that showed some
+		// groups on two pages and others on none.
 		$qb->addOrderBy( 'cnt', 'DESC' )
+		   ->addOrderBy( 'i.' . self::FIELD_META_KEY, 'ASC' )
+		   ->addOrderBy( 'i.' . self::FIELD_META_VALUE_STRING, 'ASC' )
 		   ->setMaxResults( $limit )
 		   ->setFirstResult( $offset )
 		;

@@ -80,6 +80,11 @@ interface State {
 	minCount: number
 	limit: number
 	offset: number
+	/**
+	 * Where the next page starts, as the server said: it counts groups the
+	 * viewer never sees, so it is not offset + limit. Null on the last page.
+	 */
+	nextOffset: number | null
 	groups: DuplicateGroup[]
 	loading: boolean
 	hasMore: boolean
@@ -102,6 +107,7 @@ export function useDuplicates() {
 		minCount: 2,
 		limit: 50,
 		offset: 0,
+		nextOffset: null,
 		groups: [],
 		loading: false,
 		hasMore: false,
@@ -113,6 +119,9 @@ export function useDuplicates() {
 	})
 
 	let abortController: AbortController | null = null
+
+	/** The offsets of the pages before this one, for Previous: the server's offsets cannot be counted back. */
+	const previousOffsets: number[] = []
 
 	// Set when a verification run stopped early on the recalc rate limit,
 	// so the next run resumes instead of replaying what it already did.
@@ -188,14 +197,20 @@ export function useDuplicates() {
 				return
 			}
 			if (!response.ok) throw new Error(`HTTP ${response.status}`)
-			const data = (await response.json()) as { duplicates?: DuplicateGroup[], canSudo?: boolean, canRecalc?: boolean }
+			const data = (await response.json()) as {
+				duplicates?: DuplicateGroup[]
+				pagination?: { next_offset?: number | null }
+				canSudo?: boolean
+				canRecalc?: boolean
+			}
 
 			state.groups = data.duplicates || []
 			state.canRecalc = data.canRecalc !== false
 			if (!scoped) {
 				state.canSudo = data.canSudo === true
 			}
-			state.hasMore = state.groups.length >= state.limit
+			state.nextOffset = data.pagination?.next_offset ?? null
+			state.hasMore = state.nextOffset !== null
 		} catch (err) {
 			if (err instanceof DOMException && err.name === 'AbortError') return
 			state.error = t('file_checksum_search', 'Could not load the duplicates.')
@@ -364,14 +379,20 @@ export function useDuplicates() {
 
 	function resetOffset(): void {
 		state.offset = 0
+		previousOffsets.length = 0
 	}
 
+	/** Back to the page this one came from; to the first, for a page opened from the address. */
 	function prevPage(): void {
-		state.offset = Math.max(0, state.offset - state.limit)
+		state.offset = previousOffsets.pop() ?? 0
 	}
 
 	function nextPage(): void {
-		state.offset += state.limit
+		if (state.nextOffset === null) {
+			return
+		}
+		previousOffsets.push(state.offset)
+		state.offset = state.nextOffset
 	}
 
 	return {

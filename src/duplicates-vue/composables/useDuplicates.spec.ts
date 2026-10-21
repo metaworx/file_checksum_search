@@ -379,6 +379,32 @@ describe('useDuplicates', () => {
 		expect(hasMore.value).toBe(false)
 	})
 
+	// The server counts groups the viewer never sees: the next page starts
+	// where it says, not at offset + limit, and Previous goes back the same way.
+	it('pages from the server\'s next_offset, and back to where it came from', async () => {
+		const fetchMock = vi.spyOn(globalThis, 'fetch').mockImplementation((url) => {
+			const offset = Number(new URL(String(url), 'https://cloud.test').searchParams.get('offset'))
+			return Promise.resolve(jsonResponse({
+				duplicates: [{ algo: 'sha1', hash_value: `at${offset}`, file_count: 2, files: [] }],
+				pagination: { offset, limit: 1, next_offset: offset === 0 ? 7 : null },
+			}))
+		})
+		const { hasMore, limit, load, nextPage, offset, prevPage } = useDuplicates()
+		limit.value = 1
+
+		await load()
+		expect(hasMore.value).toBe(true)
+
+		nextPage()
+		expect(offset.value).toBe(7)
+		await load()
+		expect(String(fetchMock.mock.calls[1][0])).toContain('offset=7')
+		expect(hasMore.value).toBe(false)
+
+		prevPage()
+		expect(offset.value).toBe(0)
+	})
+
 	// Each group's type, while the server detects types; asked otherwise,
 	// the listing would be refused.
 	it('asks for the groups\' MIME types only while the server detects types', async () => {

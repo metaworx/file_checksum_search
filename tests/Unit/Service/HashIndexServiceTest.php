@@ -558,8 +558,9 @@ class HashIndexServiceTest
 				'duplicates'   => [],
 				'total_groups' => 0,
 				'pagination'   => [
-					'offset' => 0,
-					'limit'  => DuplicateService::DEFAULT_DUPLICATE_LIMIT,
+					'offset'      => 0,
+					'limit'       => DuplicateService::DEFAULT_DUPLICATE_LIMIT,
+					'next_offset' => null,
 				],
 			],
 			$result,
@@ -799,13 +800,99 @@ class HashIndexServiceTest
 
 		$this->assertCount( 2, $result['duplicates'] );
 		$this->assertSame( 2, $result['total_groups'] );
+		// The third group is where the next page starts: raw offset 5 + 2.
 		$this->assertSame(
 			[
-				'offset' => 5,
-				'limit'  => 2,
+				'offset'      => 5,
+				'limit'       => 2,
+				'next_offset' => 7,
 			],
 			$result['pagination'],
 		);
+	}
+
+	/**
+	 * A group the filter drops is in the raw offsets and in no answer, so the
+	 * next page starts at the first group this one had no room for — not at
+	 * offset + limit, which showed the dropped group's successor twice.
+	 */
+	public function testTheNextPageStartsAfterTheLastGroupShownNotAfterLimitGroups(): void
+	{
+		$groups = [
+			$this->group( 'a', [ 1, 2 ] ),
+			// One copy is somebody else's: no duplicate for bob.
+			$this->group( 'b', [ 3, 4 ] ),
+			$this->group( 'c', [ 5, 6 ] ),
+			$this->group( 'd', [ 7, 8 ] ),
+		];
+
+		$this->duplicates->method( 'findAllDuplicates' )
+		                 ->willReturnCallback(
+			                 fn( ?string $algo, int $minCount, int $limit, int $offset ): array => array_slice( $groups, $offset ),
+		                 )
+		;
+		$this->filecacheService->method( 'batchLookupFilecachePaths' )
+		                       ->willReturnCallback(
+			                       fn( array $fileIds ): array => $this->paths( array_values( array_diff( $fileIds, [ 4 ] ) ) ),
+		                       )
+		;
+
+		$first = $this->service->listDuplicatesForUser( 'bob', 'sha1', 2, 2, 0 );
+
+		$this->assertSame( [ 'a', 'c' ], array_column( $first['duplicates'], 'hash_value' ) );
+		$this->assertSame( 3, $first['pagination']['next_offset'] );
+
+		$second = $this->service->listDuplicatesForUser( 'bob', 'sha1', 2, 2, $first['pagination']['next_offset'] );
+
+		$this->assertSame( [ 'd' ], array_column( $second['duplicates'], 'hash_value' ) );
+		$this->assertNull( $second['pagination']['next_offset'] );
+	}
+
+	/**
+	 * A page that takes the last groups there are says so: no next page,
+	 * rather than one that comes back empty.
+	 */
+	public function testAPageEndingWithTheLastGroupsHasNoNextPage(): void
+	{
+		$this->duplicates->method( 'findAllDuplicates' )
+		                 ->willReturn( [ $this->group( 'a', [ 1, 2 ] ), $this->group( 'b', [ 3, 4 ] ), $this->group( 'c', [ 5, 6 ] ) ] )
+		;
+		// c is not bob's: nothing after b would be shown.
+		$this->filecacheService->method( 'batchLookupFilecachePaths' )
+		                       ->willReturn( $this->paths( [ 1, 2, 3, 4 ] ) )
+		;
+
+		$result = $this->service->listDuplicatesForUser( 'bob', 'sha1', 2, 2, 0 );
+
+		$this->assertCount( 2, $result['duplicates'] );
+		$this->assertNull( $result['pagination']['next_offset'] );
+	}
+
+	/**
+	 * A scan that reaches its bound without filling the page is not the end:
+	 * the next page goes on where it stopped, though this one is short.
+	 */
+	public function testAScanStoppedAtItsBoundSaysWhereToGoOn(): void
+	{
+		// Full pages of 200, none of them bob's but the first file of each.
+		$this->duplicates->method( 'findAllDuplicates' )
+		                 ->willReturnCallback(
+			                 fn( ?string $algo, int $minCount, int $limit, int $offset ): array => array_map(
+				                 fn( int $i ): array => $this->group( 'h' . $i, [ $i * 2 + 1, $i * 2 + 2 ] ),
+				                 range( $offset, $offset + $limit - 1 ),
+			                 ),
+		                 )
+		;
+		$this->filecacheService->method( 'batchLookupFilecachePaths' )
+		                       ->willReturnCallback(
+			                       fn( array $fileIds ): array => $this->paths( array_values( array_filter( $fileIds, fn( int $id ): bool => $id % 2 === 1 ) ) ),
+		                       )
+		;
+
+		$result = $this->service->listDuplicatesForUser( 'bob', 'sha1', 2, 50, 0 );
+
+		$this->assertSame( [], $result['duplicates'] );
+		$this->assertSame( 10000, $result['pagination']['next_offset'] );
 	}
 
 	/**
@@ -839,6 +926,7 @@ class HashIndexServiceTest
 		$result = $this->service->listDuplicatesForUser( 'bob', 'sha1', 2, 3, 0 );
 
 		$this->assertCount( 3, $result['duplicates'] );
+		$this->assertSame( 3, $result['pagination']['next_offset'] );
 	}
 
 	/**

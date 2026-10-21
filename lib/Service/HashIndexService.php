@@ -398,10 +398,13 @@ class HashIndexService
 	 * @return array{duplicates: array<int, array{algo: string, hash_value: string, file_count: int, empty: bool,
 	 *                            files: array<int, array{fileid: int, path: string, name: string, owner: ?string,
 	 *                            location: string, mtime: int, size: int}>}>, total_groups: int,
-	 *                            pagination: array{offset: int, limit: int}}
+	 *                            pagination: array{offset: int, limit: int, next_offset: ?int}}
 	 *         `path` is the first named account's path for the file, with a
 	 *         leading slash; for the whole instance, its path below its area.
 	 *         `mtime` and `size` as {@see FilecacheService::batchLookupFilecachePaths()}.
+	 *         `next_offset` is the $offset of the next page, null when there
+	 *         is none; it counts raw groups, as $offset does, and so cannot be
+	 *         worked out from the groups returned.
 	 */
 	public function listDuplicatesForUser(
 		string|array|null $userId,
@@ -444,15 +447,25 @@ class HashIndexService
 		$rawOffset = $offset;
 		$scanned   = 0;
 
-		while ( count( $result ) < $limit && $scanned < self::UNFILTERED_GROUP_FETCH_LIMIT )
+		// Where the next page starts, in raw groups as $offset is: the first
+		// group kept beyond this page, or where the scan stopped. The caller
+		// cannot count it from what it was given — a group dropped by the
+		// filter is in the raw offsets and in no answer — and offset + limit
+		// showed the dropped groups' successors twice.
+		$nextOffset = null;
+		$exhausted  = false;
+
+		while ( $nextOffset === null && count( $result ) < $limit && $scanned < self::UNFILTERED_GROUP_FETCH_LIMIT )
 		{
 			$groups = $this->findAllDuplicates( $algo, $minCount, $pageSize, $rawOffset, $hash, $anywhere, $includeEmpty );
 
 			if ( $groups === [] )
 			{
+				$exhausted = true;
 				break;
 			}
 
+			$pageStart = $rawOffset;
 			$rawOffset += count( $groups );
 			$scanned += count( $groups );
 
@@ -468,7 +481,7 @@ class HashIndexService
 
 			$fcPaths = $this->batchLookupFilecachePaths( $pageFileIds, $userId );
 
-			foreach ( $groups as $group )
+			foreach ( array_values( $groups ) as $index => $group )
 			{
 				$files = [];
 
@@ -497,6 +510,13 @@ class HashIndexService
 					continue;
 				}
 
+				// A group the page has no room for: the next page starts here.
+				if ( count( $result ) === $limit )
+				{
+					$nextOffset = $pageStart + $index;
+					break;
+				}
+
 				$result[] = [
 					'algo'       => $group['algo'],
 					'hash_value' => $group['hash_value'],
@@ -506,22 +526,29 @@ class HashIndexService
 				];
 			}
 
-			if ( count( $groups ) < $pageSize )
+			if ( $nextOffset === null && count( $groups ) < $pageSize )
 			{
 				// The page came back short: the raw groups are exhausted.
+				$exhausted = true;
+			}
+
+			if ( $exhausted )
+			{
 				break;
 			}
 		}
 
-		if ( count( $result ) > $limit )
+		// Full, or stopped at the bound: the next page goes on after what
+		// was read. Exhausted, with nothing kept beyond: there is none.
+		if ( $nextOffset === null && ! $exhausted )
 		{
-			$result = array_slice( $result, 0, $limit );
+			$nextOffset = $rawOffset;
 		}
 
 		return [
 			'duplicates'   => $result,
 			'total_groups' => count( $result ),
-			'pagination'   => $pagination,
+			'pagination'   => $pagination + [ 'next_offset' => $nextOffset ],
 		];
 	}
 

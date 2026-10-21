@@ -698,7 +698,7 @@ class ChecksumApiTest
 	}
 
 	/**
-	 * @return array{duplicates: array, total_groups: int, pagination: array{offset: int, limit: int}}
+	 * @return array{duplicates: array, total_groups: int, pagination: array{offset: int, limit: int, next_offset: ?int}}
 	 */
 	private function emptyListing( int $limit = 50 ): array
 	{
@@ -706,8 +706,9 @@ class ChecksumApiTest
 			'duplicates'   => [],
 			'total_groups' => 0,
 			'pagination'   => [
-				'offset' => 0,
-				'limit'  => $limit,
+				'offset'      => 0,
+				'limit'       => $limit,
+				'next_offset' => null,
 			],
 		];
 	}

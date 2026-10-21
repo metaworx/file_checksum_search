@@ -759,11 +759,14 @@ An administrator sees their own files, not everyone's.
 | `$algo` | `?string` | No | Algorithm filter |
 | `$minCount` | `int` | No | Minimum files per group (default 2) |
 | `$limit` | `int` | No | Max groups (1–500, default 50) |
-| `$offset` | `int` | No | Pagination offset |
+| `$offset` | `int` | No | Pagination offset: 0, or the last page's `next_offset` |
 | `$hash` | `?string` | No | Only the groups whose hash starts with this |
 | `$anywhere` | `bool` | No | With `$hash`: match it anywhere in the hash, not only at the start |
 | `$includeEmpty` | `bool` | No | List the empty files' groups too (default `false`); see [Empty files](#empty-files) |
 | `$withMimeType` | `bool` | No | Add `mimetype` to each group: the type of the content its files share, as detected for the first of them that has one ([MIME types](#mime-types)) |
+
+`pagination.next_offset` is where the next page starts, null on the last,
+as on [route 5](#5-find-all-duplicates).
 
 **Returns:**
 ```php
@@ -782,7 +785,7 @@ An administrator sees their own files, not everyone's.
         ],
     ],
     'total_groups' => 1,
-    'pagination' => ['offset' => 0, 'limit' => 50],
+    'pagination' => ['offset' => 0, 'limit' => 50, 'next_offset' => null],
 ]
 ```
 
@@ -1400,11 +1403,19 @@ default — see [Empty files](#empty-files).
     }
   ],
   "total_groups": 1,
-  "pagination": {"offset": 0, "limit": 50},
+  "pagination": {"offset": 0, "limit": 50, "next_offset": null},
   "canRecalc": true,
   "canSudo": false
 }
 ```
+
+`pagination.next_offset` is the `offset` of the next page, or null on the last.
+It counts the groups the listing leaves out — another account's files, a file
+alone beside its versions — so it is not `offset + limit`, which repeats groups.
+A page shorter than `limit` with a `next_offset` is not the last:
+the listing stops after reading 10,000 groups for one page.
+Groups of one size come in the order of their algorithm and hash,
+the same on every request.
 
 Each file carries `mtime`, when it last changed in seconds since the epoch,
 and `size`, in bytes, as the filecache holds them; for a version,

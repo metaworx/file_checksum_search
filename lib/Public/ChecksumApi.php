@@ -766,7 +766,8 @@ class ChecksumApi
 	 * @param  string|null  $algo      Optional algorithm filter
 	 * @param  int          $minCount  Minimum files per group (default 2)
 	 * @param  int          $limit     Max groups (1–500, default 50)
-	 * @param  int          $offset        Pagination offset (default 0)
+	 * @param  int          $offset        Pagination offset (default 0): 0,
+	 *                                     or a page's `next_offset`
 	 * @param  bool         $includeEmpty  List the groups of empty files
 	 *                                     too; left out by default, since
 	 *                                     every empty file shares one
@@ -774,7 +775,9 @@ class ChecksumApi
 	 * @param  bool         $withMimeType  Each group gains `mimetype`, as
 	 *                                     {@see findDuplicatesFor()}.
 	 *
-	 * @return array{duplicates: array, total_groups: int, pagination: array{offset: int, limit: int}}
+	 * @return array{duplicates: array, total_groups: int, pagination: array{offset: int, limit: int, next_offset: ?int}}
+	 *         `next_offset` is the $offset of the next page, null when there
+	 *         is none ({@see HashIndexService::listDuplicatesForUser()}).
 	 * @throws HintedInvalidArgumentException  For $withMimeType while detection
 	 *                                         is off.
 	 */
@@ -800,13 +803,14 @@ class ChecksumApi
 				'duplicates'   => [],
 				'total_groups' => 0,
 				'pagination'   => [
-					'offset' => $offset,
-					'limit'  => max( 1, min( $limit, 500 ) ),
+					'offset'      => $offset,
+					'limit'       => max( 1, min( $limit, 500 ) ),
+					'next_offset' => null,
 				],
 			];
 		}
 
-		return $this->findDuplicatesFor( [ $uid ], $algo, $minCount, $limit, $offset, $hash, $anywhere, $includeEmpty, withMimeType: $withMimeType );
+		return $this->findDuplicatesFor( [ $uid ],$algo, $minCount, $limit, $offset, $hash, $anywhere, $includeEmpty, withMimeType: $withMimeType );
 	}
 
 	/**
@@ -829,7 +833,7 @@ class ChecksumApi
 	 *                                           files share, as detected
 	 *                                           ({@see groupsWithMimeTypes()}).
 	 *
-	 * @return array{duplicates: array, total_groups: int, pagination: array{offset: int, limit: int}}
+	 * @return array{duplicates: array, total_groups: int, pagination: array{offset: int, limit: int, next_offset: ?int}}
 	 * @throws HintedInvalidArgumentException  For $withMimeType while detection
 	 *                                         is off.
 	 */

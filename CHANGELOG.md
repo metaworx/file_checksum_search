@@ -33,6 +33,12 @@ the first stable release.
 - Duplicates page: *Verify all* and *Verify* in a menu on each group and
   row; the header in columns; badges for a version and a verified file.
 
+### Fixed
+
+- `GET /api/v1/duplicates` and the Duplicates page: a page no longer
+  repeats groups of the one before; `pagination.next_offset` says where
+  the next starts.
+
 ## [0.29.1] - 2026-10-21
 
 ### Fixed

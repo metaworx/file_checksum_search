@@ -296,7 +296,7 @@ paths:
         - name: offset
           in: query
           required: false
-          description: Pagination offset (default 0)
+          description: Pagination offset (default 0) - 0, or the last page's `pagination.next_offset`
           schema:
             type: integer
             minimum: 0
@@ -790,7 +790,7 @@ paths:
         - name: offset
           in: query
           required: false
-          description: Pagination offset
+          description: Pagination offset - 0, or the last page's `pagination.next_offset`
           schema:
             type: integer
             default: 0
@@ -2136,7 +2136,7 @@ components:
 
     Pagination:
       type: object
-      required: [offset, limit]
+      required: [offset, limit, next_offset]
       properties:
         offset:
           type: integer
@@ -2144,6 +2144,13 @@ components:
         limit:
           type: integer
           example: 50
+        next_offset:
+          type: integer
+          nullable: true
+          description: >-
+            The `offset` of the next page, null on the last. It counts groups
+            the caller does not see, so it is not offset + limit.
+          example: 63
 
     RecalcResponse:
       type: object
