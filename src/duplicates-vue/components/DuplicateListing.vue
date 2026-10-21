@@ -23,7 +23,8 @@ import DuplicateGroup from './DuplicateGroup.vue'
 import { useDuplicates, type DuplicateScope, type DuplicateGroup as GroupType } from '../composables/useDuplicates'
 import { deleteRows, restoreRow, restoreRows, type RestoreAs, type RowAction, type RowResult } from '../duplicateActions'
 import { sameParams, type ListingParams } from '../urlState'
-import { MAX_PATTERN_LENGTH } from '../pathPattern'
+import { compilePattern, MAX_PATTERN_LENGTH } from '../pathPattern'
+import { chooseMatching, chosenIn, groupKey, stillListed, withGroupChoice } from '../pageSelection'
 import { type AlgoOption } from '../../algorithms'
 import { toastError, toastSuccess, toastUndo } from '../../toast'
 import { n, t } from '../../l10n'
@@ -71,6 +72,8 @@ const HELP = {
 	limit: t('file_checksum_search', 'How many groups one page shows. Nothing here is read from disk until you verify a group or a file, so a larger page costs a longer query, not longer reads.'),
 	// TRANSLATORS: "Match anywhere in the hash" is the switch beside the field; translate it as that switch does
 	hash: t('file_checksum_search', 'Show only groups whose hash matches what you type. Whole values come first, then those that start with what you typed. Turn on "Match anywhere in the hash" to match it in the middle of a hash too. Upper case is fine.'),
+	// TRANSLATORS: "Select matching" is the button beside the field; translate it as that button does
+	selectPattern: t('file_checksum_search', 'Select matching chooses, in every group shown, the rows this path matches, as the Path filter matches them. It never chooses every copy of a group outside the trash; such a group is left alone, and says so.'),
 	// TRANSLATORS: Backup, *.bak and /Photos/2019 are examples of what to type; keep them as they are
 	path: t('file_checksum_search', 'Show only groups with a file at this path; the group keeps its other files. A name, such as Backup or *.bak, matches anywhere, a file of that name or a folder and everything in it. With a slash, such as /Photos/2019, it matches from the top of your files. * stands for any part of a name, ** for any number of folders, ? for one character. Upper case is fine.'),
 	empty: t('file_checksum_search', 'Every empty file has the same checksum, so all of them form one large group per algorithm, and deleting one frees no space. They are left out unless this is on.'),
@@ -305,6 +308,75 @@ async function onVerifyGroup(group: GroupType): Promise<void> {
 /** The page acts on the viewer's own files only. */
 const canAct = computed(() => props.scope === null)
 
+/** Whether rows are being chosen on the page: every group's, a checkbox each. */
+const selecting = ref(false)
+
+/** The rows chosen, by file id: one choice for the page, whichever group lists a file. */
+const selected = ref<Set<number>>(new Set())
+
+/** The groups the last rule left alone, by key: it would have taken every copy outside the trash. */
+const leftAlone = ref<Set<string>>(new Set())
+
+/** The pattern the selection bar selects by. */
+const selectPattern = ref('')
+
+function startSelecting(): void {
+	selecting.value = true
+}
+
+function stopSelecting(): void {
+	selecting.value = false
+	selected.value = new Set()
+	leftAlone.value = new Set()
+	selectPattern.value = ''
+}
+
+/** A group's rows chosen by hand: the group's own choice, which no rule then stands for. */
+function onGroupSelected(group: GroupType, fileIds: number[]): void {
+	selected.value = withGroupChoice(selected.value, group, fileIds)
+	leftAlone.value = new Set([...leftAlone.value].filter((key) => key !== groupKey(group)))
+}
+
+/** One row's box, ticked or not. */
+function onChoose(group: GroupType, fileId: number, chosen: boolean): void {
+	onGroupSelected(group, chosen
+		? [...chosenIn(group, selected.value), fileId]
+		: chosenIn(group, selected.value).filter((id) => id !== fileId))
+}
+
+/** The rows a rule picks added, across the groups shown; D1-A in {@link chooseMatching}. */
+function chooseBy(matches: (file: GroupType['files'][number]) => boolean): void {
+	const chosen = chooseMatching(groups.value, selected.value, matches)
+	selected.value = chosen.selected
+	leftAlone.value = new Set(chosen.leftAlone)
+}
+
+function selectVersions(): void {
+	chooseBy((file) => file.version !== undefined)
+}
+
+function selectMatching(): void {
+	const matcher = compilePattern(selectPattern.value)
+	if (matcher) {
+		chooseBy((file) => matcher(file.path))
+	}
+}
+
+function selectNone(): void {
+	selected.value = new Set()
+	leftAlone.value = new Set()
+}
+
+// Groups read again keep what is chosen in them, less rows no longer listed.
+watch(groups, (now) => {
+	selected.value = stillListed(selected.value, now)
+})
+
+const selectionCount = computed(() => n('file_checksum_search', '%n row selected', '%n rows selected', selected.value.size))
+
+// TRANSLATORS: in the bar for choosing rows on the Duplicates page: the groups in which a pattern or Select versions selected nothing, since it matched every copy
+const leftAloneCount = computed(() => n('file_checksum_search', '%n group left alone, as every copy in it matched', '%n groups left alone, as every copy in them matched', leftAlone.value.size))
+
 /** True while a deletion or a restore runs: the menus wait for it. */
 const acting = ref(false)
 
@@ -417,6 +489,9 @@ async function onConfirmDelete(): Promise<void> {
 	try {
 		const results = await deleteRows(pending.group, pending.fileIds, { forGood: pending.forGood, dryRun: false, mergeInto: pending.mergeInto ?? null })
 		confirming.value = null
+		// Done with: a row that went to the trash is listed still, and chosen
+		// again it would go for good.
+		selected.value = new Set([...selected.value].filter((id) => !pending.fileIds.includes(id)))
 		reportDeleted(pending.group, results)
 	} catch {
 		toastError(NETWORK_ERROR)
@@ -611,7 +686,45 @@ onBeforeUnmount(() => {
 				<NcButton variant="primary" @click="refresh">
 					{{ t('file_checksum_search', 'Refresh') }}
 				</NcButton>
+				<!-- Choosing rows across the page, on the viewer's own listing. -->
+				<NcButton v-if="canAct && !selecting" data-testid="fcias-start-selecting" @click="startSelecting">
+					{{ t('file_checksum_search', 'Select') }}
+				</NcButton>
 			</div>
+		</div>
+
+		<!-- While rows are chosen: what chooses across every group shown,
+		     and what has been chosen. A group's own menu chooses in it. -->
+		<div v-if="selecting && canAct" class="db-selection-bar" data-testid="fcias-selection-bar">
+			<span class="db-field db-field--path">
+				<span class="db-label">
+					<label :for="`${props.idPrefix}-select-pattern`">{{ t('file_checksum_search', 'Select by path') }}</label>
+					<HelpPopover :text="HELP.selectPattern" :label="t('file_checksum_search', 'Select by path')" />
+				</span>
+				<NcTextField
+					:id="`${props.idPrefix}-select-pattern`"
+					:model-value="selectPattern"
+					:label="t('file_checksum_search', 'Select by path')"
+					label-outside
+					:maxlength="MAX_PATTERN_LENGTH"
+					:placeholder="TITLES.pathPlaceholder"
+					@update:model-value="selectPattern = String($event)"
+					@keyup.enter="selectMatching" />
+			</span>
+			<NcButton data-testid="fcias-select-matching" :disabled="!selectPattern.trim()" @click="selectMatching">
+				{{ t('file_checksum_search', 'Select matching') }}
+			</NcButton>
+			<NcButton data-testid="fcias-select-versions" @click="selectVersions">
+				{{ t('file_checksum_search', 'Select versions') }}
+			</NcButton>
+			<NcButton data-testid="fcias-select-none" :disabled="selected.size === 0" @click="selectNone">
+				{{ t('file_checksum_search', 'Select none') }}
+			</NcButton>
+			<NcButton data-testid="fcias-stop-selecting" @click="stopSelecting">
+				{{ t('file_checksum_search', 'Cancel') }}
+			</NcButton>
+			<span class="db-selection-count" data-testid="fcias-selection-count">{{ selectionCount }}</span>
+			<span v-if="leftAlone.size > 0" class="db-selection-left-alone" data-testid="fcias-selection-left-alone">{{ leftAloneCount }}</span>
 		</div>
 
 		<div class="db-scroll">
@@ -636,10 +749,17 @@ onBeforeUnmount(() => {
 				:can-verify="canRecalc"
 				:can-act="canAct"
 				:acting="acting"
+				:selecting="selecting && canAct"
+				:selected="chosenIn(group, selected)"
+				:left-alone="leftAlone.has(groupKey(group))"
 				@verify-group="onVerifyGroup"
 				@verify-file="verifyFile"
 				@act="onAct"
-				@delete-selected="onDeleteSelected" />
+				@delete-selected="onDeleteSelected"
+				@update:selected="onGroupSelected"
+				@choose="onChoose"
+				@start-selecting="startSelecting"
+				@stop-selecting="stopSelecting" />
 		</div>
 
 		<DeleteDialog v-if="confirming"
@@ -743,6 +863,29 @@ onBeforeUnmount(() => {
 	align-items: center;
 	/* On the fields' bottom edge, the labels being above the fields. */
 	align-self: flex-end;
+}
+
+/* The choosing's own row, set off from the filters as a mode is. */
+.db-selection-bar {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px 12px;
+	align-items: flex-end;
+	margin-bottom: 12px;
+	padding: 8px 12px;
+	border: 1px solid var(--color-border-maxcontrast);
+	border-radius: var(--border-radius-large);
+	background: var(--color-background-dark);
+}
+
+.db-selection-count {
+	align-self: center;
+	font-weight: 600;
+}
+
+.db-selection-left-alone {
+	align-self: center;
+	color: var(--color-warning-text);
 }
 
 .db-scroll {

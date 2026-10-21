@@ -37,6 +37,28 @@ msgstr[1] "%n pliki"
 msgstr[2] "%n plików"
 msgstr[3] "%n plików"
 
+#. TRANSLATORS: in the bar for choosing rows on the Duplicates page: the groups in which a pattern or Select versions selected nothing, since it matched every copy
+msgid "%n group left alone, as every copy in it matched"
+msgid_plural "%n groups left alone, as every copy in them matched"
+msgstr[0] "%n grupa pozostawiona bez zmian, bo pasowała każda jej kopia"
+msgstr[1] "%n grupy pozostawione bez zmian, bo pasowała każda ich kopia"
+msgstr[2] "%n grup pozostawionych bez zmian, bo pasowała każda ich kopia"
+msgstr[3] "%n grupy pozostawionej bez zmian, bo pasowała każda jej kopia"
+
+msgid "%n row selected"
+msgid_plural "%n rows selected"
+msgstr[0] "%n wiersz zaznaczony"
+msgstr[1] "%n wiersze zaznaczone"
+msgstr[2] "%n wierszy zaznaczonych"
+msgstr[3] "%n wiersza zaznaczonego"
+
+msgid "%n selected"
+msgid_plural "%n selected"
+msgstr[0] "%n zaznaczony"
+msgstr[1] "%n zaznaczone"
+msgstr[2] "%n zaznaczonych"
+msgstr[3] "%n zaznaczonego"
+
 msgid "%n version goes to the file that stays."
 msgid_plural "%n versions go to the file that stays."
 msgstr[0] "%n wersja trafia do pliku, który zostaje."
@@ -518,6 +540,10 @@ msgstr "Sprawdzane od góry do dołu – o pliku decyduje pierwsza pasująca reg
 
 msgid "Evaluates in band {band} — {label}"
 msgstr "Sprawdzana na poziomie {band} – {label}"
+
+#. TRANSLATORS: a badge on a group of duplicates: selecting by a pattern or the versions would have taken every copy, so nothing was selected in it
+msgid "Every copy matched"
+msgstr "Pasowała każda kopia"
 
 msgid "Every empty file has the same checksum, so all of them form one large group per algorithm, and deleting one frees no space. They are left out unless this is on."
 msgstr "Wszystkie puste pliki mają tę samą sumę kontrolną, więc tworzą jedną dużą grupę dla każdego algorytmu, a usunięcie jednego nie zwalnia miejsca. Są pomijane, chyba że ta opcja jest włączona."
@@ -1145,6 +1171,9 @@ msgstr "Zaznacz"
 msgid "Select all"
 msgstr "Zaznacz wszystko"
 
+msgid "Select by path"
+msgstr "Zaznacz według ścieżki"
+
 #. TRANSLATORS: placeholder of the picker that selects the one team folder a rule addresses
 msgid "Select folder …"
 msgstr "Wybierz folder…"
@@ -1152,8 +1181,24 @@ msgstr "Wybierz folder…"
 msgid "Select groups …"
 msgstr "Wybierz grupy…"
 
+msgid "Select matching"
+msgstr "Zaznacz pasujące"
+
+#. TRANSLATORS: "Select matching" is the button beside the field; translate it as that button does
+msgid "Select matching chooses, in every group shown, the rows this path matches, as the Path filter matches them. It never chooses every copy of a group outside the trash; such a group is left alone, and says so."
+msgstr "„Zaznacz pasujące” wybiera w każdej wyświetlonej grupie wiersze, do których pasuje ta ścieżka, tak jak filtr „Ścieżka”. Nigdy nie wybiera wszystkich kopii grupy poza koszem; taka grupa zostaje bez zmian i to sygnalizuje."
+
+msgid "Select none"
+msgstr "Odznacz wszystko"
+
+msgid "Select versions"
+msgstr "Zaznacz wersje"
+
 msgid "Select {name}"
 msgstr "Zaznacz {name}"
+
+msgid "Selecting would have taken every copy outside the trash, so nothing was selected here. Choose in the group by hand."
+msgstr "Zaznaczenie objęłoby każdą kopię poza koszem, więc nic tu nie zaznaczono. Wybierz w grupie ręcznie."
 
 #. TRANSLATORS: %s is the selector as it was sent, such as home:alice
 #, php-format

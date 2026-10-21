@@ -34,6 +34,19 @@ msgid "%n file"
 msgid_plural "%n files"
 msgstr[0] "%n 个文件"
 
+#. TRANSLATORS: in the bar for choosing rows on the Duplicates page: the groups in which a pattern or Select versions selected nothing, since it matched every copy
+msgid "%n group left alone, as every copy in it matched"
+msgid_plural "%n groups left alone, as every copy in them matched"
+msgstr[0] "%n 个文件组未作更改，因为其中每个副本都匹配"
+
+msgid "%n row selected"
+msgid_plural "%n rows selected"
+msgstr[0] "已选择 %n 行"
+
+msgid "%n selected"
+msgid_plural "%n selected"
+msgstr[0] "已选 %n 个"
+
 msgid "%n version goes to the file that stays."
 msgid_plural "%n versions go to the file that stays."
 msgstr[0] "%n 个版本将转入保留的文件。"
@@ -500,6 +513,10 @@ msgstr "按从上到下的顺序评估，第一条匹配的规则决定如何处
 
 msgid "Evaluates in band {band} — {label}"
 msgstr "在层级 {band} 中评估（{label}）"
+
+#. TRANSLATORS: a badge on a group of duplicates: selecting by a pattern or the versions would have taken every copy, so nothing was selected in it
+msgid "Every copy matched"
+msgstr "每个副本都匹配"
 
 msgid "Every empty file has the same checksum, so all of them form one large group per algorithm, and deleting one frees no space. They are left out unless this is on."
 msgstr "所有空文件的校验和都相同，因此每种算法下它们会组成一个很大的文件组，删除其中一个也不会释放空间。除非开启此项，否则不会列出它们。"
@@ -1115,6 +1132,9 @@ msgstr "选择"
 msgid "Select all"
 msgstr "全选"
 
+msgid "Select by path"
+msgstr "按路径选择"
+
 #. TRANSLATORS: placeholder of the picker that selects the one team folder a rule addresses
 msgid "Select folder …"
 msgstr "选择文件夹…"
@@ -1122,8 +1142,24 @@ msgstr "选择文件夹…"
 msgid "Select groups …"
 msgstr "选择群组…"
 
+msgid "Select matching"
+msgstr "选择匹配项"
+
+#. TRANSLATORS: "Select matching" is the button beside the field; translate it as that button does
+msgid "Select matching chooses, in every group shown, the rows this path matches, as the Path filter matches them. It never chooses every copy of a group outside the trash; such a group is left alone, and says so."
+msgstr "“选择匹配项”会在显示的每个文件组中，按“路径”筛选的方式选择此路径匹配的行。它绝不会选择文件组在回收站之外的所有副本；这样的文件组保持不变，并会标明。"
+
+msgid "Select none"
+msgstr "全不选"
+
+msgid "Select versions"
+msgstr "选择版本"
+
 msgid "Select {name}"
 msgstr "选择 {name}"
+
+msgid "Selecting would have taken every copy outside the trash, so nothing was selected here. Choose in the group by hand."
+msgstr "选择将包含回收站之外的所有副本，因此这里未选择任何内容。请在该文件组中手动选择。"
 
 #. TRANSLATORS: %s is the selector as it was sent, such as home:alice
 #, php-format

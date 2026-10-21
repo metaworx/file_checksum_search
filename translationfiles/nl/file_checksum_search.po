@@ -35,6 +35,22 @@ msgid_plural "%n files"
 msgstr[0] "%n bestand"
 msgstr[1] "%n bestanden"
 
+#. TRANSLATORS: in the bar for choosing rows on the Duplicates page: the groups in which a pattern or Select versions selected nothing, since it matched every copy
+msgid "%n group left alone, as every copy in it matched"
+msgid_plural "%n groups left alone, as every copy in them matched"
+msgstr[0] "%n groep ongemoeid gelaten, want elke kopie erin kwam overeen"
+msgstr[1] "%n groepen ongemoeid gelaten, want elke kopie erin kwam overeen"
+
+msgid "%n row selected"
+msgid_plural "%n rows selected"
+msgstr[0] "%n rij geselecteerd"
+msgstr[1] "%n rijen geselecteerd"
+
+msgid "%n selected"
+msgid_plural "%n selected"
+msgstr[0] "%n geselecteerd"
+msgstr[1] "%n geselecteerd"
+
 msgid "%n version goes to the file that stays."
 msgid_plural "%n versions go to the file that stays."
 msgstr[0] "%n versie gaat naar het bestand dat blijft."
@@ -506,6 +522,10 @@ msgstr "Van boven naar beneden geëvalueerd – de eerste overeenkomende regel b
 
 msgid "Evaluates in band {band} — {label}"
 msgstr "Wordt geëvalueerd in laag {band} – {label}"
+
+#. TRANSLATORS: a badge on a group of duplicates: selecting by a pattern or the versions would have taken every copy, so nothing was selected in it
+msgid "Every copy matched"
+msgstr "Elke kopie kwam overeen"
 
 msgid "Every empty file has the same checksum, so all of them form one large group per algorithm, and deleting one frees no space. They are left out unless this is on."
 msgstr "Alle lege bestanden hebben dezelfde controlesom en vormen daardoor per algoritme één grote groep; er een verwijderen maakt geen ruimte vrij. Ze worden weggelaten, tenzij dit aan staat."
@@ -1125,6 +1145,9 @@ msgstr "Selecteren"
 msgid "Select all"
 msgstr "Alles selecteren"
 
+msgid "Select by path"
+msgstr "Selecteren op pad"
+
 #. TRANSLATORS: placeholder of the picker that selects the one team folder a rule addresses
 msgid "Select folder …"
 msgstr "Map selecteren …"
@@ -1132,8 +1155,24 @@ msgstr "Map selecteren …"
 msgid "Select groups …"
 msgstr "Groepen selecteren …"
 
+msgid "Select matching"
+msgstr "Overeenkomende selecteren"
+
+#. TRANSLATORS: "Select matching" is the button beside the field; translate it as that button does
+msgid "Select matching chooses, in every group shown, the rows this path matches, as the Path filter matches them. It never chooses every copy of a group outside the trash; such a group is left alone, and says so."
+msgstr "“Overeenkomende selecteren” kiest in elke getoonde groep de rijen die overeenkomen met dit pad, zoals het filter “Pad” ze vindt. Het kiest nooit alle kopieën van een groep buiten de prullenbak; zo’n groep blijft ongemoeid en zegt dat."
+
+msgid "Select none"
+msgstr "Niets selecteren"
+
+msgid "Select versions"
+msgstr "Versies selecteren"
+
 msgid "Select {name}"
 msgstr "{name} selecteren"
+
+msgid "Selecting would have taken every copy outside the trash, so nothing was selected here. Choose in the group by hand."
+msgstr "Selecteren zou elke kopie buiten de prullenbak hebben genomen, dus hier is niets geselecteerd. Kies zelf in de groep."
 
 #. TRANSLATORS: %s is the selector as it was sent, such as home:alice
 #, php-format

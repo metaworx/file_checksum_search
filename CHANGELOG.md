@@ -24,9 +24,9 @@ the first stable release.
   place, one or several, a trashed version into the file there, or any
   version as a new file.
 
-- Duplicates page, *Mine*: rows deleted one by one or chosen in a
-  group, to the trash or for good, their versions kept in a copy that
-  stays; rows restored; Undo after a move to the trash.
+- Duplicates page, *Mine*: rows deleted to the trash or for good, chosen
+  in a group or across the page, by path or as versions, their versions
+  kept in a copy that stays; rows restored; Undo after a move to trash.
 
 - `GET /api/v1/duplicates`, `path`, and the Duplicates page's *Path*:
   only groups with a file under a folder or matching a pattern

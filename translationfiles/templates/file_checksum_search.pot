@@ -36,6 +36,22 @@ msgid_plural "%n files"
 msgstr[0] ""
 msgstr[1] ""
 
+#. TRANSLATORS: in the bar for choosing rows on the Duplicates page: the groups in which a pattern or Select versions selected nothing, since it matched every copy
+msgid "%n group left alone, as every copy in it matched"
+msgid_plural "%n groups left alone, as every copy in them matched"
+msgstr[0] ""
+msgstr[1] ""
+
+msgid "%n row selected"
+msgid_plural "%n rows selected"
+msgstr[0] ""
+msgstr[1] ""
+
+msgid "%n selected"
+msgid_plural "%n selected"
+msgstr[0] ""
+msgstr[1] ""
+
 msgid "%n version goes to the file that stays."
 msgid_plural "%n versions go to the file that stays."
 msgstr[0] ""
@@ -506,6 +522,10 @@ msgid "Evaluated top to bottom — the first matching rule decides the file. A r
 msgstr ""
 
 msgid "Evaluates in band {band} — {label}"
+msgstr ""
+
+#. TRANSLATORS: a badge on a group of duplicates: selecting by a pattern or the versions would have taken every copy, so nothing was selected in it
+msgid "Every copy matched"
 msgstr ""
 
 msgid "Every empty file has the same checksum, so all of them form one large group per algorithm, and deleting one frees no space. They are left out unless this is on."
@@ -1126,6 +1146,9 @@ msgstr ""
 msgid "Select all"
 msgstr ""
 
+msgid "Select by path"
+msgstr ""
+
 #. TRANSLATORS: placeholder of the picker that selects the one team folder a rule addresses
 msgid "Select folder …"
 msgstr ""
@@ -1133,7 +1156,23 @@ msgstr ""
 msgid "Select groups …"
 msgstr ""
 
+msgid "Select matching"
+msgstr ""
+
+#. TRANSLATORS: "Select matching" is the button beside the field; translate it as that button does
+msgid "Select matching chooses, in every group shown, the rows this path matches, as the Path filter matches them. It never chooses every copy of a group outside the trash; such a group is left alone, and says so."
+msgstr ""
+
+msgid "Select none"
+msgstr ""
+
+msgid "Select versions"
+msgstr ""
+
 msgid "Select {name}"
+msgstr ""
+
+msgid "Selecting would have taken every copy outside the trash, so nothing was selected here. Choose in the group by hand."
 msgstr ""
 
 #. TRANSLATORS: %s is the selector as it was sent, such as home:alice

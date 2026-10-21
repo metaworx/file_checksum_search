@@ -253,8 +253,22 @@ describe('DuplicateGroup, choosing rows to delete', () => {
 		{ fileid: 4, path: '/d.pdf', name: 'd.pdf', actions: [] },
 	]
 
+	/**
+	 * The group as the listing holds it: the page keeps the choice, and
+	 * what the group asks for comes back to it as props.
+	 */
 	function choosing(canAct = true) {
-		return mounted({ files }, { canAct })
+		const wrapper: VueWrapper = mounted({ files }, {
+			canAct,
+			onStartSelecting: () => wrapper.setProps({ selecting: true }),
+			onStopSelecting: () => wrapper.setProps({ selecting: false, selected: [] }),
+			'onUpdate:selected': (_group: GroupType, fileIds: number[]) => wrapper.setProps({ selected: fileIds }),
+			onChoose: (_group: GroupType, fileId: number, chosen: boolean) => {
+				const now = (wrapper.props() as { selected: number[] }).selected
+				return wrapper.setProps({ selected: chosen ? [...now, fileId] : now.filter((id) => id !== fileId) })
+			},
+		})
+		return wrapper
 	}
 
 	/** The rows' checkboxes, by the row's file id: Nextcloud's own, driven as the app's other specs drive it. */
@@ -319,5 +333,18 @@ describe('DuplicateGroup, choosing rows to delete', () => {
 
 		await clickAction(header(wrapper), 'select')
 		expect(await disabled(header(wrapper), 'deleteSelected')).toBe(true)
+	})
+
+	// The page holds the choice: a group shows what is chosen in it, closed or open.
+	it('says on its header how many of its rows are chosen, and where a rule left it alone', async () => {
+		const wrapper = mounted({ files }, { canAct: true, selecting: true, selected: [1, 2] })
+
+		expect(wrapper.find('[data-testid="fcias-group-selected"]').text()).toBe('2 selected')
+		expect(wrapper.find('[data-testid="fcias-group-left-alone"]').exists()).toBe(false)
+
+		await wrapper.setProps({ selected: [], leftAlone: true })
+
+		expect(wrapper.find('[data-testid="fcias-group-selected"]').exists()).toBe(false)
+		expect(wrapper.find('[data-testid="fcias-group-left-alone"]').attributes('title')).toMatch(/every copy outside the trash/)
 	})
 })

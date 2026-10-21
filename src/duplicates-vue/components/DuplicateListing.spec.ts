@@ -215,6 +215,70 @@ describe('DuplicateListing, acting on a row', () => {
 	})
 })
 
+describe('DuplicateListing, choosing across the page', () => {
+	const row = (fileid: number, path: string, more: Record<string, unknown> = {}) => ({ fileid, path, name: path.split('/').pop(), actions: ['trash', 'delete'], ...more })
+	const groups = [
+		{ ...GROUP, hash_value: 'aa', files: [row(1, '/Backup/a.txt'), row(2, '/Docs/a.txt')] },
+		{ ...GROUP, hash_value: 'bb', files: [row(3, '/Docs/b.txt'), row(4, 'versions:///Docs/b.txt', { version: { fileid: 3, timestamp: '2026-10-21T00:00:00+00:00' } })] },
+		{ ...GROUP, hash_value: 'cc', files: [row(5, '/Backup/c.txt'), row(6, '/Backup/old/c.txt')] },
+	]
+
+	beforeEach(() => {
+		vi.stubGlobal('fetch', vi.fn(() => Promise.resolve(new Response(JSON.stringify({ duplicates: groups, canRecalc: true }), { status: 200 }))))
+	})
+
+	afterEach(() => {
+		vi.unstubAllGlobals()
+		document.body.innerHTML = ''
+	})
+
+	async function selectingPage() {
+		const wrapper = mount(DuplicateListing, { props: { algorithmIds: ['sha1'] }, attachTo: document.body })
+		await flushPromises()
+		await wrapper.find('[data-testid="fcias-start-selecting"]').trigger('click')
+		return wrapper
+	}
+
+	const chosen = (wrapper: ReturnType<typeof mount>) => wrapper.findAll('[data-testid="fcias-group-selected"]').map((badge) => badge.text())
+
+	// A pattern chooses in every group; one where it matches every copy
+	// outside the trash is left alone, and the bar says so (D1-A).
+	it('chooses by a path pattern in every group, and leaves alone one it would empty', async () => {
+		const wrapper = await selectingPage()
+
+		await wrapper.find('#fcias-duplicates-select-pattern').setValue('/Backup')
+		await wrapper.find('[data-testid="fcias-select-matching"]').trigger('click')
+
+		expect(chosen(wrapper)).toEqual(['1 selected'])
+		expect(wrapper.find('[data-testid="fcias-selection-count"]').text()).toBe('1 row selected')
+		expect(wrapper.findAll('.db-group')[2].find('[data-testid="fcias-group-left-alone"]').exists()).toBe(true)
+		expect(wrapper.find('[data-testid="fcias-selection-left-alone"]').text()).toBe('1 group left alone, as every copy in it matched')
+	})
+
+	it('chooses the versions, chooses none, and leaves choosing on Cancel', async () => {
+		const wrapper = await selectingPage()
+
+		await wrapper.find('[data-testid="fcias-select-versions"]').trigger('click')
+		expect(wrapper.findAll('.db-group')[1].find('[data-testid="fcias-group-selected"]').text()).toBe('1 selected')
+
+		await wrapper.find('[data-testid="fcias-select-none"]').trigger('click')
+		expect(chosen(wrapper)).toEqual([])
+
+		await wrapper.find('[data-testid="fcias-select-versions"]').trigger('click')
+		await wrapper.find('[data-testid="fcias-stop-selecting"]').trigger('click')
+		expect(wrapper.find('[data-testid="fcias-selection-bar"]').exists()).toBe(false)
+		expect(chosen(wrapper)).toEqual([])
+	})
+
+	// The Others tab shows files that are not the viewer's: nothing is chosen there.
+	it('offers no choosing on another account\'s listing', async () => {
+		const wrapper = mount(DuplicateListing, { props: { algorithmIds: ['sha1'], scope: { all: true, users: [], groups: [] } }, attachTo: document.body })
+		await flushPromises()
+
+		expect(wrapper.find('[data-testid="fcias-start-selecting"]').exists()).toBe(false)
+	})
+})
+
 describe('DuplicateListing, loading more', () => {
 	afterEach(() => {
 		vi.unstubAllGlobals()

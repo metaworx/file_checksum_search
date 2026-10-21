@@ -1,0 +1,107 @@
+/**
+ * @copyright Copyright (c) 2026 metaworx
+ * @license   AGPL-3.0-or-later
+ */
+
+import { describe, expect, it } from 'vitest'
+import type { DuplicateFileItem, DuplicateGroup } from './composables/useDuplicates'
+import { chooseMatching, chosenIn, groupKey, stillListed, withGroupChoice } from './pageSelection'
+import { compilePattern } from './pathPattern'
+
+const ALL: DuplicateFileItem['actions'] = ['trash', 'delete']
+
+function file(fileid: number, path: string, more: Partial<DuplicateFileItem> = {}): DuplicateFileItem {
+	return { fileid, path, name: path.split('/').pop() ?? path, actions: ALL, ...more }
+}
+
+function group(hash: string, files: DuplicateFileItem[], algo = 'sha1'): DuplicateGroup {
+	return { algo, hash_value: hash, file_count: files.length, files }
+}
+
+const backup = compilePattern('/Backup')!
+const inBackup = (row: DuplicateFileItem) => backup(row.path)
+
+describe('choosing by a rule', () => {
+	it('takes what matches, in every group', () => {
+		const groups = [
+			group('a', [file(1, '/Backup/a.txt'), file(2, '/Docs/a.txt')]),
+			group('b', [file(3, '/Docs/b.txt'), file(4, '/Backup/b.txt')]),
+		]
+
+		const chosen = chooseMatching(groups, new Set(), inBackup)
+
+		expect([...chosen.selected].sort()).toEqual([1, 4])
+		expect(chosen.leftAlone).toEqual([])
+	})
+
+	// D1-A: a rule never takes a group's last copy outside the trash; the
+	// group keeps its choice, and is named.
+	it('leaves a group alone where it would take every copy outside the trash', () => {
+		const groups = [
+			group('a', [file(1, '/Backup/a.txt'), file(2, '/Backup/old/a.txt'), file(9, 'trash:///a.txt', { trash: { deletedAt: '2026-10-21T00:00:00+00:00' } })]),
+			group('b', [file(3, '/Docs/b.txt'), file(4, '/Backup/b.txt')]),
+		]
+
+		const chosen = chooseMatching(groups, new Set([2]), inBackup)
+
+		expect([...chosen.selected].sort()).toEqual([2, 4])
+		expect(chosen.leftAlone).toEqual(['sha1:a'])
+	})
+
+	// A row the viewer may not delete stays whatever is chosen: it is the copy kept.
+	it('counts a row that may not be deleted as a copy that stays', () => {
+		const groups = [group('a', [file(1, '/Backup/a.txt'), file(2, '/Backup/shared.txt', { actions: [] })])]
+
+		const chosen = chooseMatching(groups, new Set(), inBackup)
+
+		expect([...chosen.selected]).toEqual([1])
+		expect(chosen.leftAlone).toEqual([])
+	})
+
+	// One file under two algorithms is one choice: a group left alone spares
+	// its copies in the other group too, and that group is weighed again.
+	it('weighs a file listed in two groups once', () => {
+		const groups = [
+			group('a', [file(1, '/Backup/a.txt'), file(2, '/Backup/b.txt')], 'sha1'),
+			group('m', [file(1, '/Backup/a.txt'), file(2, '/Backup/b.txt')], 'md5'),
+		]
+
+		const chosen = chooseMatching(groups, new Set(), inBackup)
+
+		expect([...chosen.selected]).toEqual([])
+		expect(chosen.leftAlone.sort()).toEqual(['md5:m', 'sha1:a'])
+	})
+
+	it('picks the versions', () => {
+		const groups = [group('a', [file(1, '/a.txt'), file(5, 'versions:///a.txt', { version: { fileid: 1, timestamp: '2026-10-21T00:00:00+00:00' } })])]
+
+		expect([...chooseMatching(groups, new Set(), (row) => row.version !== undefined).selected]).toEqual([5])
+	})
+
+	// A version keeps the content only until the versions expire: no copy.
+	it('counts a version that would be left as no copy', () => {
+		const version = { fileid: 9, timestamp: '2026-10-21T00:00:00+00:00' }
+		const groups = [group('a', [file(1, '/Backup/a.txt'), file(5, 'versions:///Docs/a.txt', { version })])]
+
+		expect(chooseMatching(groups, new Set(), inBackup).leftAlone).toEqual(['sha1:a'])
+	})
+})
+
+describe('a group\'s own choice', () => {
+	const g = group('a', [file(1, '/a.txt'), file(2, '/b.txt'), file(3, '/c.txt')])
+
+	it('replaces its rows and keeps the others\'', () => {
+		const next = withGroupChoice(new Set([2, 99]), g, [1, 3])
+
+		expect([...next].sort((x, y) => x - y)).toEqual([1, 3, 99])
+		expect(chosenIn(g, next)).toEqual([1, 3])
+	})
+
+	it('forgets rows no longer listed', () => {
+		expect([...stillListed(new Set([1, 99]), [g])]).toEqual([1])
+	})
+
+	it('is keyed by algorithm and hash', () => {
+		expect(groupKey(g)).toBe('sha1:a')
+	})
+})

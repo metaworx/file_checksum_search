@@ -36,6 +36,7 @@ import {
 import { fileLabel, labelKind, trashLabel, versionLabel } from '../../fileLabel'
 import { groupPreviewUrl } from '../../fileLink'
 import type { DuplicateGroup as GroupType } from '../composables/useDuplicates'
+import { choosable } from '../pageSelection'
 import type { RowAction } from '../duplicateActions'
 import { formatDateTime, n, t } from '../../l10n'
 
@@ -65,49 +66,51 @@ const props = withDefaults(defineProps<{
 	canAct?: boolean
 	/** True while an action is running; the menus wait for it. */
 	acting?: boolean
-}>(), { verifying: false, canVerify: true, canAct: false, acting: false })
+	/** True while the page's rows are being chosen: a checkbox on each row that may be deleted. */
+	selecting?: boolean
+	/** The group's rows chosen, by file id: the page holds the choice, one for every group. */
+	selected?: number[]
+	/** True where choosing by a rule would have taken every copy outside the trash, and so left the group alone. */
+	leftAlone?: boolean
+}>(), { verifying: false, canVerify: true, canAct: false, acting: false, selecting: false, selected: () => [], leftAlone: false })
 
 const emit = defineEmits<{
 	(e: 'verifyGroup', group: GroupType): void
 	(e: 'verifyFile', group: GroupType, file: FileItem): void
 	(e: 'act', group: GroupType, file: FileItem, action: RowAction): void
 	(e: 'deleteSelected', group: GroupType, fileIds: number[]): void
+	(e: 'update:selected', group: GroupType, fileIds: number[]): void
+	(e: 'choose', group: GroupType, fileId: number, chosen: boolean): void
+	(e: 'startSelecting', group: GroupType): void
+	(e: 'stopSelecting'): void
 }>()
 
 const open = ref(false)
 
-/** Whether the group's rows are being chosen for deletion, a checkbox each. */
-const selecting = ref(false)
-
-/** The rows chosen, by file id. */
-const selected = ref<number[]>([])
-
 /** A row that may be chosen: one the server allows to be deleted, one way or the other. */
 function selectable(file: FileItem): boolean {
-	return props.canAct && (file.actions?.includes('trash') === true || file.actions?.includes('delete') === true)
+	return props.canAct && choosable(file)
 }
 
 const selectableIds = computed(() => props.group.files.filter(selectable).map((file) => file.fileid))
 
+/**
+ * One row's box: told as itself, not as the group's whole choice, which
+ * the props give only once the page has drawn the last one — two boxes
+ * ticked in a row would otherwise keep only the second.
+ */
 function choose(fileId: number, chosen: boolean): void {
-	selected.value = chosen
-		? [...new Set([...selected.value, fileId])]
-		: selected.value.filter((id) => id !== fileId)
+	emit('choose', props.group, fileId, chosen)
 }
 
-/** Choosing begins with the rows in view. */
+/** Choosing begins with this group's rows in view; every group's rows can be chosen then. */
 function startSelecting(): void {
 	open.value = true
-	selecting.value = true
+	emit('startSelecting', props.group)
 }
 
-function stopSelecting(): void {
-	selecting.value = false
-	selected.value = []
-}
-
-// A group read again is a new choice: what was chosen may be gone.
-watch(() => props.group, stopSelecting)
+/** What the header says of the choice in it. */
+const selectedCount = computed(() => n('file_checksum_search', '%n selected', '%n selected', props.selected.length))
 
 const TEXTS = {
 	verifyAll: t('file_checksum_search', 'Verify all'),
@@ -117,6 +120,8 @@ const TEXTS = {
 	version: t('file_checksum_search', 'Version'),
 	// TRANSLATORS: the name of a group of duplicates' menu, for a reader that cannot see it; {hash} is the group's checksum
 	groupMenu: t('file_checksum_search', 'Actions for the group {hash}', { hash: props.group.hash_value }),
+	// TRANSLATORS: a badge on a group of duplicates: selecting by a pattern or the versions would have taken every copy, so nothing was selected in it
+	leftAlone: t('file_checksum_search', 'Every copy matched'),
 }
 
 const TITLES = {
@@ -127,6 +132,7 @@ const TITLES = {
 	notYoursSpoken: t('file_checksum_search', '(not in your files)'),
 	// TRANSLATORS: the tooltip of a duplicate group's MIME type: it comes from what the files hold, not from their names
 	mimetype: t('file_checksum_search', 'MIME type, detected from the content'),
+	leftAlone: t('file_checksum_search', 'Selecting would have taken every copy outside the trash, so nothing was selected here. Choose in the group by hand.'),
 }
 
 /** Whether the group holds a file to read: a version, or a file in the trash, is not read again. */
@@ -145,15 +151,16 @@ const groupMenu = computed<MenuEntry[]>(() => {
 	if (selectableIds.value.length === 0) {
 		return entries
 	}
-	if (!selecting.value) {
+	if (!props.selecting) {
 		entries.push({ key: 'select', icon: ICON_CHECKBOX, label: t('file_checksum_search', 'Select'), disabled: props.acting, run: startSelecting })
 		return entries
 	}
+	// The group's own, but for Cancel, which ends the choosing on the page.
 	entries.push(
-		{ key: 'selectAll', icon: ICON_SELECT_ALL, label: t('file_checksum_search', 'Select all'), run: () => { selected.value = [...selectableIds.value] } },
-		{ key: 'invertSelection', icon: ICON_SELECT_INVERSE, label: t('file_checksum_search', 'Invert selection'), run: () => { selected.value = selectableIds.value.filter((id) => !selected.value.includes(id)) } },
-		{ key: 'deleteSelected', icon: ICON_BIN, label: t('file_checksum_search', 'Delete selected'), danger: true, disabled: props.acting || selected.value.length === 0, run: () => emit('deleteSelected', props.group, [...selected.value]) },
-		{ key: 'cancelSelection', icon: ICON_CLOSE, label: t('file_checksum_search', 'Cancel'), run: stopSelecting },
+		{ key: 'selectAll', icon: ICON_SELECT_ALL, label: t('file_checksum_search', 'Select all'), run: () => emit('update:selected', props.group, [...selectableIds.value]) },
+		{ key: 'invertSelection', icon: ICON_SELECT_INVERSE, label: t('file_checksum_search', 'Invert selection'), run: () => emit('update:selected', props.group, selectableIds.value.filter((id) => !props.selected.includes(id))) },
+		{ key: 'deleteSelected', icon: ICON_BIN, label: t('file_checksum_search', 'Delete selected'), danger: true, disabled: props.acting || props.selected.length === 0, run: () => emit('deleteSelected', props.group, [...props.selected]) },
+		{ key: 'cancelSelection', icon: ICON_CLOSE, label: t('file_checksum_search', 'Cancel'), run: () => emit('stopSelecting') },
 	)
 	return entries
 })
@@ -296,6 +303,12 @@ function toggle(): void {
 					:title="TITLES.mimetype">{{ group.mimetype }}</span>
 			</span>
 			<span class="db-status-cell">
+				<!-- What the page's choice holds here, seen without opening the group. -->
+				<span v-if="selected.length > 0" class="db-badge db-selected-badge" data-testid="fcias-group-selected">{{ selectedCount }}</span>
+				<span v-if="leftAlone"
+					class="db-badge db-left-alone"
+					data-testid="fcias-group-left-alone"
+					:title="TITLES.leftAlone">{{ TEXTS.leftAlone }}</span>
 				<span v-if="statusClass" class="db-badge db-group-header-status" :class="statusClass">{{ statusText }}</span>
 			</span>
 			<!-- Reading every file costs time and, on metered storage, money:
@@ -623,6 +636,22 @@ function toggle(): void {
 }
 
 .db-group-header-status.mixed {
+	color: var(--color-warning-text);
+}
+
+/* The status column holds the choice too, side by side. */
+.db-status-cell {
+	display: flex;
+	gap: 6px;
+	align-items: center;
+}
+
+/* What is chosen for deletion, in the palette's red text: it will go. */
+.db-selected-badge {
+	color: var(--color-error-text);
+}
+
+.db-left-alone {
 	color: var(--color-warning-text);
 }
 </style>

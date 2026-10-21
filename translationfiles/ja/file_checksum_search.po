@@ -34,6 +34,19 @@ msgid "%n file"
 msgid_plural "%n files"
 msgstr[0] "%n個のファイル"
 
+#. TRANSLATORS: in the bar for choosing rows on the Duplicates page: the groups in which a pattern or Select versions selected nothing, since it matched every copy
+msgid "%n group left alone, as every copy in it matched"
+msgid_plural "%n groups left alone, as every copy in them matched"
+msgstr[0] "%n 個の重複グループは、すべてのコピーが一致したためそのままにしました"
+
+msgid "%n row selected"
+msgid_plural "%n rows selected"
+msgstr[0] "%n 行を選択中"
+
+msgid "%n selected"
+msgid_plural "%n selected"
+msgstr[0] "%n 件選択"
+
 msgid "%n version goes to the file that stays."
 msgid_plural "%n versions go to the file that stays."
 msgstr[0] "%n 件のバージョンが残るファイルに移ります。"
@@ -500,6 +513,10 @@ msgstr "上から順に評価され、最初に一致したルールがファイ
 
 msgid "Evaluates in band {band} — {label}"
 msgstr "第{band}階層（{label}）で評価"
+
+#. TRANSLATORS: a badge on a group of duplicates: selecting by a pattern or the versions would have taken every copy, so nothing was selected in it
+msgid "Every copy matched"
+msgstr "すべてのコピーが一致"
 
 msgid "Every empty file has the same checksum, so all of them form one large group per algorithm, and deleting one frees no space. They are left out unless this is on."
 msgstr "空のファイルはすべて同じチェックサムを持つため、アルゴリズムごとに1つの大きな重複グループになり、削除しても空き容量は増えません。これをオンにしない限り表示されません。"
@@ -1115,6 +1132,9 @@ msgstr "選択"
 msgid "Select all"
 msgstr "すべて選択"
 
+msgid "Select by path"
+msgstr "パスで選択"
+
 #. TRANSLATORS: placeholder of the picker that selects the one team folder a rule addresses
 msgid "Select folder …"
 msgstr "フォルダーを選択…"
@@ -1122,8 +1142,24 @@ msgstr "フォルダーを選択…"
 msgid "Select groups …"
 msgstr "グループを選択…"
 
+msgid "Select matching"
+msgstr "一致するものを選択"
+
+#. TRANSLATORS: "Select matching" is the button beside the field; translate it as that button does
+msgid "Select matching chooses, in every group shown, the rows this path matches, as the Path filter matches them. It never chooses every copy of a group outside the trash; such a group is left alone, and says so."
+msgstr "「一致するものを選択」は、表示中の各重複グループで、このパスに一致する行を「パス」フィルターと同じ方法で選択します。重複グループのゴミ箱外のコピーをすべて選択することはありません。そのようなグループはそのままにし、その旨を表示します。"
+
+msgid "Select none"
+msgstr "選択を解除"
+
+msgid "Select versions"
+msgstr "バージョンを選択"
+
 msgid "Select {name}"
 msgstr "{name} を選択"
+
+msgid "Selecting would have taken every copy outside the trash, so nothing was selected here. Choose in the group by hand."
+msgstr "選択するとゴミ箱外のすべてのコピーが含まれるため、ここでは何も選択しませんでした。重複グループ内で手動で選択してください。"
 
 #. TRANSLATORS: %s is the selector as it was sent, such as home:alice
 #, php-format

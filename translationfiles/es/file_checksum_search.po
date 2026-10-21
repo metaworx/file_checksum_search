@@ -36,6 +36,25 @@ msgstr[0] "%n archivo"
 msgstr[1] "%n archivos"
 msgstr[2] "%n archivos"
 
+#. TRANSLATORS: in the bar for choosing rows on the Duplicates page: the groups in which a pattern or Select versions selected nothing, since it matched every copy
+msgid "%n group left alone, as every copy in it matched"
+msgid_plural "%n groups left alone, as every copy in them matched"
+msgstr[0] "%n grupo sin tocar, ya que coincidían todas sus copias"
+msgstr[1] "%n de grupos sin tocar, ya que coincidían todas sus copias"
+msgstr[2] "%n grupos sin tocar, ya que coincidían todas sus copias"
+
+msgid "%n row selected"
+msgid_plural "%n rows selected"
+msgstr[0] "%n fila seleccionada"
+msgstr[1] "%n de filas seleccionadas"
+msgstr[2] "%n filas seleccionadas"
+
+msgid "%n selected"
+msgid_plural "%n selected"
+msgstr[0] "%n seleccionada"
+msgstr[1] "%n de seleccionadas"
+msgstr[2] "%n seleccionadas"
+
 msgid "%n version goes to the file that stays."
 msgid_plural "%n versions go to the file that stays."
 msgstr[0] "%n versión pasa al archivo que se queda."
@@ -512,6 +531,10 @@ msgstr "Se evalúan de arriba abajo: la primera regla que coincide decide sobre 
 
 msgid "Evaluates in band {band} — {label}"
 msgstr "Se evalúa en el nivel {band}: {label}"
+
+#. TRANSLATORS: a badge on a group of duplicates: selecting by a pattern or the versions would have taken every copy, so nothing was selected in it
+msgid "Every copy matched"
+msgstr "Coincidieron todas las copias"
 
 msgid "Every empty file has the same checksum, so all of them form one large group per algorithm, and deleting one frees no space. They are left out unless this is on."
 msgstr "Todos los archivos vacíos tienen la misma suma de verificación, así que forman un gran grupo por algoritmo, y eliminar uno no libera espacio. Se omiten salvo que esto esté activado."
@@ -1135,6 +1158,9 @@ msgstr "Seleccionar"
 msgid "Select all"
 msgstr "Seleccionar todo"
 
+msgid "Select by path"
+msgstr "Seleccionar por ruta"
+
 #. TRANSLATORS: placeholder of the picker that selects the one team folder a rule addresses
 msgid "Select folder …"
 msgstr "Seleccionar carpeta…"
@@ -1142,8 +1168,24 @@ msgstr "Seleccionar carpeta…"
 msgid "Select groups …"
 msgstr "Seleccionar grupos…"
 
+msgid "Select matching"
+msgstr "Seleccionar coincidencias"
+
+#. TRANSLATORS: "Select matching" is the button beside the field; translate it as that button does
+msgid "Select matching chooses, in every group shown, the rows this path matches, as the Path filter matches them. It never chooses every copy of a group outside the trash; such a group is left alone, and says so."
+msgstr "«Seleccionar coincidencias» elige, en cada grupo mostrado, las filas que coinciden con esta ruta, igual que el filtro «Ruta». Nunca elige todas las copias de un grupo fuera de la papelera; ese grupo se deja sin tocar y lo indica."
+
+msgid "Select none"
+msgstr "No seleccionar nada"
+
+msgid "Select versions"
+msgstr "Seleccionar versiones"
+
 msgid "Select {name}"
 msgstr "Seleccionar {name}"
+
+msgid "Selecting would have taken every copy outside the trash, so nothing was selected here. Choose in the group by hand."
+msgstr "La selección habría tomado todas las copias fuera de la papelera, así que aquí no se seleccionó nada. Elija en el grupo a mano."
 
 #. TRANSLATORS: %s is the selector as it was sent, such as home:alice
 #, php-format
