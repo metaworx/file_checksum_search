@@ -1,33 +1,35 @@
-# AP PageSelection v1.0: select across the page
+# AP PageSelection v1.1: select across the page
 
 ## TL;DR
 
-The Duplicates page's selection moves from one group to the page.
-A folder filter and a selection pattern choose rows across every group,
+The Duplicates page's selection moves from one group to the page:
+a path filter and a selection bar choose rows across every group,
 and one confirmation deletes them.
+Groups of the same rows under several algorithms become one.
 
-- Folder filter beside *Hash*: a group with at least one file under it;
-  *Mine* and *Others*; in the address
-- Selection mode for the page, on *Mine*: a checkbox on every group's rows;
-  a bar with a pattern field, *Select versions*, *Select none*,
-  *Delete selected (n)*, *Cancel*; "n selected" on a group's header
-- A pattern that would take a group's every copy outside the trash
-  leaves that group alone, flagged (D1-A)
-- One confirmation for the page: the way, a summary, the rows by group;
-  versions → the only, else the most recently changed, copy that stays (D2-A)
-- Server: many groups per delete request, many rows per restore request;
-  Undo restores in one request
-- Previous/Next → *Load more*, the selection spanning all that is loaded (D4-A)
+- *Path* filter beside *Hash*: groups with a matching file;
+  *Mine*, *Others*, the address
+- Page selection, on *Mine*: boxes on every row; a bar: *By path*, *Versions*,
+  *Select duplicates*, *Invert selection*, *Deselect all*, *Cancel*, *Delete*
+- *Keep one copy*, on by default: a bulk choice never takes a group's best copy;
+  off, every match (D7-A to D12-A)
+- One confirmation: a summary, the rows by group;
+  versions → the copy that stays (D2-A)
+- Server: many groups per delete, many rows per restore
+- Previous/Next → *Load more* (D4-A)
+- Identical groups → one, a line per algorithm and hash (D13-A)
 
 ### Blocks
 
-1. [FIX] Paging follows the server's own offset: no group shown twice
-2. Folder filter: `path` on both listings, the field, the address
-3. *Load more* in place of Previous/Next
-4. Batch API: `groups[]` on delete, `rows[]` on restore; Undo in one request
-5. Page selection: the state in the listing, the bar, the pattern, the guard
-6. Page confirmation: the summary, the versions rule, the outcome
-7. Documentation and the e2e spec
+1. [FIX] Paging follows the server's own offset: no group shown twice — done
+2. Path filter: `path` on both listings, the field, the address — done
+3. *Load more* in place of Previous/Next — done
+4. Batch API: `groups[]` on delete, `rows[]` on restore;
+   Undo in one request — done
+5. Page selection: the listing's state, the bar, the pattern, the guard — done
+6. Page confirmation: the summary, the versions rule, the outcome — done
+7. Documentation and the e2e spec — done
+8. Identical groups merged on the page, their hashes in one header
 
 ## Discussion
 
@@ -36,51 +38,59 @@ and one confirmation deletes them.
   the user asked for one across the page:
   every duplicate that is a version, or every one under a path,
   through a path filter and a second pattern that pre-selects.
-- **Asked:**
-  whether a *Load more* exists.
-  It does not: the page has Previous and Next, and *Per page* from 1 to 500.
 - **Decided on 2026-10-21:**
-  - D1-A: a pattern or *Select versions* that would take every copy of a
-    group outside the trash leaves that group's selection as it was,
+  - D1-A: choosing by rule leaves a group alone where it would take every copy,
     and flags it; rows chosen by hand are not limited.
+    D7-A to D12-A refine it.
   - D2-A: the deleted files' versions go to the copy that stays,
     the most recently changed where several do; the confirmation says which,
     and offers *None* for the page.
   - D3-A: one pattern syntax for the filter and the selection (Analysis,
     *Patterns*).
   - D4-A: *Load more* replaces Previous and Next.
+- **Decided after the run, on 2026-10-21 and 2026-10-22:**
+  - D7-A: the guard protects a group's best copies, its files outside the trash,
+    or, where it has none, its versions outside the trash.
+    Beside a file, a version is no copy: it goes with its file, and expires.
+  - D8-A: *Keep one copy* in the bar, on as choosing starts;
+    off, choosing across the page takes every match,
+    a content's last copy included:
+    one holding a password must go everywhere.
+    The confirmation still says in how many groups no copy stays,
+    and the bar's note on groups left alone points to the switch.
+    Rejected: *Min. files* at 1 as the switch,
+    which mixes a listing filter with a deletion rule;
+    and no guard at all, which lets one pattern empty groups unseen.
+  - D9-A: the switch governs the page's bulk actions — by path, as versions,
+    *Select duplicates*, *Invert selection* — and turning it on,
+    which lets go of every group chosen whole.
+    A group's own menu and its boxes stay unlimited.
+  - D10-A: *Invert selection* for the page, guarded.
+  - D11-C: *Select duplicates* while the switch is on, *Select all* while off.
+  - D12-A: *Select duplicates* keeps each group's oldest copy,
+    by when it last changed, the first path where two are as old;
+    none where a copy that may not be deleted stays anyway;
+    in a group of versions alone, the oldest version.
+  - The bar: *By path* and *Versions*, each with *Select* and *Deselect*,
+    the versions set apart, as the path plays no part in them;
+    a status line, the rows chosen and the groups left alone;
+    the choice's tools at the start of the bottom row,
+    *Cancel* and *Delete* together at its end,
+    the ends following the writing direction.
+    *Select* and *Refresh* one size, at the end of the filter row.
+  - D13-A: groups of exactly the same rows under several algorithms become one
+    on the page, each algorithm and hash on a line of the header;
+    the server and the API stay as they are.
 
 ## Analysis
 
-**Paging today:**
+**Paging, before Block 1:**
 - `HashIndexService::listDuplicatesForUser()` reads raw groups from `offset`,
   drops what the caller cannot see or what is no duplicate,
   and stops at `limit` kept groups.
-  The page's next offset is `offset + limit`, counted in kept groups.
-- Every raw group dropped before the page's last one shifts the next page back by one:
-  groups repeat.
-  On an instance with several accounts, most raw groups are someone else's.
-- The answer's `pagination` echoes `offset` and `limit` only;
-  the PHP API (`ChecksumApi::findDuplicates()`) and both routes share it.
-- A scan stops after 10,000 raw groups, kept or not:
-  a narrow filter may come back short with more behind it.
-
-**Fix:**
-the answer says where the next page starts, `pagination.next_offset`,
-the raw offset after the last group it holds, or null once nothing is left.
-A short page with a `next_offset` is not the end.
-
-**Deleting and restoring today:**
-- `POST /api/v1/duplicates/delete` takes one group: `{fileIds, algo, hash,
-  forGood, dryRun, mergeInto}`, at most 500 rows.
-- `POST /api/v1/duplicates/restore` takes one row.
-- Both allow 20 requests a minute per account.
-  Undo restores row by row, so it stops partway past 20 rows,
-  for a single group too.
-
-**Selection today:**
-each `DuplicateGroup` holds its own `selecting` and `selected`;
-`DuplicateListing` asks, confirms and reports per group.
+  The page's next offset was `offset + limit`, counted in kept groups,
+  so groups repeated; and groups of one size came in no fixed order.
+- The answer now says where the next page starts, `pagination.next_offset`.
 
 **Patterns**
 (D3-A), the same in PHP and TypeScript, held to one by a shared table of cases:
@@ -93,86 +103,54 @@ each `DuplicateGroup` holds its own `selecting` and `selected`;
 - case is ignored.
 - A version or a trashed row is matched by the path it shows, less its
   `versions://` or `trash://`: a version of `/Backup/a.txt` is under `/Backup`.
-- Examples: `Backup` (any folder named so, and its contents),
-  `/Photos/2019` (that folder), `*.bak`, `/Archive/**/*.pdf`.
 
-**Where the filter runs:**
-in PHP, on the rows as the caller sees them,
-beside the existing per-account filter:
-a path is known only once the filecache rows are rendered through a view,
-which differs per mount.
+**The guard on choosing across the page:**
+one rule for every bulk action: a group it would empty of its best copies keeps
+the choice it had, its files kept out wherever else they are listed,
+and the groups are weighed again until none is emptied.
+Two defects, found after the run and fixed:
+- a group of versions alone was left alone by every pattern,
+  as the guard counted a version as no copy everywhere (D7-A);
+- a group sharing some files with another was emptied through the other.
+
+**Identical groups (D13-A):**
+- The listing pages by algorithm and hash, so with *All algorithms*,
+  a file hashed in SHA-1 and MD5 is listed in two groups, row for row the same.
+- On the page, groups whose rows are the same file ids become one,
+  where the first of them was listed;
+  its pairs follow the algorithm list's order.
+- The group's actions and *Verify* use its first pair:
+  the server holds every row to that hash,
+  and either pair proves the same content.
+- The merge runs over everything loaded, so a pair split across two loads
+  joins after *Load more*; a load of 50 may then show fewer than 50 groups.
+- Groups that differ by a row stay apart.
 
 ## Implementation Plan
 
-1. **[FIX] Paging follows the server's offset.**
-   - `listDuplicatesForUser()` tracks the raw index of each kept group and
-     returns `pagination.next_offset`: after the last kept group,
-     where the scan stopped when it hit its bound, null when exhausted.
-   - The page: *Next* goes to `next_offset`;
-     *Previous* to the offset it came from,
-     or the first page where it came from the address.
-     `hasMore` is `next_offset !== null`.
-   - `docs/api-v1.md` (route 5, its sudo twin,
-     the PHP API) and the OpenAPI file.
-   - Tests: integration, a raw group dropped between two pages repeats
-     nothing and skips nothing; a scan stopped at its bound says where to go on;
-     Vitest, *Next* and *Previous*.
-2. **Folder filter.**
-   - `PathPattern`
-     (PHP) and `pathPattern.ts`: D3-A,
-     tested on one table of cases in `tests/fixtures/`.
-   - `path` on `GET /api/v1/duplicates`, its sudo twin and the PHP API:
-     a group stays where at least one of its rows matches.
-   - A *Folder* field beside *Hash*, with help; reloads as typed, after a pause;
-     written to the address and read back.
-   - API docs.
-   - Tests: the cases; integration through the route, home and team folder;
-     Vitest, the field and the address.
-3. ***Load more*.**
-   - The listing appends the next page from `next_offset`;
-     *Per page* is how many each load adds.
-   - `offset` leaves the address; one still in an old link is ignored.
-   - Tests: Vitest, appending, the end, a filter change starting over;
-     the Duplicates e2e spec.
-4. **Batch API.**
-   - `POST /api/v1/duplicates/delete` also takes
-     `{groups: [{algo, hash, fileIds, mergeInto}], forGood, dryRun}`,
-     at most 500 rows in all, and answers `{groups: [{algo, hash, results}]}`.
-   - `POST /api/v1/duplicates/restore` also takes `{rows: [{fileId, algo, hash}], as}`,
-     at most 500, and answers `{results}`.
-   - The single forms stay as they are.
-   - Undo, on a group as on the page, restores in one request per 500 rows.
-   - API docs.
-   - Tests: integration, several groups in one request,
-     a bad group refused alone, the limit; HTTP through both routes; Vitest,
-     Undo.
-5. **Page selection.**
-   - Selection state moves from `DuplicateGroup` to the listing:
-     one mode for the page, rows by group.
-   - A group's menu: *Select* starts the mode and opens the group; in it,
-     *Select all*,
-     *Invert selection* and *Delete selected* stay the group's own,
-     and *Cancel* ends the mode.
-   - The selection bar, on *Mine*, in the mode:
-     a pattern field and *Select matching*, *Select versions*,
-     *Select none*, *Delete selected (n)*, *Cancel*;
-     "n rows in m groups"; a group left out under D1-A counted and flagged.
-   - A group's header: "n selected"; a flagged group says why.
-   - Tests: Vitest, the mode, the pattern, versions, the guard, the counts.
-6. **Page confirmation.**
-   - *Delete selected (n)* dry-runs the selection through the batch route,
-     500 rows a request, and shows: the way, a summary (rows, groups,
-     versions kept or going along, groups with no copy left outside the trash),
-     and the rows by group, folded.
-   - The versions rule (D2-A), with *None* for the page.
-   - On confirmation: the same requests, not dry; one report;
-     Undo for what went to the trash.
-   - Tests: Vitest, the summary, the rule, the requests split at 500,
-     a refused row reported.
-7. **Documentation and the e2e spec.**
-   - README, user guide; the API docs are in their blocks.
-   - The Duplicates e2e spec: the folder filter, *Load more*,
-     a page selection by pattern and of versions, deleted and undone.
+1. **[FIX] Paging follows the server's offset** — done
+2. **Path filter** — done
+3. ***Load more*** — done
+4. **Batch API** — done
+5. **Page selection** — done
+6. **Page confirmation** — done
+7. **Documentation and the e2e spec** — done
+8. **Identical groups merged on the page**
+   - `mergeIdentical(groups, algorithms)`:
+     groups of the same file ids become the first,
+     with `hashes`, every algorithm and hash, in the algorithm list's order.
+   - `useDuplicates`:
+     the merge after every load, *Load more* and reload;
+     reload counts the groups fetched, not those shown;
+     an algorithm list that arrives late reorders the pairs.
+   - The listing shows the merged groups;
+     the page's choice, its guard and its deletion work on them.
+   - `DuplicateGroup.vue`:
+     each pair on a line of the header, in the algorithm and hash columns;
+     a single pair as before.
+   - The user guide and the README.
+   - Tests: Vitest, the merge, its order, groups that differ kept apart,
+     the header's pairs; the Duplicates e2e spec on a fixture hashed twice.
 
 **Verification**, per block: its tests; for Blocks 1, 2 and 4 the PHPUnit
 suites on 33 and 34, ECS and Psalm; Vitest, `npm run typecheck`, ESLint,
@@ -183,8 +161,11 @@ from Block 3 on, the Duplicates e2e spec on 34.
 
 Written per block: Block 1 `[FIX]`, the rest `[TASK]`,
 each with its tests, translations and CHANGELOG bullet,
-citing `AP PageSelection v1.0, Block <n>`.
+citing `AP PageSelection v<X.Y>, Block <n>`.
 
 ## Change History
 
 - v1.0 (2026-10-21): first revision, D1-A, D2-A, D3-A and D4-A decided.
+- v1.1 (2026-10-22): Blocks 1 to 7 done; Block 8 added, D13-A.
+  Folds in NOTE PageSelection v1.0: keep one copy (D7-A, D8-A)
+  and NOTE PageSelection v1.0: selection bar (D9-A to D12-A, the layout).
