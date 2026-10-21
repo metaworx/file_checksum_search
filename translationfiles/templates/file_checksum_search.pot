@@ -36,6 +36,16 @@ msgid_plural "%n files"
 msgstr[0] ""
 msgstr[1] ""
 
+msgid "%n version goes to the file that stays."
+msgid_plural "%n versions go to the file that stays."
+msgstr[0] ""
+msgstr[1] ""
+
+msgid "%n version of the same time is left out."
+msgid_plural "%n versions of the same time are left out."
+msgstr[0] ""
+msgstr[1] ""
+
 msgid "(not in your files)"
 msgstr ""
 
@@ -401,6 +411,9 @@ msgstr ""
 msgid "Delete rule"
 msgstr ""
 
+msgid "Delete selected"
+msgstr ""
+
 msgid "Delete this rule?"
 msgstr ""
 
@@ -642,6 +655,9 @@ msgstr ""
 msgid "Invalid request body."
 msgstr ""
 
+msgid "Invert selection"
+msgstr ""
+
 msgid "It cannot be restored that way."
 msgstr ""
 
@@ -799,6 +815,12 @@ msgstr ""
 msgid "No checksums for this version."
 msgstr ""
 
+msgid "No copy of this content stays."
+msgstr ""
+
+msgid "No copy stays outside the trash."
+msgstr ""
+
 msgid "No documentation available."
 msgstr ""
 
@@ -832,6 +854,10 @@ msgid "None"
 msgstr ""
 
 msgid "None of the requested algorithms is available on this server; the previous list is kept."
+msgstr ""
+
+#. TRANSLATORS: a choice under "Put their earlier versions into": no file takes them, and the versions go wherever their own files go
+msgid "None, they go with their files"
 msgstr ""
 
 msgid "Not detected yet"
@@ -943,6 +969,10 @@ msgid "Priority"
 msgstr ""
 
 msgid "Priority band"
+msgstr ""
+
+#. TRANSLATORS: the heading of a choice: which file that stays takes the earlier versions of the files deleted
+msgid "Put their earlier versions into"
 msgstr ""
 
 #. TRANSLATORS: a background job's name: it computes the checksums of the queued files
@@ -1081,11 +1111,20 @@ msgstr ""
 msgid "Searching …"
 msgstr ""
 
+msgid "Select"
+msgstr ""
+
+msgid "Select all"
+msgstr ""
+
 #. TRANSLATORS: placeholder of the picker that selects the one team folder a rule addresses
 msgid "Select folder …"
 msgstr ""
 
 msgid "Select groups …"
+msgstr ""
+
+msgid "Select {name}"
 msgstr ""
 
 #. TRANSLATORS: %s is the selector as it was sent, such as home:alice

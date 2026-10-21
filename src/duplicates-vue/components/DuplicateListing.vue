@@ -309,7 +309,18 @@ const canAct = computed(() => props.scope === null)
 const acting = ref(false)
 
 /** A deletion asked for and dry-run, waiting for its confirmation. */
-const confirming = ref<{ group: GroupType, fileIds: number[], forGood: boolean, results: RowResult[] } | null>(null)
+interface PendingDeletion {
+	group: GroupType
+	fileIds: number[]
+	forGood: boolean
+	/** Rows chosen in a group: the way, and where the versions go, are chosen in the dialog. */
+	choosing: boolean
+	/** The file that takes the deleted files' versions; null for none, undefined while not chosen. */
+	mergeInto?: number | null
+	results: RowResult[]
+}
+
+const confirming = ref<PendingDeletion | null>(null)
 
 const NETWORK_ERROR = t('file_checksum_search', 'Network error')
 
@@ -331,12 +342,65 @@ async function onAct(group: GroupType, file: GroupType['files'][number], action:
 	}
 }
 
-/** A dry run first: the confirmation shows what the server says would happen. */
-async function askToDelete(group: GroupType, fileIds: number[], forGood: boolean): Promise<void> {
+/** Rows chosen in a group: to the trash at first, the dialog offering the rest. */
+async function onDeleteSelected(group: GroupType, fileIds: number[]): Promise<void> {
+	await askToDelete(group, fileIds, false, true)
+}
+
+/**
+ * A dry run first: the confirmation shows what the server says would
+ * happen. Rows chosen in a group start with the versions' target the
+ * group allows, and are dry-run again with it.
+ */
+async function askToDelete(group: GroupType, fileIds: number[], forGood: boolean, choosing = false): Promise<void> {
 	acting.value = true
 	try {
-		const results = await deleteRows(group, fileIds, { forGood, dryRun: true })
-		confirming.value = { group, fileIds, forGood, results }
+		const pending: PendingDeletion = { group, fileIds, forGood, choosing, results: [] }
+		pending.results = await deleteRows(group, fileIds, { forGood, dryRun: true })
+		if (choosing) {
+			pending.mergeInto = defaultTarget(pending)
+			if (pending.mergeInto) {
+				pending.results = await deleteRows(group, fileIds, { forGood, dryRun: true, mergeInto: pending.mergeInto })
+			}
+		}
+		confirming.value = pending
+	} catch {
+		toastError(NETWORK_ERROR)
+	} finally {
+		acting.value = false
+	}
+}
+
+/** The files of the group that stay and may take the deleted files' versions. */
+function targetsOf(pending: PendingDeletion): GroupType['files'] {
+	return pending.group.files.filter((file) => !pending.fileIds.includes(file.fileid)
+		&& !file.version && !file.trash && file.actions?.includes('mergeInto') === true)
+}
+
+/**
+ * Where the versions go before anyone chooses: nowhere where none go
+ * along or no file stays to take them, the one file that stays where one
+ * does, and the person's choice where several do.
+ */
+function defaultTarget(pending: PendingDeletion): number | null | undefined {
+	const targets = targetsOf(pending)
+	if (targets.length === 0 || !pending.results.some((result) => (result.versions?.length ?? 0) > 0)) {
+		return null
+	}
+	return targets.length === 1 ? targets[0].fileid : undefined
+}
+
+/** A choice changed in the dialog: what the server says now. */
+async function rechoose(changes: { forGood?: boolean, mergeInto?: number | null }): Promise<void> {
+	const pending = confirming.value
+	if (!pending) {
+		return
+	}
+	const next: PendingDeletion = { ...pending, ...changes }
+	acting.value = true
+	try {
+		next.results = await deleteRows(next.group, next.fileIds, { forGood: next.forGood, dryRun: true, mergeInto: next.mergeInto ?? null })
+		confirming.value = next
 	} catch {
 		toastError(NETWORK_ERROR)
 	} finally {
@@ -351,7 +415,7 @@ async function onConfirmDelete(): Promise<void> {
 	}
 	acting.value = true
 	try {
-		const results = await deleteRows(pending.group, pending.fileIds, { forGood: pending.forGood, dryRun: false })
+		const results = await deleteRows(pending.group, pending.fileIds, { forGood: pending.forGood, dryRun: false, mergeInto: pending.mergeInto ?? null })
 		confirming.value = null
 		reportDeleted(pending.group, results)
 	} catch {
@@ -555,7 +619,8 @@ onBeforeUnmount(() => {
 				:acting="acting"
 				@verify-group="onVerifyGroup"
 				@verify-file="verifyFile"
-				@act="onAct" />
+				@act="onAct"
+				@delete-selected="onDeleteSelected" />
 		</div>
 
 		<DeleteDialog v-if="confirming"
@@ -563,6 +628,11 @@ onBeforeUnmount(() => {
 			:results="confirming.results"
 			:for-good="confirming.forGood"
 			:busy="acting"
+			:choosing="confirming.choosing"
+			:targets="targetsOf(confirming)"
+			:merge-into="confirming.mergeInto"
+			@update:for-good="rechoose({ forGood: $event })"
+			@update:merge-into="rechoose({ mergeInto: $event })"
 			@confirm="onConfirmDelete"
 			@close="confirming = null" />
 

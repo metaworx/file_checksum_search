@@ -52,6 +52,13 @@ const emptyDir = 'fcias-e2e-empty'
 const emptyFiles = [ 'empty-1.txt', 'empty-2.txt' ]
 const EMPTY_SHA1 = 'da39a3ee5e6b4b0d3255bfef95601890afd80709'
 
+// Three copies of their own, as tests/e2e/fixtures/resolve.json states them,
+// for the case that deletes and restores: sha1('fcias resolve').
+const resolveDir = 'fcias-e2e-resolve'
+const resolveFiles = [ 'one.txt', 'two.txt', 'three.txt' ]
+const RESOLVE_CONTENT = 'fcias resolve'
+const RESOLVE_HASH = '6f9b3d2b51ba91aaae04bcc3b20b03d2aded95ac'
+
 const recalcUrl = '**/ocs/v2.php/apps/file_checksum_search/api/v1/file/*/recalc*'
 
 const webdavUrl = ( path ) => `/remote.php/dav/files/${ adminUser }${ path }`
@@ -121,9 +128,38 @@ describe( 'FCIAS Duplicates page', () => {
 				} )
 			}
 
+			// Three copies for the case that deletes and restores, each written
+			// once: a re-run's overwrite would give them versions, and the
+			// trash would still hold the last run's. So the folder goes first,
+			// to the trash, and the trash is emptied.
+			cy.request( {
+				method: 'DELETE',
+				url: webdavUrl( `/${ resolveDir }` ),
+				auth: { user: adminUser, pass: adminPassword },
+				failOnStatusCode: false,
+			} )
+			cy.exec( `${ occ } trashbin:cleanup ${ adminUser }`, { failOnNonZeroExit: false } )
+			cy.request( {
+				method: 'MKCOL',
+				url: webdavUrl( `/${ resolveDir }` ),
+				auth: { user: adminUser, pass: adminPassword },
+				failOnStatusCode: false,
+			} )
+
+			for ( const name of resolveFiles ) {
+				cy.request( {
+					method: 'PUT',
+					url: webdavUrl( `/${ resolveDir }/${ name }` ),
+					auth: { user: adminUser, pass: adminPassword },
+					headers: { 'Content-Type': 'text/plain' },
+					body: RESOLVE_CONTENT,
+				} )
+			}
+
 			cy.resetFciasState( occ )
 			cy.importFciasFixture( occ, 'duplicates', adminUser )
 			cy.importFciasFixture( occ, 'empty-files', adminUser )
+			cy.importFciasFixture( occ, 'resolve', adminUser )
 		} )
 	} )
 
@@ -481,6 +517,43 @@ describe( 'FCIAS Duplicates page', () => {
 				cy.fciasDeleteAccount( admin, account.user )
 			} )
 		} )
+	} )
+
+	// What the page does to its own rows: of three copies, one chosen and
+	// moved to the trash, where the group still shows it, and brought back
+	// from there. Last, since it changes the files; `before()` writes them,
+	// as DAV takes no write from a logged-in browser session.
+	it( 'moves a copy chosen in a group to the trash, and restores it', () => {
+		const group = () => cy.get( '.db-group', { timeout: FIND_TIMEOUT } )
+			.filter( ( _i, el ) => el.querySelector( '.db-hash' )?.textContent?.trim() === RESOLVE_HASH )
+		const trashed = () => group().find( '[data-testid="fcias-trash"]', { timeout: FIND_TIMEOUT } )
+
+		cy.visit( `${ DUPLICATES_URL }#mine?hash=${ RESOLVE_HASH }` )
+		group().find( '.db-group-header' ).click()
+		group().find( '.db-file-item' ).should( 'have.length', 3 )
+
+		// All chosen, then two let go: one copy to the trash, as the dialog
+		// proposes, with no version to place, the files written once. One
+		// only, as a group with fewer than two copies outside the trash is
+		// resolved, and leaves the page.
+		group().find( '[data-testid="fcias-select"]' ).click()
+		group().find( '[data-testid="fcias-select-all"]' ).click()
+		group().find( 'input[data-testid="fcias-select-row"]' ).eq( 0 ).uncheck( { force: true } )
+		group().find( 'input[data-testid="fcias-select-row"]' ).eq( 2 ).uncheck( { force: true } )
+		group().find( '[data-testid="fcias-delete-selected"]' ).click()
+		cy.get( '[role="dialog"] [data-testid="fcias-delete-rows"] > li', { timeout: FIND_TIMEOUT } ).should( 'have.length', 1 )
+		cy.get( '[data-testid="fcias-delete-target"]' ).should( 'not.exist' )
+		cy.get( '[role="dialog"] .dialog__actions button' ).last().click()
+
+		trashed().should( 'have.length', 1 )
+		group().find( '.db-file-item' ).should( 'have.length', 3 )
+
+		// Back from the trash, through its own menu.
+		trashed().first().closest( '.db-file-item' ).find( '.action-item__menutoggle' ).click()
+		cy.get( '[data-action="restore"] button', { timeout: FIND_TIMEOUT } ).filter( ':visible' ).click()
+
+		group().find( '[data-testid="fcias-trash"]' ).should( 'not.exist' )
+		group().find( '.db-file-item' ).should( 'have.length', 3 )
 	} )
 
 } )

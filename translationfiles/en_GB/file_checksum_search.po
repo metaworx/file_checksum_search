@@ -35,6 +35,16 @@ msgid_plural "%n files"
 msgstr[0] "%n file"
 msgstr[1] "%n files"
 
+msgid "%n version goes to the file that stays."
+msgid_plural "%n versions go to the file that stays."
+msgstr[0] "%n version goes to the file that stays."
+msgstr[1] "%n versions go to the file that stays."
+
+msgid "%n version of the same time is left out."
+msgid_plural "%n versions of the same time are left out."
+msgstr[0] "%n version of the same time is left out."
+msgstr[1] "%n versions of the same time are left out."
+
 msgid "(not in your files)"
 msgstr "(not in your files)"
 
@@ -400,6 +410,9 @@ msgstr "Delete permanently"
 msgid "Delete rule"
 msgstr "Delete rule"
 
+msgid "Delete selected"
+msgstr "Delete selected"
+
 msgid "Delete this rule?"
 msgstr "Delete this rule?"
 
@@ -641,6 +654,9 @@ msgstr "Internal server error."
 msgid "Invalid request body."
 msgstr "Invalid request body."
 
+msgid "Invert selection"
+msgstr "Invert selection"
+
 msgid "It cannot be restored that way."
 msgstr "It cannot be restored that way."
 
@@ -798,6 +814,12 @@ msgstr "No checksums available for this file."
 msgid "No checksums for this version."
 msgstr "No checksums for this version."
 
+msgid "No copy of this content stays."
+msgstr "No copy of this content stays."
+
+msgid "No copy stays outside the trash."
+msgstr "No copy stays outside the trash."
+
 msgid "No documentation available."
 msgstr "No documentation available."
 
@@ -832,6 +854,10 @@ msgstr "None"
 
 msgid "None of the requested algorithms is available on this server; the previous list is kept."
 msgstr "None of the requested algorithms is available on this server; the previous list is kept."
+
+#. TRANSLATORS: a choice under "Put their earlier versions into": no file takes them, and the versions go wherever their own files go
+msgid "None, they go with their files"
+msgstr "None, they go with their files"
 
 msgid "Not detected yet"
 msgstr "Not detected yet"
@@ -943,6 +969,10 @@ msgstr "Priority"
 
 msgid "Priority band"
 msgstr "Priority band"
+
+#. TRANSLATORS: the heading of a choice: which file that stays takes the earlier versions of the files deleted
+msgid "Put their earlier versions into"
+msgstr "Put their earlier versions into"
 
 #. TRANSLATORS: a background job's name: it computes the checksums of the queued files
 msgid "Queue drain"
@@ -1080,12 +1110,21 @@ msgstr "Search groups …"
 msgid "Searching …"
 msgstr "Searching …"
 
+msgid "Select"
+msgstr "Select"
+
+msgid "Select all"
+msgstr "Select all"
+
 #. TRANSLATORS: placeholder of the picker that selects the one team folder a rule addresses
 msgid "Select folder …"
 msgstr "Select folder …"
 
 msgid "Select groups …"
 msgstr "Select groups …"
+
+msgid "Select {name}"
+msgstr "Select {name}"
 
 #. TRANSLATORS: %s is the selector as it was sent, such as home:alice
 #, php-format

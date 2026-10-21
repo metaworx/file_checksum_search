@@ -34,6 +34,14 @@ msgid "%n file"
 msgid_plural "%n files"
 msgstr[0] "%n 个文件"
 
+msgid "%n version goes to the file that stays."
+msgid_plural "%n versions go to the file that stays."
+msgstr[0] "%n 个版本将转入保留的文件。"
+
+msgid "%n version of the same time is left out."
+msgid_plural "%n versions of the same time are left out."
+msgstr[0] "同一时间的 %n 个版本被略过。"
+
 msgid "(not in your files)"
 msgstr "（不在您的文件中）"
 
@@ -397,6 +405,9 @@ msgstr "永久删除"
 msgid "Delete rule"
 msgstr "删除规则"
 
+msgid "Delete selected"
+msgstr "删除所选"
+
 msgid "Delete this rule?"
 msgstr "删除此规则？"
 
@@ -637,6 +648,9 @@ msgstr "服务器内部错误。"
 msgid "Invalid request body."
 msgstr "无效的请求正文。"
 
+msgid "Invert selection"
+msgstr "反选"
+
 msgid "It cannot be restored that way."
 msgstr "无法以这种方式恢复。"
 
@@ -792,6 +806,12 @@ msgstr "此文件没有可用的校验和。"
 msgid "No checksums for this version."
 msgstr "此版本没有校验和。"
 
+msgid "No copy of this content stays."
+msgstr "此内容不会保留任何副本。"
+
+msgid "No copy stays outside the trash."
+msgstr "回收站之外不会保留任何副本。"
+
 msgid "No documentation available."
 msgstr "没有可用的文档。"
 
@@ -826,6 +846,10 @@ msgstr "无"
 
 msgid "None of the requested algorithms is available on this server; the previous list is kept."
 msgstr "所请求的算法在此服务器上均不可用；已保留之前的列表。"
+
+#. TRANSLATORS: a choice under "Put their earlier versions into": no file takes them, and the versions go wherever their own files go
+msgid "None, they go with their files"
+msgstr "无，随其文件一起处理"
 
 msgid "Not detected yet"
 msgstr "尚未检测"
@@ -935,6 +959,10 @@ msgstr "优先级"
 
 msgid "Priority band"
 msgstr "优先级层级"
+
+#. TRANSLATORS: the heading of a choice: which file that stays takes the earlier versions of the files deleted
+msgid "Put their earlier versions into"
+msgstr "将其较早的版本放入"
 
 #. TRANSLATORS: a background job's name: it computes the checksums of the queued files
 msgid "Queue drain"
@@ -1072,12 +1100,21 @@ msgstr "搜索群组…"
 msgid "Searching …"
 msgstr "正在搜索…"
 
+msgid "Select"
+msgstr "选择"
+
+msgid "Select all"
+msgstr "全选"
+
 #. TRANSLATORS: placeholder of the picker that selects the one team folder a rule addresses
 msgid "Select folder …"
 msgstr "选择文件夹…"
 
 msgid "Select groups …"
 msgstr "选择群组…"
+
+msgid "Select {name}"
+msgstr "选择 {name}"
 
 #. TRANSLATORS: %s is the selector as it was sent, such as home:alice
 #, php-format

@@ -37,6 +37,20 @@ msgstr[1] "%n pliki"
 msgstr[2] "%n plików"
 msgstr[3] "%n plików"
 
+msgid "%n version goes to the file that stays."
+msgid_plural "%n versions go to the file that stays."
+msgstr[0] "%n wersja trafia do pliku, który zostaje."
+msgstr[1] "%n wersje trafiają do pliku, który zostaje."
+msgstr[2] "%n wersji trafia do pliku, który zostaje."
+msgstr[3] "%n wersji trafia do pliku, który zostaje."
+
+msgid "%n version of the same time is left out."
+msgid_plural "%n versions of the same time are left out."
+msgstr[0] "%n wersja z tej samej chwili zostaje pominięta."
+msgstr[1] "%n wersje z tej samej chwili zostają pominięte."
+msgstr[2] "%n wersji z tej samej chwili zostaje pominiętych."
+msgstr[3] "%n wersji z tej samej chwili zostaje pominięte."
+
 msgid "(not in your files)"
 msgstr "(poza Twoimi plikami)"
 
@@ -406,6 +420,9 @@ msgstr "Usuń trwale"
 msgid "Delete rule"
 msgstr "Usuń regułę"
 
+msgid "Delete selected"
+msgstr "Usuń zaznaczone"
+
 msgid "Delete this rule?"
 msgstr "Usunąć tę regułę?"
 
@@ -649,6 +666,9 @@ msgstr "Wewnętrzny błąd serwera."
 msgid "Invalid request body."
 msgstr "Nieprawidłowa treść żądania."
 
+msgid "Invert selection"
+msgstr "Odwróć zaznaczenie"
+
 msgid "It cannot be restored that way."
 msgstr "Nie można tego przywrócić w ten sposób."
 
@@ -810,6 +830,12 @@ msgstr "Brak sum kontrolnych dla tego pliku."
 msgid "No checksums for this version."
 msgstr "Brak sum kontrolnych dla tej wersji."
 
+msgid "No copy of this content stays."
+msgstr "Nie zostaje żadna kopia tej zawartości."
+
+msgid "No copy stays outside the trash."
+msgstr "Poza koszem nie zostaje żadna kopia."
+
 msgid "No documentation available."
 msgstr "Brak dostępnej dokumentacji."
 
@@ -844,6 +870,10 @@ msgstr "Brak"
 
 msgid "None of the requested algorithms is available on this server; the previous list is kept."
 msgstr "Żaden z żądanych algorytmów nie jest dostępny na tym serwerze; poprzednia lista pozostaje bez zmian."
+
+#. TRANSLATORS: a choice under "Put their earlier versions into": no file takes them, and the versions go wherever their own files go
+msgid "None, they go with their files"
+msgstr "Żaden, odchodzą razem ze swoimi plikami"
 
 msgid "Not detected yet"
 msgstr "Jeszcze nie wykryto"
@@ -959,6 +989,10 @@ msgstr "Priorytet"
 
 msgid "Priority band"
 msgstr "Poziom priorytetu"
+
+#. TRANSLATORS: the heading of a choice: which file that stays takes the earlier versions of the files deleted
+msgid "Put their earlier versions into"
+msgstr "Umieść ich starsze wersje w"
 
 #. TRANSLATORS: a background job's name: it computes the checksums of the queued files
 msgid "Queue drain"
@@ -1096,12 +1130,21 @@ msgstr "Wyszukaj grupy…"
 msgid "Searching …"
 msgstr "Wyszukiwanie…"
 
+msgid "Select"
+msgstr "Zaznacz"
+
+msgid "Select all"
+msgstr "Zaznacz wszystko"
+
 #. TRANSLATORS: placeholder of the picker that selects the one team folder a rule addresses
 msgid "Select folder …"
 msgstr "Wybierz folder…"
 
 msgid "Select groups …"
 msgstr "Wybierz grupy…"
+
+msgid "Select {name}"
+msgstr "Zaznacz {name}"
 
 #. TRANSLATORS: %s is the selector as it was sent, such as home:alice
 #, php-format

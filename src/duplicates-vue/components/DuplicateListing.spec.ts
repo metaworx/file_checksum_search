@@ -101,7 +101,7 @@ describe('DuplicateListing, acting on a row', () => {
 		await flushPromises()
 
 		expect(deleteRows).toHaveBeenCalledTimes(2)
-		expect(deleteRows.mock.calls[1].slice(1)).toEqual([[1], { forGood: false, dryRun: false }])
+		expect(deleteRows.mock.calls[1].slice(1)).toEqual([[1], { forGood: false, dryRun: false, mergeInto: null }])
 		expect(toastUndo).toHaveBeenCalledWith('Moved 1 file to the trash.', expect.any(Function))
 	})
 
@@ -134,7 +134,7 @@ describe('DuplicateListing, acting on a row', () => {
 		dialogButton('Delete permanently')?.click()
 		await flushPromises()
 
-		expect(deleteRows.mock.calls[1].slice(1)).toEqual([[1], { forGood: true, dryRun: false }])
+		expect(deleteRows.mock.calls[1].slice(1)).toEqual([[1], { forGood: true, dryRun: false, mergeInto: null }])
 		expect(toastSuccess).toHaveBeenCalledWith('Deleted 1 item permanently.')
 		expect(toastUndo).not.toHaveBeenCalled()
 	})
@@ -149,6 +149,53 @@ describe('DuplicateListing, acting on a row', () => {
 		expect(restoreRow.mock.calls[0].slice(1)).toEqual([2, 'original'])
 		expect(toastSuccess).toHaveBeenCalledWith('Restored to /b.pdf.')
 		expect(deleteRows).not.toHaveBeenCalled()
+	})
+
+	// Rows chosen in a group: their versions go to the one file that stays,
+	// as dry-run before the confirmation, and the deletion carries it.
+	it('deletes the rows chosen in a group, their versions into the one file that stays', async () => {
+		const live = (fileid: number) => ({ fileid, path: `/${fileid}.pdf`, name: `${fileid}.pdf`, actions: ['trash', 'delete', 'mergeInto'] })
+		const group = { ...GROUP, file_count: 3, files: [live(1), live(2), live(3)] }
+		fetchMock.mockImplementation(() => Promise.resolve(new Response(JSON.stringify({ duplicates: [group], canRecalc: true }), { status: 200 })))
+		const going: RowResult[] = [
+			{ fileid: 2, kind: 'file', status: 'ready', action: 'trash', versions: [{ timestamp: 1700000000, size: 3, label: null }] },
+			{ fileid: 3, kind: 'file', status: 'ready', action: 'trash', versions: [] },
+		]
+		deleteRows.mockResolvedValue(going)
+		const wrapper = await mounted()
+
+		await wrapper.find('[data-testid="fcias-select"]').trigger('click')
+		for (const box of wrapper.findAllComponents({ name: 'NcCheckboxRadioSwitch' }).filter((box) => box.classes('db-select-row')).slice(1)) {
+			box.vm.$emit('update:modelValue', true)
+		}
+		await flushPromises()
+		await wrapper.find('[data-testid="fcias-delete-selected"]').trigger('click')
+		await flushPromises()
+
+		expect(deleteRows.mock.calls.map((call) => call[2])).toEqual([
+			{ forGood: false, dryRun: true },
+			{ forGood: false, dryRun: true, mergeInto: 1 },
+		])
+
+		dialogButton('Move to trash')?.click()
+		await flushPromises()
+
+		expect(deleteRows.mock.calls[2].slice(1)).toEqual([[2, 3], { forGood: false, dryRun: false, mergeInto: 1 }])
+	})
+
+	it('dry-runs again when the way changes in the dialog', async () => {
+		deleteRows.mockResolvedValue([{ fileid: 1, kind: 'file', status: 'ready', action: 'trash', versions: [] }])
+		const wrapper = await mounted()
+
+		await wrapper.find('[data-testid="fcias-select"]').trigger('click')
+		wrapper.findAllComponents({ name: 'NcCheckboxRadioSwitch' }).filter((box) => box.classes('db-select-row'))[0].vm.$emit('update:modelValue', true)
+		await flushPromises()
+		await wrapper.find('[data-testid="fcias-delete-selected"]').trigger('click')
+		await flushPromises()
+		wrapper.findAllComponents({ name: 'NcCheckboxRadioSwitch' }).find((box) => box.props('value') === 'true')?.vm.$emit('update:modelValue', 'true')
+		await flushPromises()
+
+		expect(deleteRows.mock.calls.at(-1)?.[2]).toEqual({ forGood: true, dryRun: true, mergeInto: null })
 	})
 
 	it('shows a refusal as the server words it', async () => {

@@ -24,9 +24,9 @@ the first stable release.
   place, a trashed version into the file there, or any version as a new
   file.
 
-- Duplicates page, *Mine*: a row's menu deletes it, to the trash or for
-  good, after a confirmation listing what goes along, or restores it;
-  Undo after a move to the trash.
+- Duplicates page, *Mine*: rows deleted one by one or chosen in a
+  group, to the trash or for good, their versions kept in a copy that
+  stays; rows restored; Undo after a move to the trash.
 
 ## [0.29.1] - 2026-10-21
 

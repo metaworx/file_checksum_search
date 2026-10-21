@@ -1,0 +1,22 @@
+{
+	"schema": 1,
+	"app": "file_checksum_search",
+	"note": "Three copies of one content, for the Duplicates spec's case that moves two to the trash and restores one. A folder and a content of their own, so no other case sees them. Import with --user, as the other fixtures are.",
+	"hashes": [
+		{
+			"path": "fcias-e2e-resolve/one.txt",
+			"algo": "sha1",
+			"hash": "6f9b3d2b51ba91aaae04bcc3b20b03d2aded95ac"
+		},
+		{
+			"path": "fcias-e2e-resolve/two.txt",
+			"algo": "sha1",
+			"hash": "6f9b3d2b51ba91aaae04bcc3b20b03d2aded95ac"
+		},
+		{
+			"path": "fcias-e2e-resolve/three.txt",
+			"algo": "sha1",
+			"hash": "6f9b3d2b51ba91aaae04bcc3b20b03d2aded95ac"
+		}
+	]
+}

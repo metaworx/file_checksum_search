@@ -4,7 +4,7 @@
  */
 
 import { describe, expect, it } from 'vitest'
-import { mount } from '@vue/test-utils'
+import { flushPromises, mount } from '@vue/test-utils'
 import DuplicateGroup from './DuplicateGroup.vue'
 import type { DuplicateGroup as GroupType } from '../composables/useDuplicates'
 import { clickAction, hasAction } from '../../test-utils/ncActions'
@@ -173,5 +173,78 @@ describe('DuplicateGroup, a row\'s menu', () => {
 		await clickAction(wrapper.findAll('.db-file-item')[1], 'restore')
 
 		expect(wrapper.emitted('act')?.[0]?.slice(1)).toEqual([files[1], 'restore'])
+	})
+})
+
+describe('DuplicateGroup, choosing rows to delete', () => {
+	const files: GroupType['files'] = [
+		{ fileid: 1, path: '/a.pdf', name: 'a.pdf', actions: ['trash', 'delete', 'mergeInto'] },
+		{ fileid: 2, path: '/b.pdf', name: 'b.pdf', actions: ['trash', 'delete', 'mergeInto'] },
+		{ fileid: 3, path: 'trash:///c.pdf', name: 'c.pdf', trash: { deletedAt: '2023-11-14T22:13:20+00:00' }, actions: ['delete', 'restore'] },
+		{ fileid: 4, path: '/d.pdf', name: 'd.pdf', actions: [] },
+	]
+
+	function choosing(canAct = true) {
+		return mount(DuplicateGroup, { props: { group: group({ files }), fileUrl: () => '#', canAct } })
+	}
+
+	/** The rows' checkboxes, by the row's file id: Nextcloud's own, driven as the app's other specs drive it. */
+	function boxes(wrapper: ReturnType<typeof choosing>) {
+		const map = new Map<number, { check: (on: boolean) => Promise<void> }>()
+		wrapper.findAll('.db-file-item').forEach((item, index) => {
+			const box = item.findAllComponents({ name: 'NcCheckboxRadioSwitch' })[0]
+			if (box) {
+				map.set(files[index].fileid, {
+					check: async (on) => {
+						box.vm.$emit('update:modelValue', on)
+						await flushPromises()
+					},
+				})
+			}
+		})
+		return map
+	}
+
+	it('offers a checkbox on each row that may be deleted, once asked', async () => {
+		const wrapper = choosing()
+
+		expect(wrapper.find('[data-testid="fcias-select-row"]').exists()).toBe(false)
+		await wrapper.find('[data-testid="fcias-select"]').trigger('click')
+
+		expect([...boxes(wrapper).keys()]).toEqual([1, 2, 3])
+	})
+
+	it('offers no choosing on a listing the page does not act on', () => {
+		expect(choosing(false).find('[data-testid="fcias-select"]').exists()).toBe(false)
+	})
+
+	// All, then the other lot: Invert of all is none, and the button waits.
+	it('chooses all, inverts the choice, and deletes what is chosen', async () => {
+		const wrapper = choosing()
+		await wrapper.find('[data-testid="fcias-select"]').trigger('click')
+
+		await boxes(wrapper).get(2)?.check(true)
+		await wrapper.find('[data-testid="fcias-select-invert"]').trigger('click')
+		await wrapper.find('[data-testid="fcias-delete-selected"]').trigger('click')
+		expect(wrapper.emitted('deleteSelected')?.[0]?.[1]).toEqual([1, 3])
+
+		await wrapper.find('[data-testid="fcias-select-all"]').trigger('click')
+		await wrapper.find('[data-testid="fcias-delete-selected"]').trigger('click')
+		expect(wrapper.emitted('deleteSelected')?.[1]?.[1]).toEqual([1, 2, 3])
+
+		await wrapper.find('[data-testid="fcias-select-invert"]').trigger('click')
+		expect(wrapper.find('[data-testid="fcias-delete-selected"]').attributes('disabled')).toBeDefined()
+	})
+
+	it('leaves choosing, and forgets the choice, on Cancel', async () => {
+		const wrapper = choosing()
+		await wrapper.find('[data-testid="fcias-select"]').trigger('click')
+		await wrapper.find('[data-testid="fcias-select-all"]').trigger('click')
+
+		await wrapper.find('[data-testid="fcias-select-cancel"]').trigger('click')
+		expect(wrapper.find('[data-testid="fcias-select-row"]').exists()).toBe(false)
+
+		await wrapper.find('[data-testid="fcias-select"]').trigger('click')
+		expect(wrapper.find('[data-testid="fcias-delete-selected"]').attributes('disabled')).toBeDefined()
 	})
 })

@@ -35,6 +35,16 @@ msgid_plural "%n files"
 msgstr[0] "%n bestand"
 msgstr[1] "%n bestanden"
 
+msgid "%n version goes to the file that stays."
+msgid_plural "%n versions go to the file that stays."
+msgstr[0] "%n versie gaat naar het bestand dat blijft."
+msgstr[1] "%n versies gaan naar het bestand dat blijft."
+
+msgid "%n version of the same time is left out."
+msgid_plural "%n versions of the same time are left out."
+msgstr[0] "%n versie van hetzelfde tijdstip wordt weggelaten."
+msgstr[1] "%n versies van hetzelfde tijdstip worden weggelaten."
+
 msgid "(not in your files)"
 msgstr "(niet in je bestanden)"
 
@@ -400,6 +410,9 @@ msgstr "Definitief verwijderen"
 msgid "Delete rule"
 msgstr "Regel verwijderen"
 
+msgid "Delete selected"
+msgstr "Selectie verwijderen"
+
 msgid "Delete this rule?"
 msgstr "Deze regel verwijderen?"
 
@@ -641,6 +654,9 @@ msgstr "Interne serverfout."
 msgid "Invalid request body."
 msgstr "Ongeldige inhoud van het verzoek."
 
+msgid "Invert selection"
+msgstr "Selectie omkeren"
+
 msgid "It cannot be restored that way."
 msgstr "Het kan niet op die manier worden hersteld."
 
@@ -798,6 +814,12 @@ msgstr "Geen controlesommen beschikbaar voor dit bestand."
 msgid "No checksums for this version."
 msgstr "Geen controlesommen voor deze versie."
 
+msgid "No copy of this content stays."
+msgstr "Er blijft geen kopie van deze inhoud over."
+
+msgid "No copy stays outside the trash."
+msgstr "Buiten de prullenbak blijft geen kopie over."
+
 msgid "No documentation available."
 msgstr "Geen documentatie beschikbaar."
 
@@ -832,6 +854,10 @@ msgstr "Geen"
 
 msgid "None of the requested algorithms is available on this server; the previous list is kept."
 msgstr "Geen van de gevraagde algoritmen is beschikbaar op deze server; de vorige lijst blijft behouden."
+
+#. TRANSLATORS: a choice under "Put their earlier versions into": no file takes them, and the versions go wherever their own files go
+msgid "None, they go with their files"
+msgstr "Geen, ze gaan mee met hun bestanden"
 
 msgid "Not detected yet"
 msgstr "Nog niet herkend"
@@ -943,6 +969,10 @@ msgstr "Prioriteit"
 
 msgid "Priority band"
 msgstr "Prioriteitslaag"
+
+#. TRANSLATORS: the heading of a choice: which file that stays takes the earlier versions of the files deleted
+msgid "Put their earlier versions into"
+msgstr "Hun eerdere versies plaatsen in"
 
 #. TRANSLATORS: a background job's name: it computes the checksums of the queued files
 msgid "Queue drain"
@@ -1080,12 +1110,21 @@ msgstr "Groepen zoeken …"
 msgid "Searching …"
 msgstr "Zoeken …"
 
+msgid "Select"
+msgstr "Selecteren"
+
+msgid "Select all"
+msgstr "Alles selecteren"
+
 #. TRANSLATORS: placeholder of the picker that selects the one team folder a rule addresses
 msgid "Select folder …"
 msgstr "Map selecteren …"
 
 msgid "Select groups …"
 msgstr "Groepen selecteren …"
+
+msgid "Select {name}"
+msgstr "{name} selecteren"
 
 #. TRANSLATORS: %s is the selector as it was sent, such as home:alice
 #, php-format

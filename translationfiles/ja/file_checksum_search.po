@@ -34,6 +34,14 @@ msgid "%n file"
 msgid_plural "%n files"
 msgstr[0] "%n個のファイル"
 
+msgid "%n version goes to the file that stays."
+msgid_plural "%n versions go to the file that stays."
+msgstr[0] "%n 件のバージョンが残るファイルに移ります。"
+
+msgid "%n version of the same time is left out."
+msgid_plural "%n versions of the same time are left out."
+msgstr[0] "同じ時刻のバージョン %n 件は除外されます。"
+
 msgid "(not in your files)"
 msgstr "（あなたのファイルにはありません）"
 
@@ -397,6 +405,9 @@ msgstr "完全に削除"
 msgid "Delete rule"
 msgstr "ルールを削除"
 
+msgid "Delete selected"
+msgstr "選択した項目を削除"
+
 msgid "Delete this rule?"
 msgstr "このルールを削除しますか？"
 
@@ -637,6 +648,9 @@ msgstr "内部サーバーエラーが発生しました。"
 msgid "Invalid request body."
 msgstr "リクエストの本文が無効です。"
 
+msgid "Invert selection"
+msgstr "選択を反転"
+
 msgid "It cannot be restored that way."
 msgstr "その方法では復元できません。"
 
@@ -792,6 +806,12 @@ msgstr "このファイルのチェックサムはありません。"
 msgid "No checksums for this version."
 msgstr "このバージョンのチェックサムはありません。"
 
+msgid "No copy of this content stays."
+msgstr "この内容のコピーは残りません。"
+
+msgid "No copy stays outside the trash."
+msgstr "ゴミ箱の外にコピーは残りません。"
+
 msgid "No documentation available."
 msgstr "利用できるドキュメントはありません。"
 
@@ -826,6 +846,10 @@ msgstr "なし"
 
 msgid "None of the requested algorithms is available on this server; the previous list is kept."
 msgstr "要求されたアルゴリズムはどれもこのサーバーで利用できないため、以前の一覧が維持されます。"
+
+#. TRANSLATORS: a choice under "Put their earlier versions into": no file takes them, and the versions go wherever their own files go
+msgid "None, they go with their files"
+msgstr "なし（それぞれのファイルと一緒に扱う）"
 
 msgid "Not detected yet"
 msgstr "未検出"
@@ -935,6 +959,10 @@ msgstr "優先度"
 
 msgid "Priority band"
 msgstr "優先度の階層"
+
+#. TRANSLATORS: the heading of a choice: which file that stays takes the earlier versions of the files deleted
+msgid "Put their earlier versions into"
+msgstr "以前のバージョンの移動先"
 
 #. TRANSLATORS: a background job's name: it computes the checksums of the queued files
 msgid "Queue drain"
@@ -1072,12 +1100,21 @@ msgstr "グループを検索…"
 msgid "Searching …"
 msgstr "検索しています…"
 
+msgid "Select"
+msgstr "選択"
+
+msgid "Select all"
+msgstr "すべて選択"
+
 #. TRANSLATORS: placeholder of the picker that selects the one team folder a rule addresses
 msgid "Select folder …"
 msgstr "フォルダーを選択…"
 
 msgid "Select groups …"
 msgstr "グループを選択…"
+
+msgid "Select {name}"
+msgstr "{name} を選択"
 
 #. TRANSLATORS: %s is the selector as it was sent, such as home:alice
 #, php-format

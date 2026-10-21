@@ -11,6 +11,7 @@ import { formatFileSize } from '@nextcloud/files'
 import NcActionButton from '@nextcloud/vue/components/NcActionButton'
 import NcActions from '@nextcloud/vue/components/NcActions'
 import NcButton from '@nextcloud/vue/components/NcButton'
+import NcCheckboxRadioSwitch from '@nextcloud/vue/components/NcCheckboxRadioSwitch'
 import LocationIcon from '../../components/LocationIcon.vue'
 import MdiIcon from '../../components/MdiIcon.vue'
 import { ICON_BIN, ICON_BIN_FOREVER, ICON_FILE_PLUS, ICON_HISTORY, ICON_RESTORE } from '../../components/icons'
@@ -38,7 +39,48 @@ const emit = defineEmits<{
 	(e: 'verifyGroup', group: GroupType): void
 	(e: 'verifyFile', group: GroupType, file: GroupType['files'][number]): void
 	(e: 'act', group: GroupType, file: GroupType['files'][number], action: RowAction): void
+	(e: 'deleteSelected', group: GroupType, fileIds: number[]): void
 }>()
+
+/** Whether the group's rows are being chosen for deletion, a checkbox each. */
+const selecting = ref(false)
+
+/** The rows chosen, by file id. */
+const selected = ref<number[]>([])
+
+/** A row that may be chosen: one the server allows to be deleted, one way or the other. */
+function selectable(file: GroupType['files'][number]): boolean {
+	return props.canAct && (file.actions?.includes('trash') === true || file.actions?.includes('delete') === true)
+}
+
+const selectableIds = computed(() => props.group.files.filter(selectable).map((file) => file.fileid))
+
+function choose(fileId: number, chosen: boolean): void {
+	selected.value = chosen
+		? [...new Set([...selected.value, fileId])]
+		: selected.value.filter((id) => id !== fileId)
+}
+
+function chooseAll(): void {
+	selected.value = [...selectableIds.value]
+}
+
+function invertChoice(): void {
+	selected.value = selectableIds.value.filter((id) => !selected.value.includes(id))
+}
+
+function stopSelecting(): void {
+	selecting.value = false
+	selected.value = []
+}
+
+// A group read again is a new choice: what was chosen may be gone.
+watch(() => props.group, stopSelecting)
+
+/** The checkbox's name, for a reader that cannot see which row it is on. */
+function selectLabel(file: GroupType['files'][number]): string {
+	return t('file_checksum_search', 'Select {name}', { name: fileLabel(file) })
+}
 
 /**
  * A row's menu, in the order a person looks for them: bringing back
@@ -177,8 +219,42 @@ function toggle(): void {
 			</span>
 		</div>
 		<div class="db-group-body">
+			<!-- Choosing several rows to delete at once: a checkbox each, the
+			     whole lot, or the other lot; the deletion is confirmed after. -->
+			<div v-if="selectableIds.length > 0" class="db-select-bar">
+				<NcButton v-if="!selecting"
+					data-testid="fcias-select"
+					:disabled="acting"
+					@click="selecting = true">
+					{{ t('file_checksum_search', 'Select') }}
+				</NcButton>
+				<template v-else>
+					<NcButton data-testid="fcias-select-all" @click="chooseAll">
+						{{ t('file_checksum_search', 'Select all') }}
+					</NcButton>
+					<NcButton data-testid="fcias-select-invert" @click="invertChoice">
+						{{ t('file_checksum_search', 'Invert selection') }}
+					</NcButton>
+					<NcButton data-testid="fcias-delete-selected"
+						variant="error"
+						:disabled="acting || selected.length === 0"
+						@click="emit('deleteSelected', group, [...selected])">
+						{{ t('file_checksum_search', 'Delete selected') }}
+					</NcButton>
+					<NcButton data-testid="fcias-select-cancel" @click="stopSelecting">
+						{{ t('file_checksum_search', 'Cancel') }}
+					</NcButton>
+				</template>
+			</div>
 			<ul class="db-file-list">
 				<li v-for="file in group.files" :key="file.fileid" class="db-file-item">
+					<!-- The test id lands on the input, as every passed attribute does. -->
+					<NcCheckboxRadioSwitch v-if="selecting && selectable(file)"
+						class="db-select-row"
+						data-testid="fcias-select-row"
+						:aria-label="selectLabel(file)"
+						:model-value="selected.includes(file.fileid)"
+						@update:model-value="choose(file.fileid, $event)" />
 					<span class="db-file-label">
 						<!-- The viewer's own files by the path they know; anyone
 						     else's by where they live, or three accounts' copies
@@ -341,6 +417,20 @@ function toggle(): void {
 	margin: 0;
 	padding: 0;
 	list-style: none;
+}
+
+/* Above the rows it chooses among, in the rows' own background. */
+.db-select-bar {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px;
+	padding: 6px 14px;
+	border-top: 1px solid var(--color-border);
+	background: var(--color-main-background);
+}
+
+.db-select-row {
+	flex: 0 0 auto;
 }
 
 /* Same row shape as the header, so every button on the page lines up on
