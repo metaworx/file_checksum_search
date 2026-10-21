@@ -28,6 +28,11 @@ the first stable release.
   group, to the trash or for good, their versions kept in a copy that
   stays; rows restored; Undo after a move to the trash.
 
+### Changed
+
+- Duplicates page: *Verify all* and *Verify* in a menu on each group and
+  row; the header in columns; badges for a version and a verified file.
+
 ## [0.29.1] - 2026-10-21
 
 ### Fixed

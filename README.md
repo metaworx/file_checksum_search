@@ -1023,16 +1023,16 @@ Features:
 
 - Filter by algorithm (SHA-1, MD5, SHA-256, SHA-512, SHA3-256, SHA3-512, CRC32)
 - Set minimum duplicate count and result limit
-- Expandable groups showing file paths,
-  each with its size and when it last changed,
-  and one preview per group, since its files share their content
+- Expandable groups showing file paths, each with when it last changed;
+  the header in columns: one preview, the count over each file's size,
+  since the files share their content, the algorithm and the hash
 - On **Mine**, a menu on each row: **Move to trash** or **Delete permanently**,
   confirmed with the earlier versions that go along listed;
   **Restore** for a copy in the trash, to its place, its folders made again;
   **Restore into the file at its place** for a version of a trashed file;
   **Save as a new file** for any version;
   and **Undo** after a move to the trash
-- **Select** on a group: a checkbox per row, **Select all**,
+- **Select** in a group's menu: a checkbox per row, **Select all**,
   **Invert selection** and **Delete selected**,
   confirmed with the way, and the copy that stays to take the deleted files'
   earlier versions, or none
@@ -1040,7 +1040,7 @@ Features:
   — anywhere in it
 - Empty files left out, since every one of them shares one checksum and deleting
   a copy frees nothing; **Show empty files** lists them too
-- **Verify all** on a group and **Verify** on a file row,
+- **Verify all** in a group's menu and **Verify** in a file row's,
   recalculating from file content and flagging mismatches — asked for per group
   or per file, since reading files costs time and, on metered storage, money;
   a group is sent in requests of 25 files;
@@ -1172,9 +1172,9 @@ The admin settings page provides:
   four sections in one shape (allow everyone, or the groups and accounts chosen;
   members of `admin` always may):
   - **Who may recalculate checksums** — who may recalculate checksums by hand,
-    from the sidebar, the Duplicates page's **Verify** buttons or the API,
+    from the sidebar, the Duplicates page's **Verify** or the API,
     for any file they can reach;
-    without it neither the sidebar nor the Duplicates page shows the buttons.
+    without it neither the sidebar nor the Duplicates page offers it.
     Reading what is already computed is not affected
   - **Who may edit rules** — who may create and edit rules for folders in their
     own files that they can write to

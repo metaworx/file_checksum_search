@@ -69,6 +69,14 @@ const webdavUrl = ( path ) => `/remote.php/dav/files/${ adminUser }${ path }`
 const ownGroup = () => cy.get( '.db-group', { timeout: FIND_TIMEOUT } )
 	.filter( ( _i, el ) => el.querySelector( '.db-hash' )?.textContent?.trim() === DUP_HASH )
 
+// An entry of a menu, the group header's or a row's, its menu opened. The
+// menu is an NcActions popover, rendered outside the group, so the entry is
+// looked for in the open popover rather than below the toggle.
+const menuEntry = ( scope, action ) => {
+	scope.find( '.action-item__menutoggle' ).first().click()
+	return cy.get( `.action-item__popper [data-action="${ action }"] button`, { timeout: FIND_TIMEOUT } ).filter( ':visible' )
+}
+
 // Past core's password dialog into the Others tab, where the dialog opens:
 // whether it does is not this spec's to know (`fciasConfirmPasswordIfAsked`).
 const intoOthers = () => cy.fciasConfirmPasswordIfAsked( adminPassword, ( $body ) => $body.find( '[data-testid="fcias-others"]' ).length > 0 )
@@ -176,13 +184,13 @@ describe( 'FCIAS Duplicates page', () => {
 		ownGroup().find( '.db-count' ).should( 'contain', '2' )
 	} )
 
-	it( 'verifies a group through its own button and it comes back matching', () => {
+	it( 'verifies a group through its own menu and it comes back matching', () => {
 		cy.visit( DUPLICATES_URL )
 
 		ownGroup().should( 'have.length', 1 )
 		// Per group, never per page: reading every file costs time and, on
 		// metered storage, money.
-		ownGroup().find( '.db-verify-all' ).click()
+		menuEntry( ownGroup().find( '.db-group-header' ), 'verifyAll' ).click()
 
 		// Identical content and a stated hash that agrees with it, so every
 		// file verifies. The status class is the assertion rather than the
@@ -197,7 +205,7 @@ describe( 'FCIAS Duplicates page', () => {
 
 		ownGroup().should( 'have.length', 1 )
 		ownGroup().find( '.db-group-header' ).click()
-		ownGroup().find( '.db-file-item' ).first().find( '.db-verify-file' ).click()
+		menuEntry( ownGroup().find( '.db-file-item' ).first(), 'verify' ).click()
 
 		// That file answers; the group as a whole is not claimed as verified
 		// while its other file has never been read.
@@ -239,7 +247,7 @@ describe( 'FCIAS Duplicates page', () => {
 
 		cy.visit( DUPLICATES_URL )
 		ownGroup().should( 'have.length', 1 )
-		ownGroup().find( '.db-verify-all' ).click()
+		menuEntry( ownGroup().find( '.db-group-header' ), 'verifyAll' ).click()
 
 		cy.wait( '@recalcLimited' )
 
@@ -529,18 +537,29 @@ describe( 'FCIAS Duplicates page', () => {
 		const trashed = () => group().find( '[data-testid="fcias-trash"]', { timeout: FIND_TIMEOUT } )
 
 		cy.visit( `${ DUPLICATES_URL }#mine?hash=${ RESOLVE_HASH }` )
-		group().find( '.db-group-header' ).click()
+		group().should( 'have.length', 1 )
+
+		// Select, from the group's menu, opens the group to choose in.
+		menuEntry( group().find( '.db-group-header' ), 'select' ).click()
+		group().should( 'have.class', 'open' )
 		group().find( '.db-file-item' ).should( 'have.length', 3 )
 
 		// All chosen, then two let go: one copy to the trash, as the dialog
 		// proposes, with no version to place, the files written once. One
 		// only, as a group with fewer than two copies outside the trash is
 		// resolved, and leaves the page.
-		group().find( '[data-testid="fcias-select"]' ).click()
-		group().find( '[data-testid="fcias-select-all"]' ).click()
+		menuEntry( group().find( '.db-group-header' ), 'selectAll' ).click()
 		group().find( 'input[data-testid="fcias-select-row"]' ).eq( 0 ).uncheck( { force: true } )
 		group().find( 'input[data-testid="fcias-select-row"]' ).eq( 2 ).uncheck( { force: true } )
-		group().find( '[data-testid="fcias-delete-selected"]' ).click()
+
+		// Escape is Cancel: the dialog goes, and nothing with it.
+		menuEntry( group().find( '.db-group-header' ), 'deleteSelected' ).click()
+		cy.get( '[role="dialog"] [data-testid="fcias-delete-rows"] > li', { timeout: FIND_TIMEOUT } ).should( 'have.length', 1 )
+		cy.get( 'body' ).type( '{esc}' )
+		cy.get( '[role="dialog"]' ).should( 'not.exist' )
+		trashed().should( 'not.exist' )
+
+		menuEntry( group().find( '.db-group-header' ), 'deleteSelected' ).click()
 		cy.get( '[role="dialog"] [data-testid="fcias-delete-rows"] > li', { timeout: FIND_TIMEOUT } ).should( 'have.length', 1 )
 		cy.get( '[data-testid="fcias-delete-target"]' ).should( 'not.exist' )
 		cy.get( '[role="dialog"] .dialog__actions button' ).last().click()
@@ -549,8 +568,7 @@ describe( 'FCIAS Duplicates page', () => {
 		group().find( '.db-file-item' ).should( 'have.length', 3 )
 
 		// Back from the trash, through its own menu.
-		trashed().first().closest( '.db-file-item' ).find( '.action-item__menutoggle' ).click()
-		cy.get( '[data-action="restore"] button', { timeout: FIND_TIMEOUT } ).filter( ':visible' ).click()
+		menuEntry( trashed().first().closest( '.db-file-item' ), 'restore' ).click()
 
 		group().find( '[data-testid="fcias-trash"]' ).should( 'not.exist' )
 		group().find( '.db-file-item' ).should( 'have.length', 3 )

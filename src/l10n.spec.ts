@@ -61,8 +61,9 @@ describe('the German translation', () => {
 		})
 		const text = wrapper.text()
 		expect(text).toContain('2 Dateien')
-		expect(text).toContain('Alle prüfen')
 		expect(text).toContain('jetzt: 62cdb7020ff920e5aa642c3d4066950dd1f01f4d')
+		expect(wrapper.find('.db-group-actions button').attributes('aria-label'))
+			.toBe('Aktionen für die Gruppe 0beec7b5ea3f0fdbc95d0dd47f3c5bc275da8a33')
 	})
 
 	it('shows an ampersand as it is', () => {

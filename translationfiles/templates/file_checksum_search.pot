@@ -87,6 +87,10 @@ msgstr ""
 msgid "Acknowledge"
 msgstr ""
 
+#. TRANSLATORS: the name of a group of duplicates' menu, for a reader that cannot see it; {hash} is the group's checksum
+msgid "Actions for the group {hash}"
+msgstr ""
+
 msgid "Actions for {name}"
 msgstr ""
 
@@ -687,6 +691,9 @@ msgstr ""
 msgid "Its versions could not be merged, so it was not deleted."
 msgstr ""
 
+msgid "Last changed {date}"
+msgstr ""
+
 msgid "Last updated"
 msgstr ""
 
@@ -1153,10 +1160,6 @@ msgstr ""
 msgid "Show only groups whose hash matches what you type. Whole values come first, then those that start with what you typed. Turn on \"Match anywhere in the hash\" to match it in the middle of a hash too. Upper case is fine."
 msgstr ""
 
-#. TRANSLATORS: the tooltip of a file's size and last change, shown beside it in a group of duplicates
-msgid "Size and last change"
-msgstr ""
-
 msgid "Smallest group to list: files sharing a checksum, 2 to 100"
 msgstr ""
 
@@ -1385,6 +1388,10 @@ msgid "Verify"
 msgstr ""
 
 msgid "Verify all"
+msgstr ""
+
+#. TRANSLATORS: a badge on a row of a group of duplicates: the row is an earlier version of the file it names
+msgid "Version"
 msgstr ""
 
 #. TRANSLATORS: beside a file in a list, marking an earlier version of it; {date} is when the file had that content
@@ -1656,4 +1663,8 @@ msgstr ""
 
 #. TRANSLATORS when a grant was made, and by which account
 msgid "{time} by {account}"
+msgstr ""
+
+#. TRANSLATORS: under the number of files of a group of duplicates, the size of each; "à" as in "2 files à 208 B"
+msgid "à {size}"
 msgstr ""

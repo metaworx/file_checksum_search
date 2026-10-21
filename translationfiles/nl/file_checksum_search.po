@@ -86,6 +86,10 @@ msgstr "Accounts"
 msgid "Acknowledge"
 msgstr "Voor kennisgeving aannemen"
 
+#. TRANSLATORS: the name of a group of duplicates' menu, for a reader that cannot see it; {hash} is the group's checksum
+msgid "Actions for the group {hash}"
+msgstr "Acties voor de groep {hash}"
+
 msgid "Actions for {name}"
 msgstr "Acties voor {name}"
 
@@ -686,6 +690,9 @@ msgstr "De versies kunnen hier niet worden verwijderd."
 msgid "Its versions could not be merged, so it was not deleted."
 msgstr "De versies konden niet worden samengevoegd, dus het is niet verwijderd."
 
+msgid "Last changed {date}"
+msgstr "Laatst gewijzigd op {date}"
+
 msgid "Last updated"
 msgstr "Laatst bijgewerkt"
 
@@ -1152,10 +1159,6 @@ msgstr "Alleen groepen tonen waarvan de hash hiermee overeenkomt"
 msgid "Show only groups whose hash matches what you type. Whole values come first, then those that start with what you typed. Turn on \"Match anywhere in the hash\" to match it in the middle of a hash too. Upper case is fine."
 msgstr "Alleen groepen tonen waarvan de hash overeenkomt met wat je typt. Volledige waarden komen eerst, daarna de waarden die beginnen met wat je hebt getypt. Schakel “Overal in de hash zoeken” in om het ook midden in een hash te vinden. Hoofdletters zijn geen probleem."
 
-#. TRANSLATORS: the tooltip of a file's size and last change, shown beside it in a group of duplicates
-msgid "Size and last change"
-msgstr "Grootte en laatste wijziging"
-
 msgid "Smallest group to list: files sharing a checksum, 2 to 100"
 msgstr "Kleinste groep om te tonen: bestanden met dezelfde controlesom, 2 tot en met 100"
 
@@ -1385,6 +1388,10 @@ msgstr "Controleren"
 
 msgid "Verify all"
 msgstr "Alles controleren"
+
+#. TRANSLATORS: a badge on a row of a group of duplicates: the row is an earlier version of the file it names
+msgid "Version"
+msgstr "Versie"
 
 #. TRANSLATORS: beside a file in a list, marking an earlier version of it; {date} is when the file had that content
 msgid "Version of {date}"
@@ -1656,3 +1663,7 @@ msgstr "{stored} is momenteel niet beschikbaar op deze server, dus geldt de stan
 #. TRANSLATORS when a grant was made, and by which account
 msgid "{time} by {account}"
 msgstr "{time} door {account}"
+
+#. TRANSLATORS: under the number of files of a group of duplicates, the size of each; "à" as in "2 files à 208 B"
+msgid "à {size}"
+msgstr "à {size}"

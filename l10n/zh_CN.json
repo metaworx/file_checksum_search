@@ -18,6 +18,7 @@
     "Account" : "账号",
     "Accounts" : "账号",
     "Acknowledge" : "知道了",
+    "Actions for the group {hash}" : "组 {hash} 的操作",
     "Actions for {name}" : "{name} 的操作",
     "Add an algorithm …" : "添加算法…",
     "Add rule" : "添加规则",
@@ -204,6 +205,7 @@
     "Its content changed after the list was loaded." : "列表加载后其内容已更改。",
     "Its versions cannot be deleted here." : "无法在此处删除其版本。",
     "Its versions could not be merged, so it was not deleted." : "无法合并其版本，因此未删除。",
+    "Last changed {date}" : "最后更改于 {date}",
     "Last updated" : "最后更新",
     "Last used" : "上次使用",
     "Lazy (delete checksums now, recalculate later)" : "延后（立即删除校验和，稍后重新计算）",
@@ -343,7 +345,6 @@
     "Show in Duplicates" : "在“重复文件”中显示",
     "Show only groups whose hash matches this" : "仅显示哈希值与此相符的文件组",
     "Show only groups whose hash matches what you type. Whole values come first, then those that start with what you typed. Turn on \"Match anywhere in the hash\" to match it in the middle of a hash too. Upper case is fine." : "仅显示哈希值与您的输入相符的文件组。完全匹配的值排在最前，其后是以您输入的内容开头的值。开启“在哈希值的任意位置匹配”，即可同时匹配哈希值中间的部分。不区分大小写。",
-    "Size and last change" : "大小和最后更改时间",
     "Smallest group to list: files sharing a checksum, 2 to 100" : "列出的最小文件组：校验和相同的文件数，2 到 100",
     "Specific rules" : "特定规则",
     "Status" : "状态",
@@ -417,6 +418,7 @@
     "Verified" : "已验证",
     "Verify" : "验证",
     "Verify all" : "全部验证",
+    "Version" : "版本",
     "Version of {date}" : "{date} 的版本",
     "Versions" : "版本",
     "What happens when this rule matches. \"Include\" computes the checksums below. \"Ignore\" stops automatic hashing but still lets someone recalculate a file's checksums by hand. \"Exclude\" blocks hashing entirely — use it for storage that must not be read, such as a metered external mount." : "此规则匹配时如何处理。“包含”会计算下方的校验和。“忽略”会停止自动哈希计算，但仍允许手动重新计算文件的校验和。“排除”会完全阻止哈希计算，适用于不得读取的存储，例如按流量计费的外部存储。",
@@ -490,6 +492,7 @@
     "{group} (group)" : "{group}（群组）",
     "{owner}: {path}" : "{owner}：{path}",
     "{stored} is not available on this server at the moment, so the default ({active}) applies." : "{stored} 目前在此服务器上不可用，因此使用默认算法（{active}）。",
-    "{time} by {account}" : "{time}，由 {account} 授权"
+    "{time} by {account}" : "{time}，由 {account} 授权",
+    "à {size}" : "每个 {size}"
 },"pluralForm" :"nplurals=1; plural=0;"
 }

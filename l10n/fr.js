@@ -20,6 +20,7 @@ OC.L10N.register(
     "Account" : "Compte",
     "Accounts" : "Comptes",
     "Acknowledge" : "Prendre acte",
+    "Actions for the group {hash}" : "Actions pour le groupe {hash}",
     "Actions for {name}" : "Actions pour {name}",
     "Add an algorithm …" : "Ajouter un algorithme…",
     "Add rule" : "Ajouter une règle",
@@ -206,6 +207,7 @@ OC.L10N.register(
     "Its content changed after the list was loaded." : "Son contenu a changé depuis le chargement de la liste.",
     "Its versions cannot be deleted here." : "Ses versions ne peuvent pas être supprimées ici.",
     "Its versions could not be merged, so it was not deleted." : "Ses versions n'ont pas pu être fusionnées, il n'a donc pas été supprimé.",
+    "Last changed {date}" : "Dernière modification le {date}",
     "Last updated" : "Dernière mise à jour",
     "Last used" : "Dernière utilisation",
     "Lazy (delete checksums now, recalculate later)" : "Différé (supprimer les sommes de contrôle maintenant, recalculer plus tard)",
@@ -345,7 +347,6 @@ OC.L10N.register(
     "Show in Duplicates" : "Afficher dans Doublons",
     "Show only groups whose hash matches this" : "N'afficher que les groupes dont l'empreinte correspond à cette saisie",
     "Show only groups whose hash matches what you type. Whole values come first, then those that start with what you typed. Turn on \"Match anywhere in the hash\" to match it in the middle of a hash too. Upper case is fine." : "N'afficher que les groupes dont l'empreinte correspond à votre saisie. Les valeurs complètes viennent en premier, puis celles qui commencent par ce que vous avez saisi. Activez « Rechercher n'importe où dans l'empreinte » pour la trouver aussi au milieu d'une empreinte. Les majuscules sont acceptées.",
-    "Size and last change" : "Taille et dernière modification",
     "Smallest group to list: files sharing a checksum, 2 to 100" : "Plus petit groupe à afficher : fichiers ayant la même somme de contrôle, de 2 à 100",
     "Specific rules" : "Règles spécifiques",
     "Status" : "Statut",
@@ -419,6 +420,7 @@ OC.L10N.register(
     "Verified" : "Vérifié",
     "Verify" : "Vérifier",
     "Verify all" : "Tout vérifier",
+    "Version" : "Version",
     "Version of {date}" : "Version du {date}",
     "Versions" : "Versions",
     "What happens when this rule matches. \"Include\" computes the checksums below. \"Ignore\" stops automatic hashing but still lets someone recalculate a file's checksums by hand. \"Exclude\" blocks hashing entirely — use it for storage that must not be read, such as a metered external mount." : "Ce qui se passe lorsque cette règle correspond. « Inclure » calcule les sommes de contrôle ci-dessous. « Ignorer » arrête le calcul automatique des empreintes, mais permet toujours de recalculer manuellement les sommes de contrôle d'un fichier. « Exclure » bloque entièrement le calcul des empreintes – à utiliser pour un stockage qui ne doit pas être lu, comme un stockage externe facturé à l'usage.",
@@ -492,6 +494,7 @@ OC.L10N.register(
     "{group} (group)" : "{group} (groupe)",
     "{owner}: {path}" : "{owner} : {path}",
     "{stored} is not available on this server at the moment, so the default ({active}) applies." : "{stored} n'est pas disponible sur ce serveur pour le moment : l'algorithme par défaut ({active}) s'applique donc.",
-    "{time} by {account}" : "{time} par {account}"
+    "{time} by {account}" : "{time} par {account}",
+    "à {size}" : "de {size} chacun"
 },
 "nplurals=3; plural=(n == 0 || n == 1) ? 0 : n != 0 && n % 1000000 == 0 ? 1 : 2;");

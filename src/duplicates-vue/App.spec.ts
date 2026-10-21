@@ -309,16 +309,18 @@ describe('duplicates App', () => {
 
 		await open('#mine', { ownGroups: [group], canRecalc: false })
 
+		// Verify is all the menus hold for rows that allow nothing else, so
+		// without it there is no menu at all.
 		expect(wrapper!.find('.db-group').exists()).toBe(true)
-		expect(wrapper!.find('.db-verify-all').exists()).toBe(false)
-		expect(wrapper!.find('.db-verify-file').exists()).toBe(false)
+		expect(wrapper!.find('.db-group-actions').exists()).toBe(false)
+		expect(wrapper!.find('.db-file-actions').exists()).toBe(false)
 
 		wrapper!.unmount()
 		vi.restoreAllMocks()
 		await open('#mine', { ownGroups: [group], canRecalc: true })
 
-		expect(wrapper!.find('.db-verify-all').exists()).toBe(true)
-		expect(wrapper!.findAll('.db-verify-file')).toHaveLength(2)
+		expect(wrapper!.find('.db-group-actions').exists()).toBe(true)
+		expect(wrapper!.findAll('.db-file-actions')).toHaveLength(2)
 	})
 
 	// Empty files are left out by the server unless asked for; the switch

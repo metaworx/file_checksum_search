@@ -164,12 +164,12 @@ describe('DuplicateListing, acting on a row', () => {
 		deleteRows.mockResolvedValue(going)
 		const wrapper = await mounted()
 
-		await wrapper.find('[data-testid="fcias-select"]').trigger('click')
+		await clickAction(wrapper.find('.db-group-header'), 'select')
 		for (const box of wrapper.findAllComponents({ name: 'NcCheckboxRadioSwitch' }).filter((box) => box.classes('db-select-row')).slice(1)) {
 			box.vm.$emit('update:modelValue', true)
 		}
 		await flushPromises()
-		await wrapper.find('[data-testid="fcias-delete-selected"]').trigger('click')
+		await clickAction(wrapper.find('.db-group-header'), 'deleteSelected')
 		await flushPromises()
 
 		expect(deleteRows.mock.calls.map((call) => call[2])).toEqual([
@@ -187,10 +187,10 @@ describe('DuplicateListing, acting on a row', () => {
 		deleteRows.mockResolvedValue([{ fileid: 1, kind: 'file', status: 'ready', action: 'trash', versions: [] }])
 		const wrapper = await mounted()
 
-		await wrapper.find('[data-testid="fcias-select"]').trigger('click')
+		await clickAction(wrapper.find('.db-group-header'), 'select')
 		wrapper.findAllComponents({ name: 'NcCheckboxRadioSwitch' }).filter((box) => box.classes('db-select-row'))[0].vm.$emit('update:modelValue', true)
 		await flushPromises()
-		await wrapper.find('[data-testid="fcias-delete-selected"]').trigger('click')
+		await clickAction(wrapper.find('.db-group-header'), 'deleteSelected')
 		await flushPromises()
 		wrapper.findAllComponents({ name: 'NcCheckboxRadioSwitch' }).find((box) => box.props('value') === 'true')?.vm.$emit('update:modelValue', 'true')
 		await flushPromises()

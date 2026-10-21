@@ -20,6 +20,7 @@ OC.L10N.register(
     "Account" : "Account",
     "Accounts" : "Accounts",
     "Acknowledge" : "Voor kennisgeving aannemen",
+    "Actions for the group {hash}" : "Acties voor de groep {hash}",
     "Actions for {name}" : "Acties voor {name}",
     "Add an algorithm …" : "Algoritme toevoegen …",
     "Add rule" : "Regel toevoegen",
@@ -206,6 +207,7 @@ OC.L10N.register(
     "Its content changed after the list was loaded." : "De inhoud is gewijzigd nadat de lijst was geladen.",
     "Its versions cannot be deleted here." : "De versies kunnen hier niet worden verwijderd.",
     "Its versions could not be merged, so it was not deleted." : "De versies konden niet worden samengevoegd, dus het is niet verwijderd.",
+    "Last changed {date}" : "Laatst gewijzigd op {date}",
     "Last updated" : "Laatst bijgewerkt",
     "Last used" : "Laatst gebruikt",
     "Lazy (delete checksums now, recalculate later)" : "Later (controlesommen nu verwijderen, later opnieuw berekenen)",
@@ -345,7 +347,6 @@ OC.L10N.register(
     "Show in Duplicates" : "In “Duplicaten” tonen",
     "Show only groups whose hash matches this" : "Alleen groepen tonen waarvan de hash hiermee overeenkomt",
     "Show only groups whose hash matches what you type. Whole values come first, then those that start with what you typed. Turn on \"Match anywhere in the hash\" to match it in the middle of a hash too. Upper case is fine." : "Alleen groepen tonen waarvan de hash overeenkomt met wat je typt. Volledige waarden komen eerst, daarna de waarden die beginnen met wat je hebt getypt. Schakel “Overal in de hash zoeken” in om het ook midden in een hash te vinden. Hoofdletters zijn geen probleem.",
-    "Size and last change" : "Grootte en laatste wijziging",
     "Smallest group to list: files sharing a checksum, 2 to 100" : "Kleinste groep om te tonen: bestanden met dezelfde controlesom, 2 tot en met 100",
     "Specific rules" : "Specifieke regels",
     "Status" : "Status",
@@ -419,6 +420,7 @@ OC.L10N.register(
     "Verified" : "Gecontroleerd",
     "Verify" : "Controleren",
     "Verify all" : "Alles controleren",
+    "Version" : "Versie",
     "Version of {date}" : "Versie van {date}",
     "Versions" : "Versies",
     "What happens when this rule matches. \"Include\" computes the checksums below. \"Ignore\" stops automatic hashing but still lets someone recalculate a file's checksums by hand. \"Exclude\" blocks hashing entirely — use it for storage that must not be read, such as a metered external mount." : "Wat er gebeurt als deze regel overeenkomt. “Opnemen” berekent de controlesommen hieronder. “Negeren” stopt de automatische berekening, maar laat nog steeds toe dat iemand de controlesommen van een bestand handmatig opnieuw berekent. “Uitsluiten” blokkeert de berekening volledig – gebruik dit voor opslag die niet gelezen mag worden, zoals externe opslag waarvoor per gebruik wordt betaald.",
@@ -492,6 +494,7 @@ OC.L10N.register(
     "{group} (group)" : "{group} (groep)",
     "{owner}: {path}" : "{owner}: {path}",
     "{stored} is not available on this server at the moment, so the default ({active}) applies." : "{stored} is momenteel niet beschikbaar op deze server, dus geldt de standaard ({active}).",
-    "{time} by {account}" : "{time} door {account}"
+    "{time} by {account}" : "{time} door {account}",
+    "à {size}" : "à {size}"
 },
 "nplurals=2; plural=(n != 1);");

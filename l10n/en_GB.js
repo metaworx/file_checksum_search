@@ -20,6 +20,7 @@ OC.L10N.register(
     "Account" : "Account",
     "Accounts" : "Accounts",
     "Acknowledge" : "Acknowledge",
+    "Actions for the group {hash}" : "Actions for the group {hash}",
     "Actions for {name}" : "Actions for {name}",
     "Add an algorithm …" : "Add an algorithm …",
     "Add rule" : "Add rule",
@@ -206,6 +207,7 @@ OC.L10N.register(
     "Its content changed after the list was loaded." : "Its content changed after the list was loaded.",
     "Its versions cannot be deleted here." : "Its versions cannot be deleted here.",
     "Its versions could not be merged, so it was not deleted." : "Its versions could not be merged, so it was not deleted.",
+    "Last changed {date}" : "Last changed {date}",
     "Last updated" : "Last updated",
     "Last used" : "Last used",
     "Lazy (delete checksums now, recalculate later)" : "Lazy (delete checksums now, recalculate later)",
@@ -345,7 +347,6 @@ OC.L10N.register(
     "Show in Duplicates" : "Show in Duplicates",
     "Show only groups whose hash matches this" : "Show only groups whose hash matches this",
     "Show only groups whose hash matches what you type. Whole values come first, then those that start with what you typed. Turn on \"Match anywhere in the hash\" to match it in the middle of a hash too. Upper case is fine." : "Show only groups whose hash matches what you type. Whole values come first, then those that start with what you typed. Turn on \"Match anywhere in the hash\" to match it in the middle of a hash too. Upper case is fine.",
-    "Size and last change" : "Size and last change",
     "Smallest group to list: files sharing a checksum, 2 to 100" : "Smallest group to list: files sharing a checksum, 2 to 100",
     "Specific rules" : "Specific rules",
     "Status" : "Status",
@@ -419,6 +420,7 @@ OC.L10N.register(
     "Verified" : "Verified",
     "Verify" : "Verify",
     "Verify all" : "Verify all",
+    "Version" : "Version",
     "Version of {date}" : "Version of {date}",
     "Versions" : "Versions",
     "What happens when this rule matches. \"Include\" computes the checksums below. \"Ignore\" stops automatic hashing but still lets someone recalculate a file's checksums by hand. \"Exclude\" blocks hashing entirely — use it for storage that must not be read, such as a metered external mount." : "What happens when this rule matches. \"Include\" computes the checksums below. \"Ignore\" stops automatic hashing but still lets someone recalculate a file's checksums by hand. \"Exclude\" blocks hashing entirely — use it for storage that must not be read, such as a metered external mount.",
@@ -492,6 +494,7 @@ OC.L10N.register(
     "{group} (group)" : "{group} (group)",
     "{owner}: {path}" : "{owner}: {path}",
     "{stored} is not available on this server at the moment, so the default ({active}) applies." : "{stored} is not available on this server at the moment, so the default ({active}) applies.",
-    "{time} by {account}" : "{time} by {account}"
+    "{time} by {account}" : "{time} by {account}",
+    "à {size}" : "à {size}"
 },
 "nplurals=2; plural=(n != 1);");

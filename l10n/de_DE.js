@@ -20,6 +20,7 @@ OC.L10N.register(
     "Account" : "Konto",
     "Accounts" : "Konten",
     "Acknowledge" : "Zur Kenntnis nehmen",
+    "Actions for the group {hash}" : "Aktionen für die Gruppe {hash}",
     "Actions for {name}" : "Aktionen für {name}",
     "Add an algorithm …" : "Algorithmus hinzufügen …",
     "Add rule" : "Regel hinzufügen",
@@ -206,6 +207,7 @@ OC.L10N.register(
     "Its content changed after the list was loaded." : "Der Inhalt hat sich geändert, seit die Liste geladen wurde.",
     "Its versions cannot be deleted here." : "Die Versionen können hier nicht gelöscht werden.",
     "Its versions could not be merged, so it was not deleted." : "Die Versionen konnten nicht zusammengeführt werden, daher wurde es nicht gelöscht.",
+    "Last changed {date}" : "Zuletzt geändert am {date}",
     "Last updated" : "Zuletzt aktualisiert",
     "Last used" : "Zuletzt verwendet",
     "Lazy (delete checksums now, recalculate later)" : "Später (Prüfsummen jetzt löschen, später neu berechnen)",
@@ -345,7 +347,6 @@ OC.L10N.register(
     "Show in Duplicates" : "Unter „Duplikate“ anzeigen",
     "Show only groups whose hash matches this" : "Nur Gruppen zeigen, deren Hash zu dieser Eingabe passt",
     "Show only groups whose hash matches what you type. Whole values come first, then those that start with what you typed. Turn on \"Match anywhere in the hash\" to match it in the middle of a hash too. Upper case is fine." : "Nur Gruppen zeigen, deren Hash zu Ihrer Eingabe passt. Vollständige Treffer kommen zuerst, dann Hashes, die mit Ihrer Eingabe beginnen. Aktivieren Sie „An beliebiger Stelle im Hash suchen“, damit die Eingabe auch mitten in einem Hash gefunden wird. Groß- und Kleinschreibung spielt keine Rolle.",
-    "Size and last change" : "Größe und letzte Änderung",
     "Smallest group to list: files sharing a checksum, 2 to 100" : "Kleinste aufzulistende Gruppe: Dateien mit gleicher Prüfsumme, 2 bis 100",
     "Specific rules" : "Spezifische Regeln",
     "Status" : "Status",
@@ -419,6 +420,7 @@ OC.L10N.register(
     "Verified" : "Geprüft",
     "Verify" : "Prüfen",
     "Verify all" : "Alle prüfen",
+    "Version" : "Version",
     "Version of {date}" : "Version vom {date}",
     "Versions" : "Versionen",
     "What happens when this rule matches. \"Include\" computes the checksums below. \"Ignore\" stops automatic hashing but still lets someone recalculate a file's checksums by hand. \"Exclude\" blocks hashing entirely — use it for storage that must not be read, such as a metered external mount." : "Was geschieht, wenn diese Regel zutrifft. „Einschließen“ berechnet die Prüfsummen unten. „Ignorieren“ beendet die automatische Berechnung, erlaubt aber weiterhin, die Prüfsummen einer Datei von Hand neu zu berechnen. „Ausschließen“ blockiert die Berechnung ganz – für Speicher, der nicht gelesen werden darf, etwa einen externen Speicher mit Volumentarif.",
@@ -492,6 +494,7 @@ OC.L10N.register(
     "{group} (group)" : "{group} (Gruppe)",
     "{owner}: {path}" : "{owner}: {path}",
     "{stored} is not available on this server at the moment, so the default ({active}) applies." : "{stored} ist auf diesem Server derzeit nicht verfügbar, daher gilt der Standard ({active}).",
-    "{time} by {account}" : "{time} von {account}"
+    "{time} by {account}" : "{time} von {account}",
+    "à {size}" : "à {size}"
 },
 "nplurals=2; plural=(n != 1);");

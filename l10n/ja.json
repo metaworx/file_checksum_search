@@ -18,6 +18,7 @@
     "Account" : "アカウント",
     "Accounts" : "アカウント",
     "Acknowledge" : "了解",
+    "Actions for the group {hash}" : "グループ {hash} の操作",
     "Actions for {name}" : "{name} の操作",
     "Add an algorithm …" : "アルゴリズムを追加…",
     "Add rule" : "ルールを追加",
@@ -204,6 +205,7 @@
     "Its content changed after the list was loaded." : "一覧の読み込み後に内容が変更されました。",
     "Its versions cannot be deleted here." : "そのバージョンはここでは削除できません。",
     "Its versions could not be merged, so it was not deleted." : "バージョンを統合できなかったため、削除しませんでした。",
+    "Last changed {date}" : "最終変更 {date}",
     "Last updated" : "最終更新",
     "Last used" : "最終使用",
     "Lazy (delete checksums now, recalculate later)" : "遅延（チェックサムを今すぐ削除し、後で再計算）",
@@ -343,7 +345,6 @@
     "Show in Duplicates" : "「重複ファイル」で表示",
     "Show only groups whose hash matches this" : "ハッシュがこれに一致する重複グループのみ表示",
     "Show only groups whose hash matches what you type. Whole values come first, then those that start with what you typed. Turn on \"Match anywhere in the hash\" to match it in the middle of a hash too. Upper case is fine." : "入力した内容にハッシュが一致する重複グループのみを表示します。完全一致が先に、続いて入力した文字列で始まるものが表示されます。ハッシュの途中にも一致させるには、「ハッシュ内で部分一致」をオンにしてください。大文字でも構いません。",
-    "Size and last change" : "サイズと最終変更日時",
     "Smallest group to list: files sharing a checksum, 2 to 100" : "表示する最小の重複グループ：同じチェックサムを持つファイル数（2～100）",
     "Specific rules" : "個別ルール",
     "Status" : "ステータス",
@@ -417,6 +418,7 @@
     "Verified" : "検証済み",
     "Verify" : "検証",
     "Verify all" : "すべて検証",
+    "Version" : "バージョン",
     "Version of {date}" : "{date} のバージョン",
     "Versions" : "バージョン",
     "What happens when this rule matches. \"Include\" computes the checksums below. \"Ignore\" stops automatic hashing but still lets someone recalculate a file's checksums by hand. \"Exclude\" blocks hashing entirely — use it for storage that must not be read, such as a metered external mount." : "このルールに一致したときの動作です。「含める」は下のチェックサムを計算します。「無視する」は自動ハッシュ計算を止めますが、ファイルのチェックサムを手動で再計算することはできます。「除外する」はハッシュ計算を完全に禁止します。従量課金の外部ストレージなど、読み取ってはならないストレージに使用してください。",
@@ -490,6 +492,7 @@
     "{group} (group)" : "{group}（グループ）",
     "{owner}: {path}" : "{owner}：{path}",
     "{stored} is not available on this server at the moment, so the default ({active}) applies." : "{stored} は現在このサーバーで利用できないため、デフォルト（{active}）が適用されます。",
-    "{time} by {account}" : "{time}（{account} による）"
+    "{time} by {account}" : "{time}（{account} による）",
+    "à {size}" : "各 {size}"
 },"pluralForm" :"nplurals=1; plural=0;"
 }

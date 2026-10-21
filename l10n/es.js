@@ -20,6 +20,7 @@ OC.L10N.register(
     "Account" : "Cuenta",
     "Accounts" : "Cuentas",
     "Acknowledge" : "Tomar nota",
+    "Actions for the group {hash}" : "Acciones para el grupo {hash}",
     "Actions for {name}" : "Acciones para {name}",
     "Add an algorithm …" : "Añadir un algoritmo…",
     "Add rule" : "Añadir regla",
@@ -206,6 +207,7 @@ OC.L10N.register(
     "Its content changed after the list was loaded." : "Su contenido cambió después de cargar la lista.",
     "Its versions cannot be deleted here." : "Sus versiones no se pueden eliminar aquí.",
     "Its versions could not be merged, so it was not deleted." : "No se pudieron fusionar sus versiones, así que no se eliminó.",
+    "Last changed {date}" : "Modificado por última vez el {date}",
     "Last updated" : "Última actualización",
     "Last used" : "Último uso",
     "Lazy (delete checksums now, recalculate later)" : "Diferido (eliminar las sumas de verificación ahora, recalcular más tarde)",
@@ -345,7 +347,6 @@ OC.L10N.register(
     "Show in Duplicates" : "Mostrar en Duplicados",
     "Show only groups whose hash matches this" : "Mostrar solo los grupos cuyo hash coincida con esto",
     "Show only groups whose hash matches what you type. Whole values come first, then those that start with what you typed. Turn on \"Match anywhere in the hash\" to match it in the middle of a hash too. Upper case is fine." : "Mostrar solo los grupos cuyo hash coincida con lo que escriba. Primero aparecen los valores completos y luego los que empiezan por lo que ha escrito. Active «Buscar en cualquier parte del hash» para que también coincida en medio de un hash. Se admiten mayúsculas.",
-    "Size and last change" : "Tamaño y última modificación",
     "Smallest group to list: files sharing a checksum, 2 to 100" : "Grupo más pequeño que listar: archivos que comparten una suma de verificación, de 2 a 100",
     "Specific rules" : "Reglas concretas",
     "Status" : "Estado",
@@ -419,6 +420,7 @@ OC.L10N.register(
     "Verified" : "Verificado",
     "Verify" : "Verificar",
     "Verify all" : "Verificar todo",
+    "Version" : "Versión",
     "Version of {date}" : "Versión del {date}",
     "Versions" : "Versiones",
     "What happens when this rule matches. \"Include\" computes the checksums below. \"Ignore\" stops automatic hashing but still lets someone recalculate a file's checksums by hand. \"Exclude\" blocks hashing entirely — use it for storage that must not be read, such as a metered external mount." : "Qué ocurre cuando esta regla coincide. «Incluir» calcula las sumas de verificación de abajo. «Ignorar» detiene el cálculo automático de hashes, pero sigue permitiendo recalcular manualmente las sumas de verificación de un archivo. «Excluir» bloquea por completo el cálculo de hashes: úselo para almacenamientos que no deben leerse, como un almacenamiento externo de pago por uso.",
@@ -492,6 +494,7 @@ OC.L10N.register(
     "{group} (group)" : "{group} (grupo)",
     "{owner}: {path}" : "{owner}: {path}",
     "{stored} is not available on this server at the moment, so the default ({active}) applies." : "{stored} no está disponible en este servidor en este momento, así que se aplica el predeterminado ({active}).",
-    "{time} by {account}" : "{time} por {account}"
+    "{time} by {account}" : "{time} por {account}",
+    "à {size}" : "de {size} cada uno"
 },
 "nplurals=3; plural=n == 1 ? 0 : n != 0 && n % 1000000 == 0 ? 1 : 2;");

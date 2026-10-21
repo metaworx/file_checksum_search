@@ -86,6 +86,10 @@ msgstr "Konten"
 msgid "Acknowledge"
 msgstr "Zur Kenntnis nehmen"
 
+#. TRANSLATORS: the name of a group of duplicates' menu, for a reader that cannot see it; {hash} is the group's checksum
+msgid "Actions for the group {hash}"
+msgstr "Aktionen für die Gruppe {hash}"
+
 msgid "Actions for {name}"
 msgstr "Aktionen für {name}"
 
@@ -686,6 +690,9 @@ msgstr "Die Versionen können hier nicht gelöscht werden."
 msgid "Its versions could not be merged, so it was not deleted."
 msgstr "Die Versionen konnten nicht zusammengeführt werden, daher wurde es nicht gelöscht."
 
+msgid "Last changed {date}"
+msgstr "Zuletzt geändert am {date}"
+
 msgid "Last updated"
 msgstr "Zuletzt aktualisiert"
 
@@ -1152,10 +1159,6 @@ msgstr "Nur Gruppen zeigen, deren Hash zu dieser Eingabe passt"
 msgid "Show only groups whose hash matches what you type. Whole values come first, then those that start with what you typed. Turn on \"Match anywhere in the hash\" to match it in the middle of a hash too. Upper case is fine."
 msgstr "Nur Gruppen zeigen, deren Hash zu Ihrer Eingabe passt. Vollständige Treffer kommen zuerst, dann Hashes, die mit Ihrer Eingabe beginnen. Aktivieren Sie „An beliebiger Stelle im Hash suchen“, damit die Eingabe auch mitten in einem Hash gefunden wird. Groß- und Kleinschreibung spielt keine Rolle."
 
-#. TRANSLATORS: the tooltip of a file's size and last change, shown beside it in a group of duplicates
-msgid "Size and last change"
-msgstr "Größe und letzte Änderung"
-
 msgid "Smallest group to list: files sharing a checksum, 2 to 100"
 msgstr "Kleinste aufzulistende Gruppe: Dateien mit gleicher Prüfsumme, 2 bis 100"
 
@@ -1385,6 +1388,10 @@ msgstr "Prüfen"
 
 msgid "Verify all"
 msgstr "Alle prüfen"
+
+#. TRANSLATORS: a badge on a row of a group of duplicates: the row is an earlier version of the file it names
+msgid "Version"
+msgstr "Version"
 
 #. TRANSLATORS: beside a file in a list, marking an earlier version of it; {date} is when the file had that content
 msgid "Version of {date}"
@@ -1656,3 +1663,7 @@ msgstr "{stored} ist auf diesem Server derzeit nicht verfügbar, daher gilt der 
 #. TRANSLATORS when a grant was made, and by which account
 msgid "{time} by {account}"
 msgstr "{time} von {account}"
+
+#. TRANSLATORS: under the number of files of a group of duplicates, the size of each; "à" as in "2 files à 208 B"
+msgid "à {size}"
+msgstr "à {size}"

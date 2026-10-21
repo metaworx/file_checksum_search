@@ -74,16 +74,17 @@ and an **i** button beside the label says what it decides.
   since far more can match.
 
 Each file is listed by the path you know it by,
-with its size and when it last changed beside it,
-and the group's header shows one preview:
-its files share their content, so one picture shows it.
+with when it last changed beside it.
+The group's header shows one preview, how many files there are,
+and the size of each:
+its files share their content, so one picture and one size describe them all.
 A file someone shared with you says whose it is and where you find it,
 `bob: My Projects/report.pdf`,
 behind a share glyph — and nothing of the owner's folders above the share,
 which Nextcloud does not show you either.
 
 An earlier version of a file is listed as its file is,
-with *Version of* and the date it was the file beside it:
+with a yellow *Version* badge and the date it was the file beside it:
 the content was once that file's.
 Its link opens the file, whose versions Nextcloud keeps in its details.
 A file listed only beside its own versions is not a duplicate,
@@ -114,13 +115,14 @@ and on storage you pay for by the gigabyte it costs money.
 
 You ask for it where you want it:
 
-- **Verify all** on a group header — re-reads every file in that group.
-- **Verify** on a file row — re-reads that one file.
+- **Verify all** in a group's menu, at the end of its header —
+  re-reads every file in that group.
+- **Verify** in a file row's menu — re-reads that one file.
   Open a group by clicking its header to see the rows.
 
-Both buttons appear only if your administrator allows you to recalculate checksums.
+Both are offered only if your administrator allows you to recalculate checksums.
 
-A file that still matches gets a tick;
+A file that still matches gets a *✓ Verified* badge;
 one that does not shows a cross and the checksum found instead,
 which means the file changed since it was last hashed.
 Once every file in a group has an answer,
@@ -161,9 +163,10 @@ it says so where nothing comes back.
 A row that changed since the page was loaded is left alone.
 After a move to the trash, **Undo** on the message brings the file back.
 
-To delete several copies at once, open the group and click **Select**:
-each row you may delete gets a checkbox,
-and **Select all** and **Invert selection** help choose.
+To delete several copies at once, choose **Select** in the group's menu:
+the group opens, each row you may delete gets a checkbox,
+and **Select all** and **Invert selection**, in the same menu, help choose;
+**Cancel** there ends the choice.
 **Delete selected** asks how — to the trash or permanently — and,
 where the deleted files have earlier versions and a copy stays,
 which copy takes them: chosen for you where one copy stays,
