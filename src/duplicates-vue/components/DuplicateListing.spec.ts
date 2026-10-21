@@ -8,7 +8,7 @@
  */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { flushPromises, mount } from '@vue/test-utils'
+import { flushPromises, mount, type VueWrapper } from '@vue/test-utils'
 import DuplicateListing from './DuplicateListing.vue'
 import { clickAction } from '../../test-utils/ncActions'
 import type { RowResult } from '../duplicateActions'
@@ -25,11 +25,13 @@ vi.mock('../../features', () => ({
 }))
 
 const deleteRows = vi.fn()
+const deleteGroups = vi.fn()
 const restoreRow = vi.fn()
 const restoreRows = vi.fn()
 vi.mock('../duplicateActions', async (importOriginal) => ({
 	...await importOriginal<typeof import('../duplicateActions')>(),
 	deleteRows: (...args: unknown[]) => deleteRows(...args),
+	deleteGroups: (...args: unknown[]) => deleteGroups(...args),
 	restoreRow: (...args: unknown[]) => restoreRow(...args),
 	restoreRows: (...args: unknown[]) => restoreRows(...args),
 }))
@@ -268,6 +270,96 @@ describe('DuplicateListing, choosing across the page', () => {
 		await wrapper.find('[data-testid="fcias-stop-selecting"]').trigger('click')
 		expect(wrapper.find('[data-testid="fcias-selection-bar"]').exists()).toBe(false)
 		expect(chosen(wrapper)).toEqual([])
+	})
+
+	// The page's choice goes in one dry run: each group's rows, its versions
+	// to the copy that stays (D2-A), the sum shown; confirmed, the same rows
+	// go, and Undo brings back what went to the trash, every group's at once.
+	it('deletes the page\'s choice through one confirmation, and takes it back with Undo', async () => {
+		const answer = (rows: Array<{ algo: string, hash_value: string, fileIds: number[] }>, status: string) => rows.map((row) => ({
+			algo: row.algo,
+			hash_value: row.hash_value,
+			results: row.fileIds.map((fileid) => ({ fileid, kind: 'file', status, action: 'trash', versions: [] })),
+		}))
+		deleteGroups.mockReset()
+		deleteGroups.mockImplementation((rows, options: { dryRun: boolean }) => Promise.resolve(answer(rows, options.dryRun ? 'ready' : 'trashed')))
+		restoreRows.mockReset()
+		restoreRows.mockResolvedValue([])
+		toastUndo.mockReset()
+		const wrapper = await selectingPage()
+
+		// The versions, then /Docs, which leaves bb alone: it would keep a
+		// version only. Its file is then chosen by hand, which is allowed.
+		await wrapper.find('[data-testid="fcias-select-versions"]').trigger('click')
+		await wrapper.find('#fcias-duplicates-select-pattern').setValue('/Docs')
+		await wrapper.find('[data-testid="fcias-select-matching"]').trigger('click')
+		wrapper.findAll('.db-group')[1].findAllComponents({ name: 'NcCheckboxRadioSwitch' }).filter((box: VueWrapper) => box.classes('db-select-row'))[0].vm.$emit('update:modelValue', true)
+		await flushPromises()
+		await wrapper.find('[data-testid="fcias-delete-page"]').trigger('click')
+		await flushPromises()
+
+		const [rows, options] = deleteGroups.mock.calls[0]
+		expect(options).toEqual({ forGood: false, dryRun: true })
+		// The version goes before its file; group aa keeps 1, which takes 2's versions.
+		expect(rows).toEqual([
+			{ algo: 'sha1', hash_value: 'aa', fileIds: [2], mergeInto: null },
+			{ algo: 'sha1', hash_value: 'bb', fileIds: [4, 3], mergeInto: null },
+		])
+		expect(document.querySelector('[data-testid="fcias-page-delete-summary"]')?.textContent).toContain('3 rows go to the trash.')
+		expect(document.querySelector('[data-testid="fcias-page-delete-emptied"]')?.textContent).toContain('In 1 group no copy stays outside the trash.')
+
+		dialogButton('Move to trash')?.click()
+		await flushPromises()
+
+		expect(deleteGroups.mock.calls[1][1]).toEqual({ forGood: false, dryRun: false })
+		toastUndo.mock.calls[0][1]()
+		await flushPromises()
+		expect(restoreRows.mock.calls[0][0].map((row: { fileId: number }) => row.fileId)).toEqual([2, 4, 3])
+	})
+
+	// D2-A: the copy that stays takes the versions — the most recently
+	// changed where several do — unless the confirmation says None.
+	it('puts the versions into the most recently changed copy that stays, or none', async () => {
+		vi.stubGlobal('fetch', vi.fn(() => Promise.resolve(new Response(JSON.stringify({
+			duplicates: [{ ...GROUP, hash_value: 'dd', files: [row(7, '/Backup/d.txt'), row(8, '/Docs/d.txt', { mtime: 100, actions: ['trash', 'delete', 'mergeInto'] }), row(9, '/Docs/old/d.txt', { mtime: 200, actions: ['trash', 'delete', 'mergeInto'] })] }],
+			canRecalc: true,
+		}), { status: 200 }))))
+		deleteGroups.mockReset()
+		deleteGroups.mockResolvedValue([])
+		const wrapper = await selectingPage()
+
+		await wrapper.find('#fcias-duplicates-select-pattern').setValue('/Backup')
+		await wrapper.find('[data-testid="fcias-select-matching"]').trigger('click')
+		await wrapper.find('[data-testid="fcias-delete-page"]').trigger('click')
+		await flushPromises()
+
+		expect(deleteGroups.mock.calls[0][0]).toEqual([{ algo: 'sha1', hash_value: 'dd', fileIds: [7], mergeInto: 9 }])
+
+		wrapper.findAllComponents({ name: 'NcCheckboxRadioSwitch' }).find((box) => box.props('name') === 'pd-keep' && box.props('value') === 'false')?.vm.$emit('update:modelValue', 'false')
+		await flushPromises()
+
+		expect(deleteGroups.mock.calls[1][0]).toEqual([{ algo: 'sha1', hash_value: 'dd', fileIds: [7], mergeInto: null }])
+	})
+
+	// A file listed under two algorithms is one row to delete, sent once.
+	it('sends a file listed in two groups once', async () => {
+		vi.stubGlobal('fetch', vi.fn(() => Promise.resolve(new Response(JSON.stringify({
+			duplicates: [
+				{ ...GROUP, algo: 'sha1', hash_value: 'ee', files: [row(1, '/Backup/e.txt'), row(2, '/Docs/e.txt')] },
+				{ ...GROUP, algo: 'md5', hash_value: 'ff', files: [row(1, '/Backup/e.txt'), row(2, '/Docs/e.txt')] },
+			],
+			canRecalc: true,
+		}), { status: 200 }))))
+		deleteGroups.mockReset()
+		deleteGroups.mockResolvedValue([])
+		const wrapper = await selectingPage()
+
+		await wrapper.find('#fcias-duplicates-select-pattern').setValue('/Backup')
+		await wrapper.find('[data-testid="fcias-select-matching"]').trigger('click')
+		await wrapper.find('[data-testid="fcias-delete-page"]').trigger('click')
+		await flushPromises()
+
+		expect(deleteGroups.mock.calls[0][0]).toEqual([{ algo: 'sha1', hash_value: 'ee', fileIds: [1], mergeInto: null }])
 	})
 
 	// The Others tab shows files that are not the viewer's: nothing is chosen there.

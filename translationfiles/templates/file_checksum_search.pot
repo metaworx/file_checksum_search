@@ -31,6 +31,16 @@ msgstr ""
 msgid "%1$s (version of %2$s)"
 msgstr ""
 
+msgid "%n earlier version goes to a copy that stays."
+msgid_plural "%n earlier versions go to a copy that stays."
+msgstr[0] ""
+msgstr[1] ""
+
+msgid "%n earlier version goes with its file."
+msgid_plural "%n earlier versions go with their files."
+msgstr[0] ""
+msgstr[1] ""
+
 msgid "%n file"
 msgid_plural "%n files"
 msgstr[0] ""
@@ -39,6 +49,21 @@ msgstr[1] ""
 #. TRANSLATORS: in the bar for choosing rows on the Duplicates page: the groups in which a pattern or Select versions selected nothing, since it matched every copy
 msgid "%n group left alone, as every copy in it matched"
 msgid_plural "%n groups left alone, as every copy in them matched"
+msgstr[0] ""
+msgstr[1] ""
+
+msgid "%n row cannot be deleted."
+msgid_plural "%n rows cannot be deleted."
+msgstr[0] ""
+msgstr[1] ""
+
+msgid "%n row goes to the trash."
+msgid_plural "%n rows go to the trash."
+msgstr[0] ""
+msgstr[1] ""
+
+msgid "%n row is deleted permanently."
+msgid_plural "%n rows are deleted permanently."
 msgstr[0] ""
 msgstr[1] ""
 
@@ -419,6 +444,11 @@ msgstr ""
 msgid "Delete"
 msgstr ""
 
+msgid "Delete %n selected"
+msgid_plural "Delete %n selected"
+msgstr[0] ""
+msgstr[1] ""
+
 msgid "Delete MIME types"
 msgstr ""
 
@@ -658,6 +688,16 @@ msgstr ""
 
 msgid "Ignore (no automatic hashing; still allowed on request)"
 msgstr ""
+
+msgid "In %n group no copy stays outside the trash."
+msgid_plural "In %n groups no copy stays outside the trash."
+msgstr[0] ""
+msgstr[1] ""
+
+msgid "In %n group no copy stays."
+msgid_plural "In %n groups no copy stays."
+msgstr[0] ""
+msgstr[1] ""
 
 msgid "Include (compute checksums)"
 msgstr ""
@@ -1271,6 +1311,10 @@ msgstr ""
 msgid "The algorithms rules may compute and pickers may offer, chosen from what this server's PHP provides. Removing one does not delete checksums already stored under it — they stay searchable — it only stops new ones being computed."
 msgstr ""
 
+#. TRANSLATORS: a choice under "Put their earlier versions into", when rows of many groups are deleted at once: in each group, the copy that is not deleted, or the most recently changed one
+msgid "The copy that stays, the most recently changed where several do"
+msgstr ""
+
 msgid "The default must be one of the allowed algorithms."
 msgstr ""
 
@@ -1338,6 +1382,9 @@ msgid "The team folder this rule names, or the app that provides it, is not avai
 msgstr ""
 
 msgid "The trash is not available, so it can only be deleted permanently."
+msgstr ""
+
+msgid "Their earlier versions go to {name}."
 msgstr ""
 
 #. TRANSLATORS: "Add rule" is the button on each of these rows, "Save" the dialog's button; translate them as those buttons do

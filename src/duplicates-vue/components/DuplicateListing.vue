@@ -19,9 +19,21 @@ import NcTextField from '@nextcloud/vue/components/NcTextField'
 import AlgorithmSelect from '../../components/AlgorithmSelect.vue'
 import HelpPopover from '../../components/HelpPopover.vue'
 import DeleteDialog from './DeleteDialog.vue'
+import PageDeleteDialog from './PageDeleteDialog.vue'
 import DuplicateGroup from './DuplicateGroup.vue'
 import { useDuplicates, type DuplicateScope, type DuplicateGroup as GroupType } from '../composables/useDuplicates'
-import { deleteRows, restoreRow, restoreRows, type RestoreAs, type RowAction, type RowResult } from '../duplicateActions'
+import {
+	deleteGroups,
+	deleteRows,
+	restoreRow,
+	restoreRows,
+	type GroupKey,
+	type GroupResults,
+	type GroupRows,
+	type RestoreAs,
+	type RowAction,
+	type RowResult,
+} from '../duplicateActions'
 import { sameParams, type ListingParams } from '../urlState'
 import { compilePattern, MAX_PATTERN_LENGTH } from '../pathPattern'
 import { chooseMatching, chosenIn, groupKey, stillListed, withGroupChoice } from '../pageSelection'
@@ -492,7 +504,7 @@ async function onConfirmDelete(): Promise<void> {
 		// Done with: a row that went to the trash is listed still, and chosen
 		// again it would go for good.
 		selected.value = new Set([...selected.value].filter((id) => !pending.fileIds.includes(id)))
-		reportDeleted(pending.group, results)
+		reportDeleted([{ group: pending.group, results }])
 	} catch {
 		toastError(NETWORK_ERROR)
 	} finally {
@@ -501,15 +513,126 @@ async function onConfirmDelete(): Promise<void> {
 	}
 }
 
-/** What the deletion did, a toast each: what went to the trash can be taken back. */
-function reportDeleted(group: GroupType, results: RowResult[]): void {
-	const trashed = results.filter((result) => result.status === 'trashed')
-	const deleted = results.filter((result) => result.status === 'deleted').length
-	const missed = results.filter((result) => result.status === 'refused' || result.status === 'failed').length
+/** A deletion of the page's choice, dry-run, waiting for its confirmation. */
+interface PendingPage {
+	rows: GroupRows[]
+	forGood: boolean
+	/** D2-A: the deleted files' versions go to a copy that stays, or with their files. */
+	keepVersions: boolean
+	answers: GroupResults[]
+}
+
+const confirmingPage = ref<PendingPage | null>(null)
+
+/** The order the server deletes a group's rows in: a version before the file that would take it along. */
+function kindOrder(file: GroupType['files'][number]): number {
+	if (file.version && file.trash) {
+		return 0
+	}
+	return file.version ? 1 : file.trash ? 2 : 3
+}
+
+/**
+ * D2-A: the copy that stays takes a group's deleted files' versions — the
+ * one, or the most recently changed where several do. One the page deletes
+ * elsewhere, listed under another algorithm, does not stay.
+ */
+function versionsTarget(group: GroupType, going: number[]): number | null {
+	const staying = group.files.filter((file) => !going.includes(file.fileid) && !selected.value.has(file.fileid)
+		&& !file.version && !file.trash && file.actions?.includes('mergeInto') === true)
+	if (staying.length === 0) {
+		return null
+	}
+	return staying.reduce((newest, file) => (file.mtime ?? 0) > (newest.mtime ?? 0) ? file : newest).fileid
+}
+
+/** The page's choice as rows of groups: each file once, in the first group listing it, in the order they go. */
+function pageRows(keepVersions: boolean): GroupRows[] {
+	const taken = new Set<number>()
+	const rows: GroupRows[] = []
+	for (const group of groups.value) {
+		const going = group.files
+			.filter((file) => selected.value.has(file.fileid) && !taken.has(file.fileid))
+			.sort((a, b) => kindOrder(a) - kindOrder(b))
+			.map((file) => file.fileid)
+		if (going.length === 0) {
+			continue
+		}
+		going.forEach((id) => taken.add(id))
+		rows.push({ algo: group.algo, hash_value: group.hash_value, fileIds: going, mergeInto: keepVersions ? versionsTarget(group, going) : null })
+	}
+	return rows
+}
+
+/** The copies that take the versions, by group, for the confirmation to name. */
+const pageTargets = computed<Record<string, number>>(() => Object.fromEntries((confirmingPage.value?.rows ?? [])
+	.filter((row) => row.mergeInto)
+	.map((row) => [groupKey(row), row.mergeInto as number])))
+
+const deleteSelectedLabel = computed(() => n('file_checksum_search', 'Delete %n selected', 'Delete %n selected', selected.value.size))
+
+/** Delete selected, for the page: a dry run first, to the trash, the versions kept. */
+async function askToDeletePage(): Promise<void> {
+	await dryRunPage({ rows: pageRows(true), forGood: false, keepVersions: true, answers: [] })
+}
+
+/** A choice changed in the page's confirmation: what the server says now. */
+async function rechoosePage(changes: { forGood?: boolean, keepVersions?: boolean }): Promise<void> {
+	const pending = confirmingPage.value
+	if (!pending) {
+		return
+	}
+	const keepVersions = changes.keepVersions ?? pending.keepVersions
+	await dryRunPage({ ...pending, ...changes, rows: keepVersions === pending.keepVersions ? pending.rows : pageRows(keepVersions) })
+}
+
+async function dryRunPage(pending: PendingPage): Promise<void> {
+	acting.value = true
+	try {
+		const answers = await deleteGroups(pending.rows, { forGood: pending.forGood, dryRun: true })
+		confirmingPage.value = { ...pending, answers }
+	} catch {
+		toastError(NETWORK_ERROR)
+	} finally {
+		acting.value = false
+	}
+}
+
+async function onConfirmPage(): Promise<void> {
+	const pending = confirmingPage.value
+	if (!pending) {
+		return
+	}
+	acting.value = true
+	try {
+		const answers = await deleteGroups(pending.rows, { forGood: pending.forGood, dryRun: false })
+		confirmingPage.value = null
+		const going = new Set(pending.rows.flatMap((row) => row.fileIds))
+		selected.value = new Set([...selected.value].filter((id) => !going.has(id)))
+		reportDeleted(answers.map((answer) => ({ group: answer, results: answer.results })))
+	} catch {
+		toastError(NETWORK_ERROR)
+	} finally {
+		acting.value = false
+		reload()
+	}
+}
+
+/**
+ * What a deletion did, of one group or of many, a toast each: what went to
+ * the trash can be taken back, all of it at once.
+ */
+function reportDeleted(answers: Array<{ group: GroupKey, results: RowResult[] }>): void {
+	const all = answers.flatMap((answer) => answer.results)
+	const trashed = answers.flatMap((answer) => answer.results
+		.filter((result) => result.status === 'trashed')
+		.map((result) => ({ group: answer.group, fileId: result.fileid })))
+	const deleted = all.filter((result) => result.status === 'deleted').length
+	const missed = all.filter((result) => result.status === 'refused' || result.status === 'failed').length
 
 	if (trashed.length > 0) {
 		toastUndo(n('file_checksum_search', 'Moved %n file to the trash.', 'Moved %n files to the trash.', trashed.length), () => {
-			undoTrash(group, trashed.map((result) => result.fileid))
+			undoTrash(trashed)
 		})
 	}
 	if (deleted > 0) {
@@ -525,10 +648,10 @@ function reportDeleted(group: GroupType, results: RowResult[]): void {
  * request, so a large Undo is not stopped by the rate limit a row at a time
  * would reach. One message per reason, not one per row.
  */
-async function undoTrash(group: GroupType, fileIds: number[]): Promise<void> {
+async function undoTrash(rows: Array<{ group: GroupKey, fileId: number }>): Promise<void> {
 	acting.value = true
 	try {
-		const results = await restoreRows(fileIds.map((fileId) => ({ group, fileId })), 'original')
+		const results = await restoreRows(rows, 'original')
 		const reasons = new Set(results.filter((result) => result.status !== 'restored').map((result) => result.reason ?? NETWORK_ERROR))
 		for (const reason of reasons) {
 			toastError(reason)
@@ -720,6 +843,12 @@ onBeforeUnmount(() => {
 			<NcButton data-testid="fcias-select-none" :disabled="selected.size === 0" @click="selectNone">
 				{{ t('file_checksum_search', 'Select none') }}
 			</NcButton>
+			<NcButton data-testid="fcias-delete-page"
+				variant="error"
+				:disabled="selected.size === 0 || acting"
+				@click="askToDeletePage">
+				{{ deleteSelectedLabel }}
+			</NcButton>
 			<NcButton data-testid="fcias-stop-selecting" @click="stopSelecting">
 				{{ t('file_checksum_search', 'Cancel') }}
 			</NcButton>
@@ -774,6 +903,18 @@ onBeforeUnmount(() => {
 			@update:merge-into="rechoose({ mergeInto: $event })"
 			@confirm="onConfirmDelete"
 			@close="confirming = null" />
+
+		<PageDeleteDialog v-if="confirmingPage"
+			:groups="groups"
+			:answers="confirmingPage.answers"
+			:for-good="confirmingPage.forGood"
+			:keep-versions="confirmingPage.keepVersions"
+			:targets="pageTargets"
+			:busy="acting"
+			@update:for-good="rechoosePage({ forGood: $event })"
+			@update:keep-versions="rechoosePage({ keepVersions: $event })"
+			@confirm="onConfirmPage"
+			@close="confirmingPage = null" />
 
 		<!-- Appends, rather than paging: what is shown, and what is chosen
 		     among it, stays, so a choice can span more than one load. -->

@@ -30,6 +30,14 @@ msgstr "%1$s（%2$s に削除）"
 msgid "%1$s (version of %2$s)"
 msgstr "%1$s（%2$s のバージョン）"
 
+msgid "%n earlier version goes to a copy that stays."
+msgid_plural "%n earlier versions go to a copy that stays."
+msgstr[0] "以前のバージョン %n 件は残るコピーに移ります。"
+
+msgid "%n earlier version goes with its file."
+msgid_plural "%n earlier versions go with their files."
+msgstr[0] "以前のバージョン %n 件はファイルと一緒に移ります。"
+
 msgid "%n file"
 msgid_plural "%n files"
 msgstr[0] "%n個のファイル"
@@ -38,6 +46,18 @@ msgstr[0] "%n個のファイル"
 msgid "%n group left alone, as every copy in it matched"
 msgid_plural "%n groups left alone, as every copy in them matched"
 msgstr[0] "%n 個の重複グループは、すべてのコピーが一致したためそのままにしました"
+
+msgid "%n row cannot be deleted."
+msgid_plural "%n rows cannot be deleted."
+msgstr[0] "%n 行は削除できません。"
+
+msgid "%n row goes to the trash."
+msgid_plural "%n rows go to the trash."
+msgstr[0] "%n 行をゴミ箱に移動します。"
+
+msgid "%n row is deleted permanently."
+msgid_plural "%n rows are deleted permanently."
+msgstr[0] "%n 行を完全に削除します。"
 
 msgid "%n row selected"
 msgid_plural "%n rows selected"
@@ -410,6 +430,10 @@ msgstr "すべてのホームフォルダーのデフォルトです。この階
 msgid "Delete"
 msgstr "削除"
 
+msgid "Delete %n selected"
+msgid_plural "Delete %n selected"
+msgstr[0] "選択した %n 件を削除"
+
 msgid "Delete MIME types"
 msgstr "MIMEタイプを削除"
 
@@ -648,6 +672,14 @@ msgstr "インデックス済みチェックサムの集計結果を再集計す
 
 msgid "Ignore (no automatic hashing; still allowed on request)"
 msgstr "無視する（自動ハッシュ計算なし、要求があれば計算可）"
+
+msgid "In %n group no copy stays outside the trash."
+msgid_plural "In %n groups no copy stays outside the trash."
+msgstr[0] "%n 個の重複グループで、ゴミ箱の外にコピーが残りません。"
+
+msgid "In %n group no copy stays."
+msgid_plural "In %n groups no copy stays."
+msgstr[0] "%n 個の重複グループで、コピーが残りません。"
 
 msgid "Include (compute checksums)"
 msgstr "含める（チェックサムを計算）"
@@ -1257,6 +1289,10 @@ msgstr "アルゴリズムが指定されていないときに使われるアル
 msgid "The algorithms rules may compute and pickers may offer, chosen from what this server's PHP provides. Removing one does not delete checksums already stored under it — they stay searchable — it only stops new ones being computed."
 msgstr "ルールが計算でき、選択リストが提示できるアルゴリズムです。このサーバーのPHPが提供するものから選びます。1つを削除しても、そのアルゴリズムで保存済みのチェックサムは削除されず、引き続き検索できます。新しいチェックサムが計算されなくなるだけです。"
 
+#. TRANSLATORS: a choice under "Put their earlier versions into", when rows of many groups are deleted at once: in each group, the copy that is not deleted, or the most recently changed one
+msgid "The copy that stays, the most recently changed where several do"
+msgstr "残るコピー（複数ある場合は最も新しく変更されたもの）"
+
 msgid "The default must be one of the allowed algorithms."
 msgstr "デフォルトは許可されたアルゴリズムのいずれかである必要があります。"
 
@@ -1325,6 +1361,9 @@ msgstr "このルールが指定するチームフォルダー、またはそれ
 
 msgid "The trash is not available, so it can only be deleted permanently."
 msgstr "ゴミ箱が利用できないため、完全に削除することしかできません。"
+
+msgid "Their earlier versions go to {name}."
+msgstr "以前のバージョンは {name} に移ります。"
 
 #. TRANSLATORS: "Add rule" is the button on each of these rows, "Save" the dialog's button; translate them as those buttons do
 msgid "These places exist on this server but have no catch-all rule of their own, so their files are decided by a more general rule, or by none at all. \"Add rule\" opens the dialog with a catch-all rule for the place; it is only stored once you click \"Save\" there."

@@ -30,6 +30,16 @@ msgstr "%1$s (deleted %2$s)"
 msgid "%1$s (version of %2$s)"
 msgstr "%1$s (version of %2$s)"
 
+msgid "%n earlier version goes to a copy that stays."
+msgid_plural "%n earlier versions go to a copy that stays."
+msgstr[0] "%n earlier version goes to a copy that stays."
+msgstr[1] "%n earlier versions go to a copy that stays."
+
+msgid "%n earlier version goes with its file."
+msgid_plural "%n earlier versions go with their files."
+msgstr[0] "%n earlier version goes with its file."
+msgstr[1] "%n earlier versions go with their files."
+
 msgid "%n file"
 msgid_plural "%n files"
 msgstr[0] "%n file"
@@ -40,6 +50,21 @@ msgid "%n group left alone, as every copy in it matched"
 msgid_plural "%n groups left alone, as every copy in them matched"
 msgstr[0] "%n group left alone, as every copy in it matched"
 msgstr[1] "%n groups left alone, as every copy in them matched"
+
+msgid "%n row cannot be deleted."
+msgid_plural "%n rows cannot be deleted."
+msgstr[0] "%n row cannot be deleted."
+msgstr[1] "%n rows cannot be deleted."
+
+msgid "%n row goes to the trash."
+msgid_plural "%n rows go to the trash."
+msgstr[0] "%n row goes to the trash."
+msgstr[1] "%n rows go to the trash."
+
+msgid "%n row is deleted permanently."
+msgid_plural "%n rows are deleted permanently."
+msgstr[0] "%n row is deleted permanently."
+msgstr[1] "%n rows are deleted permanently."
 
 msgid "%n row selected"
 msgid_plural "%n rows selected"
@@ -418,6 +443,11 @@ msgstr "Defaults for all home folders. Within this band a catch-all default — 
 msgid "Delete"
 msgstr "Delete"
 
+msgid "Delete %n selected"
+msgid_plural "Delete %n selected"
+msgstr[0] "Delete %n selected"
+msgstr[1] "Delete %n selected"
+
 msgid "Delete MIME types"
 msgstr "Delete MIME types"
 
@@ -657,6 +687,16 @@ msgstr "How old the count of indexed checksums may get before it is counted agai
 
 msgid "Ignore (no automatic hashing; still allowed on request)"
 msgstr "Ignore (no automatic hashing; still allowed on request)"
+
+msgid "In %n group no copy stays outside the trash."
+msgid_plural "In %n groups no copy stays outside the trash."
+msgstr[0] "In %n group no copy stays outside the trash."
+msgstr[1] "In %n groups no copy stays outside the trash."
+
+msgid "In %n group no copy stays."
+msgid_plural "In %n groups no copy stays."
+msgstr[0] "In %n group no copy stays."
+msgstr[1] "In %n groups no copy stays."
 
 msgid "Include (compute checksums)"
 msgstr "Include (compute checksums)"
@@ -1270,6 +1310,10 @@ msgstr "The algorithm used wherever none is named: new rules, the command line, 
 msgid "The algorithms rules may compute and pickers may offer, chosen from what this server's PHP provides. Removing one does not delete checksums already stored under it — they stay searchable — it only stops new ones being computed."
 msgstr "The algorithms rules may compute and pickers may offer, chosen from what this server's PHP provides. Removing one does not delete checksums already stored under it — they stay searchable — it only stops new ones being computed."
 
+#. TRANSLATORS: a choice under "Put their earlier versions into", when rows of many groups are deleted at once: in each group, the copy that is not deleted, or the most recently changed one
+msgid "The copy that stays, the most recently changed where several do"
+msgstr "The copy that stays, the most recently changed where several do"
+
 msgid "The default must be one of the allowed algorithms."
 msgstr "The default must be one of the allowed algorithms."
 
@@ -1338,6 +1382,9 @@ msgstr "The team folder this rule names, or the app that provides it, is not ava
 
 msgid "The trash is not available, so it can only be deleted permanently."
 msgstr "The trash is not available, so it can only be deleted permanently."
+
+msgid "Their earlier versions go to {name}."
+msgstr "Their earlier versions go to {name}."
 
 #. TRANSLATORS: "Add rule" is the button on each of these rows, "Save" the dialog's button; translate them as those buttons do
 msgid "These places exist on this server but have no catch-all rule of their own, so their files are decided by a more general rule, or by none at all. \"Add rule\" opens the dialog with a catch-all rule for the place; it is only stored once you click \"Save\" there."

@@ -30,6 +30,16 @@ msgstr "%1$s (gelöscht am %2$s)"
 msgid "%1$s (version of %2$s)"
 msgstr "%1$s (Version vom %2$s)"
 
+msgid "%n earlier version goes to a copy that stays."
+msgid_plural "%n earlier versions go to a copy that stays."
+msgstr[0] "%n ältere Version geht an eine verbleibende Kopie."
+msgstr[1] "%n ältere Versionen gehen an eine verbleibende Kopie."
+
+msgid "%n earlier version goes with its file."
+msgid_plural "%n earlier versions go with their files."
+msgstr[0] "%n ältere Version geht mit ihrer Datei."
+msgstr[1] "%n ältere Versionen gehen mit ihren Dateien."
+
 msgid "%n file"
 msgid_plural "%n files"
 msgstr[0] "%n Datei"
@@ -40,6 +50,21 @@ msgid "%n group left alone, as every copy in it matched"
 msgid_plural "%n groups left alone, as every copy in them matched"
 msgstr[0] "%n Gruppe unberührt gelassen, da jede Kopie darin passte"
 msgstr[1] "%n Gruppen unberührt gelassen, da jede Kopie darin passte"
+
+msgid "%n row cannot be deleted."
+msgid_plural "%n rows cannot be deleted."
+msgstr[0] "%n Zeile kann nicht gelöscht werden."
+msgstr[1] "%n Zeilen können nicht gelöscht werden."
+
+msgid "%n row goes to the trash."
+msgid_plural "%n rows go to the trash."
+msgstr[0] "%n Zeile kommt in den Papierkorb."
+msgstr[1] "%n Zeilen kommen in den Papierkorb."
+
+msgid "%n row is deleted permanently."
+msgid_plural "%n rows are deleted permanently."
+msgstr[0] "%n Zeile wird endgültig gelöscht."
+msgstr[1] "%n Zeilen werden endgültig gelöscht."
 
 msgid "%n row selected"
 msgid_plural "%n rows selected"
@@ -418,6 +443,11 @@ msgstr "Standardregeln für alle Home-Ordner. Innerhalb dieses Segments wird ein
 msgid "Delete"
 msgstr "Löschen"
 
+msgid "Delete %n selected"
+msgid_plural "Delete %n selected"
+msgstr[0] "%n ausgewählte löschen"
+msgstr[1] "%n ausgewählte löschen"
+
 msgid "Delete MIME types"
 msgstr "MIME-Typen löschen"
 
@@ -657,6 +687,16 @@ msgstr "Wie alt die Zählung der indizierten Prüfsummen werden darf, bevor neu 
 
 msgid "Ignore (no automatic hashing; still allowed on request)"
 msgstr "Ignorieren (keine automatische Berechnung; von Hand weiterhin möglich)"
+
+msgid "In %n group no copy stays outside the trash."
+msgid_plural "In %n groups no copy stays outside the trash."
+msgstr[0] "In %n Gruppe bleibt keine Kopie außerhalb des Papierkorbs."
+msgstr[1] "In %n Gruppen bleibt keine Kopie außerhalb des Papierkorbs."
+
+msgid "In %n group no copy stays."
+msgid_plural "In %n groups no copy stays."
+msgstr[0] "In %n Gruppe bleibt keine Kopie."
+msgstr[1] "In %n Gruppen bleibt keine Kopie."
 
 msgid "Include (compute checksums)"
 msgstr "Einschließen (Prüfsummen berechnen)"
@@ -1270,6 +1310,10 @@ msgstr "Der Algorithmus, der überall dort verwendet wird, wo keiner genannt ist
 msgid "The algorithms rules may compute and pickers may offer, chosen from what this server's PHP provides. Removing one does not delete checksums already stored under it — they stay searchable — it only stops new ones being computed."
 msgstr "Die Algorithmen, die Regeln berechnen und Auswahlen anbieten dürfen, gewählt aus dem, was das PHP dieses Servers bereitstellt. Wird einer entfernt, bleiben die damit bereits gespeicherten Prüfsummen erhalten und durchsuchbar; es werden nur keine neuen mehr berechnet."
 
+#. TRANSLATORS: a choice under "Put their earlier versions into", when rows of many groups are deleted at once: in each group, the copy that is not deleted, or the most recently changed one
+msgid "The copy that stays, the most recently changed where several do"
+msgstr "Die verbleibende Kopie, bei mehreren die zuletzt geänderte"
+
 msgid "The default must be one of the allowed algorithms."
 msgstr "Der Standard muss einer der erlaubten Algorithmen sein."
 
@@ -1338,6 +1382,9 @@ msgstr "Der Team-Ordner, den diese Regel nennt, oder die App, die ihn bereitstel
 
 msgid "The trash is not available, so it can only be deleted permanently."
 msgstr "Der Papierkorb ist nicht verfügbar, daher ist nur endgültiges Löschen möglich."
+
+msgid "Their earlier versions go to {name}."
+msgstr "Ihre älteren Versionen gehen an {name}."
 
 #. TRANSLATORS: "Add rule" is the button on each of these rows, "Save" the dialog's button; translate them as those buttons do
 msgid "These places exist on this server but have no catch-all rule of their own, so their files are decided by a more general rule, or by none at all. \"Add rule\" opens the dialog with a catch-all rule for the place; it is only stored once you click \"Save\" there."

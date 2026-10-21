@@ -30,6 +30,20 @@ msgstr "%1$s (usunięto %2$s)"
 msgid "%1$s (version of %2$s)"
 msgstr "%1$s (wersja z %2$s)"
 
+msgid "%n earlier version goes to a copy that stays."
+msgid_plural "%n earlier versions go to a copy that stays."
+msgstr[0] "%n starsza wersja trafia do kopii, która zostaje."
+msgstr[1] "%n starsze wersje trafiają do kopii, która zostaje."
+msgstr[2] "%n starszych wersji trafia do kopii, która zostaje."
+msgstr[3] "%n starszej wersji trafia do kopii, która zostaje."
+
+msgid "%n earlier version goes with its file."
+msgid_plural "%n earlier versions go with their files."
+msgstr[0] "%n starsza wersja odchodzi razem ze swoim plikiem."
+msgstr[1] "%n starsze wersje odchodzą razem ze swoimi plikami."
+msgstr[2] "%n starszych wersji odchodzi razem ze swoimi plikami."
+msgstr[3] "%n starszej wersji odchodzi razem ze swoim plikiem."
+
 msgid "%n file"
 msgid_plural "%n files"
 msgstr[0] "%n plik"
@@ -44,6 +58,27 @@ msgstr[0] "%n grupa pozostawiona bez zmian, bo pasowała każda jej kopia"
 msgstr[1] "%n grupy pozostawione bez zmian, bo pasowała każda ich kopia"
 msgstr[2] "%n grup pozostawionych bez zmian, bo pasowała każda ich kopia"
 msgstr[3] "%n grupy pozostawionej bez zmian, bo pasowała każda jej kopia"
+
+msgid "%n row cannot be deleted."
+msgid_plural "%n rows cannot be deleted."
+msgstr[0] "Nie można usunąć %n wiersza."
+msgstr[1] "Nie można usunąć %n wierszy."
+msgstr[2] "Nie można usunąć %n wierszy."
+msgstr[3] "Nie można usunąć %n wiersza."
+
+msgid "%n row goes to the trash."
+msgid_plural "%n rows go to the trash."
+msgstr[0] "%n wiersz trafia do kosza."
+msgstr[1] "%n wiersze trafiają do kosza."
+msgstr[2] "%n wierszy trafia do kosza."
+msgstr[3] "%n wiersza trafia do kosza."
+
+msgid "%n row is deleted permanently."
+msgid_plural "%n rows are deleted permanently."
+msgstr[0] "%n wiersz zostanie trwale usunięty."
+msgstr[1] "%n wiersze zostaną trwale usunięte."
+msgstr[2] "%n wierszy zostanie trwale usuniętych."
+msgstr[3] "%n wiersza zostanie trwale usunięte."
 
 msgid "%n row selected"
 msgid_plural "%n rows selected"
@@ -434,6 +469,13 @@ msgstr "Reguły domyślne dla wszystkich folderów domowych. W obrębie tego poz
 msgid "Delete"
 msgstr "Usuń"
 
+msgid "Delete %n selected"
+msgid_plural "Delete %n selected"
+msgstr[0] "Usuń %n zaznaczony"
+msgstr[1] "Usuń %n zaznaczone"
+msgstr[2] "Usuń %n zaznaczonych"
+msgstr[3] "Usuń %n zaznaczonego"
+
 msgid "Delete MIME types"
 msgstr "Usuń typy MIME"
 
@@ -675,6 +717,20 @@ msgstr "Jak stare może być liczenie zaindeksowanych sum kontrolnych, zanim zos
 
 msgid "Ignore (no automatic hashing; still allowed on request)"
 msgstr "Ignoruj (bez automatycznego obliczania; nadal możliwe na żądanie)"
+
+msgid "In %n group no copy stays outside the trash."
+msgid_plural "In %n groups no copy stays outside the trash."
+msgstr[0] "W %n grupie nie zostaje żadna kopia poza koszem."
+msgstr[1] "W %n grupach nie zostaje żadna kopia poza koszem."
+msgstr[2] "W %n grupach nie zostaje żadna kopia poza koszem."
+msgstr[3] "W %n grupy nie zostaje żadna kopia poza koszem."
+
+msgid "In %n group no copy stays."
+msgid_plural "In %n groups no copy stays."
+msgstr[0] "W %n grupie nie zostaje żadna kopia."
+msgstr[1] "W %n grupach nie zostaje żadna kopia."
+msgstr[2] "W %n grupach nie zostaje żadna kopia."
+msgstr[3] "W %n grupy nie zostaje żadna kopia."
 
 msgid "Include (compute checksums)"
 msgstr "Uwzględnij (obliczaj sumy kontrolne)"
@@ -1296,6 +1352,10 @@ msgstr "Algorytm używany wszędzie tam, gdzie nie wskazano żadnego: w nowych r
 msgid "The algorithms rules may compute and pickers may offer, chosen from what this server's PHP provides. Removing one does not delete checksums already stored under it — they stay searchable — it only stops new ones being computed."
 msgstr "Algorytmy, które reguły mogą obliczać, a listy wyboru proponować, wybrane spośród tych, które udostępnia PHP tego serwera. Usunięcie algorytmu nie usuwa zapisanych już nim sum kontrolnych – nadal można je wyszukiwać – a jedynie wstrzymuje obliczanie nowych."
 
+#. TRANSLATORS: a choice under "Put their earlier versions into", when rows of many groups are deleted at once: in each group, the copy that is not deleted, or the most recently changed one
+msgid "The copy that stays, the most recently changed where several do"
+msgstr "Kopia, która zostaje, a gdy zostaje kilka – ostatnio zmieniona"
+
 msgid "The default must be one of the allowed algorithms."
 msgstr "Algorytm domyślny musi być jednym z dozwolonych algorytmów."
 
@@ -1364,6 +1424,9 @@ msgstr "Folder zespołu wskazany przez tę regułę lub aplikacja, która go udo
 
 msgid "The trash is not available, so it can only be deleted permanently."
 msgstr "Kosz jest niedostępny, więc można to usunąć tylko trwale."
+
+msgid "Their earlier versions go to {name}."
+msgstr "Ich starsze wersje trafiają do {name}."
 
 #. TRANSLATORS: "Add rule" is the button on each of these rows, "Save" the dialog's button; translate them as those buttons do
 msgid "These places exist on this server but have no catch-all rule of their own, so their files are decided by a more general rule, or by none at all. \"Add rule\" opens the dialog with a catch-all rule for the place; it is only stored once you click \"Save\" there."

@@ -30,6 +30,14 @@ msgstr "%1$s（删除于 %2$s）"
 msgid "%1$s (version of %2$s)"
 msgstr "%1$s（%2$s 的版本）"
 
+msgid "%n earlier version goes to a copy that stays."
+msgid_plural "%n earlier versions go to a copy that stays."
+msgstr[0] "%n 个较早的版本将转入保留的副本。"
+
+msgid "%n earlier version goes with its file."
+msgid_plural "%n earlier versions go with their files."
+msgstr[0] "%n 个较早的版本随其文件一起处理。"
+
 msgid "%n file"
 msgid_plural "%n files"
 msgstr[0] "%n 个文件"
@@ -38,6 +46,18 @@ msgstr[0] "%n 个文件"
 msgid "%n group left alone, as every copy in it matched"
 msgid_plural "%n groups left alone, as every copy in them matched"
 msgstr[0] "%n 个文件组未作更改，因为其中每个副本都匹配"
+
+msgid "%n row cannot be deleted."
+msgid_plural "%n rows cannot be deleted."
+msgstr[0] "%n 行无法删除。"
+
+msgid "%n row goes to the trash."
+msgid_plural "%n rows go to the trash."
+msgstr[0] "%n 行将移至回收站。"
+
+msgid "%n row is deleted permanently."
+msgid_plural "%n rows are deleted permanently."
+msgstr[0] "%n 行将被永久删除。"
 
 msgid "%n row selected"
 msgid_plural "%n rows selected"
@@ -410,6 +430,10 @@ msgstr "所有主目录的默认规则。在此层级中，兜底默认规则（
 msgid "Delete"
 msgstr "删除"
 
+msgid "Delete %n selected"
+msgid_plural "Delete %n selected"
+msgstr[0] "删除所选的 %n 项"
+
 msgid "Delete MIME types"
 msgstr "删除 MIME 类型"
 
@@ -648,6 +672,14 @@ msgstr "已索引校验和的计数在重新计数前可保留的最长时间：
 
 msgid "Ignore (no automatic hashing; still allowed on request)"
 msgstr "忽略（不自动进行哈希计算；仍可按需计算）"
+
+msgid "In %n group no copy stays outside the trash."
+msgid_plural "In %n groups no copy stays outside the trash."
+msgstr[0] "在 %n 个文件组中，回收站之外不再保留任何副本。"
+
+msgid "In %n group no copy stays."
+msgid_plural "In %n groups no copy stays."
+msgstr[0] "在 %n 个文件组中，不再保留任何副本。"
 
 msgid "Include (compute checksums)"
 msgstr "包含（计算校验和）"
@@ -1257,6 +1289,10 @@ msgstr "在未指定算法时使用的算法：新规则、命令行、API，以
 msgid "The algorithms rules may compute and pickers may offer, chosen from what this server's PHP provides. Removing one does not delete checksums already stored under it — they stay searchable — it only stops new ones being computed."
 msgstr "规则可以计算、选择器可以提供的算法，从此服务器的 PHP 所提供的算法中选择。移除某个算法不会删除已用它存储的校验和（它们仍可被搜索），只是不再计算新的校验和。"
 
+#. TRANSLATORS: a choice under "Put their earlier versions into", when rows of many groups are deleted at once: in each group, the copy that is not deleted, or the most recently changed one
+msgid "The copy that stays, the most recently changed where several do"
+msgstr "保留的副本（若有多个，则为最近修改的那个）"
+
 msgid "The default must be one of the allowed algorithms."
 msgstr "默认算法必须是允许的算法之一。"
 
@@ -1325,6 +1361,9 @@ msgstr "此规则指定的团队文件夹或提供它的应用不可用，因此
 
 msgid "The trash is not available, so it can only be deleted permanently."
 msgstr "回收站不可用，因此只能永久删除。"
+
+msgid "Their earlier versions go to {name}."
+msgstr "其较早的版本转入 {name}。"
 
 #. TRANSLATORS: "Add rule" is the button on each of these rows, "Save" the dialog's button; translate them as those buttons do
 msgid "These places exist on this server but have no catch-all rule of their own, so their files are decided by a more general rule, or by none at all. \"Add rule\" opens the dialog with a catch-all rule for the place; it is only stored once you click \"Save\" there."

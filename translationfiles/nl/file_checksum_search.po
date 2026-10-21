@@ -30,6 +30,16 @@ msgstr "%1$s (verwijderd op %2$s)"
 msgid "%1$s (version of %2$s)"
 msgstr "%1$s (versie van %2$s)"
 
+msgid "%n earlier version goes to a copy that stays."
+msgid_plural "%n earlier versions go to a copy that stays."
+msgstr[0] "%n eerdere versie gaat naar een kopie die blijft."
+msgstr[1] "%n eerdere versies gaan naar een kopie die blijft."
+
+msgid "%n earlier version goes with its file."
+msgid_plural "%n earlier versions go with their files."
+msgstr[0] "%n eerdere versie gaat mee met haar bestand."
+msgstr[1] "%n eerdere versies gaan mee met hun bestanden."
+
 msgid "%n file"
 msgid_plural "%n files"
 msgstr[0] "%n bestand"
@@ -40,6 +50,21 @@ msgid "%n group left alone, as every copy in it matched"
 msgid_plural "%n groups left alone, as every copy in them matched"
 msgstr[0] "%n groep ongemoeid gelaten, want elke kopie erin kwam overeen"
 msgstr[1] "%n groepen ongemoeid gelaten, want elke kopie erin kwam overeen"
+
+msgid "%n row cannot be deleted."
+msgid_plural "%n rows cannot be deleted."
+msgstr[0] "%n rij kan niet worden verwijderd."
+msgstr[1] "%n rijen kunnen niet worden verwijderd."
+
+msgid "%n row goes to the trash."
+msgid_plural "%n rows go to the trash."
+msgstr[0] "%n rij gaat naar de prullenbak."
+msgstr[1] "%n rijen gaan naar de prullenbak."
+
+msgid "%n row is deleted permanently."
+msgid_plural "%n rows are deleted permanently."
+msgstr[0] "%n rij wordt definitief verwijderd."
+msgstr[1] "%n rijen worden definitief verwijderd."
 
 msgid "%n row selected"
 msgid_plural "%n rows selected"
@@ -418,6 +443,11 @@ msgstr "Standaardregels voor alle thuismappen. Binnen deze laag wordt een vangne
 msgid "Delete"
 msgstr "Verwijderen"
 
+msgid "Delete %n selected"
+msgid_plural "Delete %n selected"
+msgstr[0] "%n geselecteerde verwijderen"
+msgstr[1] "%n geselecteerde verwijderen"
+
 msgid "Delete MIME types"
 msgstr "MIME-types verwijderen"
 
@@ -657,6 +687,16 @@ msgstr "Hoe oud de telling van geïndexeerde controlesommen mag worden voordat o
 
 msgid "Ignore (no automatic hashing; still allowed on request)"
 msgstr "Negeren (geen automatische berekening; op verzoek nog wel mogelijk)"
+
+msgid "In %n group no copy stays outside the trash."
+msgid_plural "In %n groups no copy stays outside the trash."
+msgstr[0] "In %n groep blijft geen kopie buiten de prullenbak."
+msgstr[1] "In %n groepen blijft geen kopie buiten de prullenbak."
+
+msgid "In %n group no copy stays."
+msgid_plural "In %n groups no copy stays."
+msgstr[0] "In %n groep blijft geen kopie."
+msgstr[1] "In %n groepen blijft geen kopie."
 
 msgid "Include (compute checksums)"
 msgstr "Opnemen (controlesommen berekenen)"
@@ -1270,6 +1310,10 @@ msgstr "Het algoritme dat overal wordt gebruikt waar er geen wordt genoemd: nieu
 msgid "The algorithms rules may compute and pickers may offer, chosen from what this server's PHP provides. Removing one does not delete checksums already stored under it — they stay searchable — it only stops new ones being computed."
 msgstr "De algoritmen die regels mogen berekenen en keuzelijsten mogen aanbieden, gekozen uit wat de PHP van deze server biedt. Eén ervan verwijderen wist geen controlesommen die er al mee zijn opgeslagen – die blijven doorzoekbaar – maar zorgt er alleen voor dat er geen nieuwe meer worden berekend."
 
+#. TRANSLATORS: a choice under "Put their earlier versions into", when rows of many groups are deleted at once: in each group, the copy that is not deleted, or the most recently changed one
+msgid "The copy that stays, the most recently changed where several do"
+msgstr "De kopie die blijft, de laatst gewijzigde als er meer blijven"
+
 msgid "The default must be one of the allowed algorithms."
 msgstr "De standaard moet een van de toegestane algoritmen zijn."
 
@@ -1338,6 +1382,9 @@ msgstr "De teammap die deze regel noemt, of de app die hem levert, is niet besch
 
 msgid "The trash is not available, so it can only be deleted permanently."
 msgstr "De prullenbak is niet beschikbaar, dus het kan alleen definitief worden verwijderd."
+
+msgid "Their earlier versions go to {name}."
+msgstr "Hun eerdere versies gaan naar {name}."
 
 #. TRANSLATORS: "Add rule" is the button on each of these rows, "Save" the dialog's button; translate them as those buttons do
 msgid "These places exist on this server but have no catch-all rule of their own, so their files are decided by a more general rule, or by none at all. \"Add rule\" opens the dialog with a catch-all rule for the place; it is only stored once you click \"Save\" there."
