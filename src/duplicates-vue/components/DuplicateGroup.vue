@@ -340,7 +340,10 @@ function toggle(): void {
 		</div>
 		<div class="db-group-body">
 			<ul class="db-file-list">
-				<li v-for="file in group.files" :key="file.fileid" class="db-file-item">
+				<li v-for="file in group.files"
+					:key="file.fileid"
+					class="db-file-item"
+					:class="{ 'db-file-selected': selecting && selected.includes(file.fileid) }">
 					<!-- The test id lands on the input, as every passed attribute does. -->
 					<span v-if="selecting" class="db-select-cell">
 						<NcCheckboxRadioSwitch v-if="selectable(file)"
@@ -556,6 +559,12 @@ function toggle(): void {
 	border-top: 1px solid var(--color-border);
 	font-size: 13px;
 	background: var(--color-main-background);
+}
+
+/* A chosen row in the tint Files gives a selected one: dark blue on a
+   dark theme, pale on a light one. */
+.db-file-item.db-file-selected {
+	background: var(--color-primary-element-light);
 }
 
 .db-select-cell {

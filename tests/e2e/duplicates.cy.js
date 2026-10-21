@@ -655,6 +655,23 @@ describe( 'FCIAS Duplicates page', () => {
 		cy.get( '[data-testid="fcias-select-matching"]' ).click()
 		resolveGroup().find( '[data-testid="fcias-group-selected"]' ).should( 'have.text', '1 selected' )
 
+		// The chosen row in the tint Files gives a selected one, its labels
+		// whole, and Cancel and Delete side by side at the bar's end.
+		resolveGroup().find( '.db-file-item.db-file-selected' ).should( 'have.length', 1 )
+			.and( 'not.have.css', 'background-color', 'rgba(0, 0, 0, 0)' )
+		cy.get( '[data-testid="fcias-select-matching"]' ).then( ( $button ) => {
+			expect( $button[0].scrollWidth ).to.be.at.most( $button[0].clientWidth )
+		} )
+		cy.get( '[data-testid="fcias-stop-selecting"]' ).then( ( $cancel ) => {
+			cy.get( '[data-testid="fcias-delete-page"]' ).then( ( $delete ) => {
+				const cancel = $cancel[0].getBoundingClientRect()
+				const remove = $delete[0].getBoundingClientRect()
+				const bar = $delete[0].closest( '[data-testid="fcias-selection-bar"]' ).getBoundingClientRect()
+				expect( Math.round( cancel.top ) ).to.equal( Math.round( remove.top ) )
+				expect( bar.right - remove.right ).to.be.lessThan( 24 )
+			} )
+		} )
+
 		cy.get( '[data-testid="fcias-delete-page"]' ).click()
 		cy.get( '[data-testid="fcias-page-delete-summary"]', { timeout: FIND_TIMEOUT } ).should( 'contain', '1 row goes to the trash.' )
 		cy.get( '[role="dialog"] .dialog__actions button' ).last().click()

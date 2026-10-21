@@ -951,16 +951,19 @@ onBeforeUnmount(() => {
 				<NcButton data-testid="fcias-deselect-all" :disabled="selected.size === 0" @click="deselectAll">
 					{{ t('file_checksum_search', 'Deselect all') }}
 				</NcButton>
-				<span class="db-bar-spacer" />
-				<NcButton data-testid="fcias-stop-selecting" @click="stopSelecting">
-					{{ t('file_checksum_search', 'Cancel') }}
-				</NcButton>
-				<NcButton data-testid="fcias-delete-page"
-					variant="error"
-					:disabled="selected.size === 0 || acting"
-					@click="askToDeletePage">
-					{{ deleteSelectedLabel }}
-				</NcButton>
+				<!-- One block, never broken, at the row's end: where the row
+				     wraps, the two go down together and stay at the edge. -->
+				<span class="db-bar-end">
+					<NcButton data-testid="fcias-stop-selecting" @click="stopSelecting">
+						{{ t('file_checksum_search', 'Cancel') }}
+					</NcButton>
+					<NcButton data-testid="fcias-delete-page"
+						variant="error"
+						:disabled="selected.size === 0 || acting"
+						@click="askToDeletePage">
+						{{ deleteSelectedLabel }}
+					</NcButton>
+				</span>
 			</div>
 		</div>
 
@@ -1153,6 +1156,7 @@ onBeforeUnmount(() => {
 
 /* The versions are no part of the path: set apart by a bar of their own. */
 .db-bar-section--versions {
+	flex: 0 0 auto;
 	padding-inline-start: 12px;
 	border-inline-start: 2px solid var(--color-border-maxcontrast);
 }
@@ -1163,8 +1167,14 @@ onBeforeUnmount(() => {
 	align-items: center;
 }
 
+/* The field gives way, the buttons never: their labels are never cut. */
 .db-bar-controls :deep(.input-field) {
 	flex: 1 1 auto;
+	min-width: 0;
+}
+
+.db-bar-controls :deep(.button-vue) {
+	flex-shrink: 0;
 }
 
 /* What is chosen, between the ways of choosing and what is done with it. */
@@ -1184,9 +1194,12 @@ onBeforeUnmount(() => {
 	align-self: center;
 }
 
-/* Pushes Cancel and Delete to the row's end. */
-.db-bar-spacer {
-	flex: 1 1 0;
+/* Cancel and Delete: one block at the row's end, whichever line it is on. */
+.db-bar-end {
+	display: flex;
+	flex-wrap: nowrap;
+	gap: 8px;
+	margin-inline-start: auto;
 }
 
 .db-selection-left-alone {

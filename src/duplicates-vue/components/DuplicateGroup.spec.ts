@@ -347,4 +347,15 @@ describe('DuplicateGroup, choosing rows to delete', () => {
 		expect(wrapper.find('[data-testid="fcias-group-selected"]').exists()).toBe(false)
 		expect(wrapper.find('[data-testid="fcias-group-left-alone"]').attributes('title')).toMatch(/every copy outside the trash/)
 	})
+
+	// A chosen row stands out in the tint Files gives a selected one.
+	it('marks the chosen rows', async () => {
+		const wrapper = mounted({ files }, { canAct: true, selecting: true, selected: [2] })
+		const marked = () => wrapper.findAll('.db-file-item').map((item) => item.classes('db-file-selected'))
+
+		expect(marked()).toEqual([false, true, false, false])
+
+		await wrapper.setProps({ selecting: false })
+		expect(marked()).toEqual([false, false, false, false])
+	})
 })
