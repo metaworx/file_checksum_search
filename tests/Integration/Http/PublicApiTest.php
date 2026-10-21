@@ -393,6 +393,52 @@ class PublicApiTest
 	}
 
 	/**
+	 * A copy moved to the trash comes back to its place.
+	 *
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
+	public function testRestoringADuplicateBringsItBack(): void
+	{
+		$userFolder = Server::get( IRootFolder::class )
+		                    ->getUserFolder( self::$testUser )
+		;
+		$path       = $userFolder->getFirstNodeById( $this->testFileId2 )?->getPath();
+
+		$this->httpPost(
+			'/api/v1/duplicates/delete',
+			[ 'fileIds' => [ $this->testFileId2 ], 'algo' => 'sha1', 'hash' => $this->sharedSha1Hash ],
+		);
+		$this->assertNull( $userFolder->getFirstNodeById( $this->testFileId2 ), 'in the trash' );
+
+		$response = $this->httpPost(
+			'/api/v1/duplicates/restore',
+			[ 'fileId' => $this->testFileId2, 'algo' => 'sha1', 'hash' => $this->sharedSha1Hash, 'as' => 'original' ],
+		);
+
+		$this->assertSame( 'restored', $response['result']['status'] ?? null, (string) json_encode( $response ) );
+		$this->assertSame( $path, $userFolder->getFirstNodeById( $this->testFileId2 )?->getPath() );
+	}
+
+	/**
+	 * A restore without a row, or a way to restore it, is refused.
+	 */
+	public function testRestoringADuplicateRefusesAnIncompleteBody(): void
+	{
+		foreach (
+			[
+				[ 'algo' => 'sha1', 'hash' => $this->sharedSha1Hash, 'as' => 'original' ],
+				[ 'fileId' => $this->testFileId1, 'algo' => 'sha1', 'hash' => $this->sharedSha1Hash, 'as' => 'elsewhere' ],
+			] as $body
+		)
+		{
+			$response = $this->httpPost( '/api/v1/duplicates/restore', $body );
+
+			$this->assertFalse( $response['success'] ?? null, (string) json_encode( $body ) );
+			$this->assertArrayNotHasKey( 'result', $response );
+		}
+	}
+
+	/**
 	 * A body without rows, or without an algorithm and a hash to hold them
 	 * to, is refused before anything is opened.
 	 */

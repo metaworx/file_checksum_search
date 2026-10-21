@@ -619,8 +619,14 @@ msgstr "服务器内部错误。"
 msgid "Invalid request body."
 msgstr "无效的请求正文。"
 
+msgid "It cannot be restored that way."
+msgstr "无法以这种方式恢复。"
+
 msgid "It could not be deleted."
 msgstr "无法删除。"
+
+msgid "It could not be restored."
+msgstr "无法恢复。"
 
 msgid "It is not among your files."
 msgstr "不在您的文件中。"
@@ -758,6 +764,9 @@ msgstr "没有可用的文档。"
 
 msgid "No duplicate files found."
 msgstr "未找到重复文件。"
+
+msgid "No file of yours is at its place to take it."
+msgstr "其原位置没有您的文件可以接收它。"
 
 msgid "No grants."
 msgstr "没有授权。"
@@ -1115,6 +1124,9 @@ msgstr "规则可以计算、选择器可以提供的算法，从此服务器的
 msgid "The default must be one of the allowed algorithms."
 msgstr "默认算法必须是允许的算法之一。"
 
+msgid "The file at its place already has a version of that time."
+msgstr "其原位置的文件已有该时间的版本。"
+
 msgid "The file chosen for the versions cannot take them."
 msgstr "为这些版本选择的文件无法接收它们。"
 
@@ -1400,6 +1412,10 @@ msgstr "已删除：{deleted}，尚未完成"
 #. TRANSLATORS: a background job's last run ended with an error; {reason} is the error as the server logs it, in English
 msgid "failed: {reason}"
 msgstr "失败：{reason}"
+
+#. TRANSLATORS: fileId and as are parameter names, and original, version and file the values as takes; keep them
+msgid "fileId must name a file, and as one of original, version and file."
+msgstr "fileId 必须指定一个文件，as 必须是 original、version 或 file 之一。"
 
 #. TRANSLATORS: fileIds is a parameter name; keep it
 #, php-format

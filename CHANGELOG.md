@@ -20,6 +20,10 @@ the first stable release.
   the trash or for good, their versions merged into a file that stays;
   `actions=1` on the listing says what each row allows.
 
+- `POST /api/v1/duplicates/restore`: a trashed duplicate back at its
+  place, a trashed version into the file there, or any version as a new
+  file.
+
 ## [0.29.1] - 2026-10-21
 
 ### Fixed

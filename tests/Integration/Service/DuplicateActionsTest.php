@@ -361,8 +361,210 @@ class DuplicateActionsTest
 		$actions = $this->actionsFor( [ $file->getId(), $versionId, $trashedId ] );
 
 		$this->assertSame( [ DuplicateActionService::ACTION_TRASH, DuplicateActionService::ACTION_DELETE, DuplicateActionService::ACTION_MERGE_INTO ], $actions[ $file->getId() ] );
-		$this->assertSame( [ DuplicateActionService::ACTION_DELETE ], $actions[ $versionId ] );
-		$this->assertSame( [ DuplicateActionService::ACTION_DELETE ], $actions[ $trashedId ] );
+		$this->assertSame( [ DuplicateActionService::ACTION_DELETE, DuplicateActionService::ACTION_SAVE_AS_FILE ], $actions[ $versionId ] );
+		$this->assertSame( [ DuplicateActionService::ACTION_DELETE, DuplicateActionService::ACTION_RESTORE ], $actions[ $trashedId ] );
+	}
+
+	/**
+	 * A version of a trashed file may be saved as a file, and go into the
+	 * file now at its place where one is there.
+	 *
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
+	public function testTheListingOffersATrashedVersionWhatItsPlaceAllows(): void
+	{
+		[ $file, $versionId ] = $this->versioned( $this->home(), 'offered-' . bin2hex( random_bytes( 3 ) ) . '.txt' );
+		[ $name, $parent ]    = [ $file->getName(), $file->getParent() ];
+		$file->delete();
+
+		$this->assertSame( [ DuplicateActionService::ACTION_DELETE, DuplicateActionService::ACTION_SAVE_AS_FILE ], $this->actionsFor( [ $versionId ] )[ $versionId ] );
+
+		$parent->newFile( $name, 'fcias dact offered newcomer' );
+
+		$this->assertSame(
+			[ DuplicateActionService::ACTION_DELETE, DuplicateActionService::ACTION_RESTORE_AS_VERSION, DuplicateActionService::ACTION_SAVE_AS_FILE ],
+			$this->actionsFor( [ $versionId ] )[ $versionId ],
+		);
+	}
+
+	/**
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
+	public function testATrashedFileIsRestoredToItsPlace(): void
+	{
+		$folder        = $this->home()->newFolder( 'restore-' . bin2hex( random_bytes( 3 ) ) );
+		[ $id, $hash ] = $this->trashed( $folder, 'back.txt' );
+
+		$result = $this->restore( $id, $hash, DuplicateActionService::AS_ORIGINAL );
+
+		$this->assertSame( DuplicateActionService::STATUS_RESTORED, $result['status'], (string) json_encode( $result ) );
+		$this->assertSame( [ 'fileid' => $id, 'path' => '/' . $folder->getName() . '/back.txt' ], $result['restored'] );
+	}
+
+	/**
+	 * The folders it was in, gone since, are made again for it.
+	 *
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
+	public function testATrashedFileWhoseFoldersAreGoneIsRestoredIntoThemMadeAgain(): void
+	{
+		$folder        = $this->home()->newFolder( 'gone-' . bin2hex( random_bytes( 3 ) ) );
+		[ $id, $hash ] = $this->trashed( $folder->newFolder( 'sub' ), 'deep.txt' );
+		$name          = $folder->getName();
+		$folder->delete();
+
+		$result = $this->restore( $id, $hash, DuplicateActionService::AS_ORIGINAL );
+
+		$this->assertSame( DuplicateActionService::STATUS_RESTORED, $result['status'], (string) json_encode( $result ) );
+		$this->assertSame( "/$name/sub/deep.txt", $result['restored']['path'] );
+	}
+
+	/**
+	 * A file of the trashed folder's is restored to its place in it, the
+	 * folder made again: the trash alone would put it at the root.
+	 *
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
+	public function testAFileInATrashedFolderIsRestoredToItsPlace(): void
+	{
+		$folder        = $this->home()->newFolder( 'inside-' . bin2hex( random_bytes( 3 ) ) );
+		$file          = $folder->newFile( 'x.txt', 'fcias dact inside x ' . $folder->getName() );
+		$hash          = $this->hashed( $file, 'fcias dact inside x ' . $folder->getName() );
+		[ $id, $name ] = [ $file->getId(), $folder->getName() ];
+		$folder->delete();
+
+		$result = $this->restore( $id, $hash, DuplicateActionService::AS_ORIGINAL );
+
+		$this->assertSame( DuplicateActionService::STATUS_RESTORED, $result['status'], (string) json_encode( $result ) );
+		$this->assertSame( "/$name/x.txt", $result['restored']['path'] );
+	}
+
+	/**
+	 * Where its name is taken, it comes back beside the file that took it,
+	 * under a name of its own, in a home and in a team folder's subfolder,
+	 * which the team folders app on its own gets wrong.
+	 *
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
+	public function testATrashedFileWhoseNameIsTakenIsRestoredBesideIt(): void
+	{
+		$roots = self::$gid === null
+			? [ 'home' => $this->home() ]
+			: [ 'home' => $this->home(), 'team' => $this->team() ];
+
+		foreach ( $roots as $label => $root )
+		{
+			$folder        = $root->newFolder( 'taken-' . bin2hex( random_bytes( 3 ) ) );
+			[ $id, $hash ] = $this->trashed( $folder, 'taken.txt' );
+			$newcomer      = $folder->newFile( 'taken.txt', 'fcias dact newcomer' );
+
+			$result = $this->restore( $id, $hash, DuplicateActionService::AS_ORIGINAL );
+			$path   = (string) ( $result['restored']['path'] ?? '' );
+
+			$this->assertSame( DuplicateActionService::STATUS_RESTORED, $result['status'], $label . ' ' . json_encode( $result ) );
+			$this->assertSame( (string) $this->home()->getRelativePath( $folder->getPath() ), dirname( $path ), $label );
+			$this->assertNotSame( 'taken.txt', basename( $path ), $label );
+			$this->assertSame( 'fcias dact newcomer', $newcomer->getContent(), $label );
+		}
+	}
+
+	/**
+	 * A version of a trashed file goes into the file now at its place, in a
+	 * home and in a team folder.
+	 *
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
+	public function testATrashedVersionGoesIntoTheFileAtItsPlace(): void
+	{
+		$roots = self::$gid === null
+			? [ 'home' => $this->home() ]
+			: [ 'home' => $this->home(), 'team' => $this->team() ];
+
+		foreach ( $roots as $label => $root )
+		{
+			$name                            = 'into-' . bin2hex( random_bytes( 3 ) ) . '.txt';
+			[ $file, $versionId, $revision ] = $this->versioned( $root, $name );
+			$parent                          = $file->getParent();
+			$file->delete();
+			$newcomer                        = $parent->newFile( $name, 'fcias dact into newcomer' );
+
+			// As the queue does for a team folder's, touched as its file went.
+			$hash = $this->hashedRow( $versionId, "one $name" );
+
+			$result = $this->restore( $versionId, $hash, DuplicateActionService::AS_VERSION );
+
+			$this->assertSame( DuplicateActionService::STATUS_RESTORED, $result['status'], $label . ' ' . json_encode( $result ) );
+			$this->assertSame( $newcomer->getId(), $result['restored']['fileid'], $label );
+			$this->assertContains( (string) $revision, $this->revisionsOf( $newcomer ), $label );
+		}
+	}
+
+	/**
+	 * A version saved as a new file, beside its file, named after it and
+	 * its time.
+	 *
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
+	public function testAVersionIsSavedAsANewFileBesideItsFile(): void
+	{
+		$name                 = 'save-' . bin2hex( random_bytes( 3 ) ) . '.txt';
+		[ $file, $versionId ] = $this->versioned( $this->home(), $name );
+
+		$result = $this->restore( $versionId, sha1( "one $name" ), DuplicateActionService::AS_FILE );
+		$saved  = $this->home()->getFirstNodeById( (int) ( $result['restored']['fileid'] ?? 0 ) );
+
+		$this->assertSame( DuplicateActionService::STATUS_RESTORED, $result['status'], (string) json_encode( $result ) );
+		$this->assertInstanceOf( File::class, $saved );
+		$this->assertSame( $file->getParent()->getId(), $saved->getParent()->getId() );
+		$this->assertMatchesRegularExpression( '/^' . preg_quote( substr( $name, 0, -4 ), '/' ) . ' \(\d{4}-\d\d-\d\d \d\d-\d\d-\d\d\)\.txt$/', $saved->getName() );
+		$this->assertSame( "one $name", $saved->getContent() );
+	}
+
+	/**
+	 * A version of a trashed file saved as a new file at that file's
+	 * place, its folder made again.
+	 *
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
+	public function testATrashedVersionIsSavedAsANewFileAtItsPlace(): void
+	{
+		$folder               = $this->home()->newFolder( 'tsave-' . bin2hex( random_bytes( 3 ) ) );
+		[ $file, $versionId ] = $this->versioned( $folder, 'tsave.txt' );
+		$folderName           = $folder->getName();
+		$file->delete();
+		$folder->delete();
+
+		$result = $this->restore( $versionId, sha1( 'one tsave.txt' ), DuplicateActionService::AS_FILE );
+		$saved  = $this->home()->getFirstNodeById( (int) ( $result['restored']['fileid'] ?? 0 ) );
+
+		$this->assertSame( DuplicateActionService::STATUS_RESTORED, $result['status'], (string) json_encode( $result ) );
+		$this->assertSame( "/$folderName", dirname( (string) $result['restored']['path'] ) );
+		$this->assertInstanceOf( File::class, $saved );
+		$this->assertSame( 'one tsave.txt', $saved->getContent() );
+	}
+
+	/**
+	 * A row restored a way that does not fit it, or a version with no file
+	 * at its place to go into, is refused.
+	 *
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
+	public function testRestoringARowAWayThatDoesNotFitIsRefused(): void
+	{
+		$file = $this->home()->newFile( 'live-' . bin2hex( random_bytes( 3 ) ) . '.txt', 'fcias dact live' );
+		$hash = $this->hashed( $file, 'fcias dact live' );
+
+		$live = $this->restore( $file->getId(), $hash, DuplicateActionService::AS_ORIGINAL );
+		$this->assertSame( DuplicateActionService::STATUS_REFUSED, $live['status'] );
+		$this->assertSame( 'It cannot be restored that way.', $live['reason'] );
+
+		$name                 = 'nowhere-' . bin2hex( random_bytes( 3 ) ) . '.txt';
+		[ $gone, $versionId ] = $this->versioned( $this->home(), $name );
+		$gone->delete();
+
+		$nowhere = $this->restore( $versionId, sha1( "one $name" ), DuplicateActionService::AS_VERSION );
+		$this->assertSame( DuplicateActionService::STATUS_REFUSED, $nowhere['status'] );
+		$this->assertSame( 'No file of yours is at its place to take it.', $nowhere['reason'] );
 	}
 
 	/**
@@ -497,6 +699,40 @@ class DuplicateActionsTest
 	): array
 	{
 		return array_column( $this->service->delete( $this->user(), $fileIds, 'sha1', $hash, $forGood, $dryRun, $mergeInto ), null, 'fileid' );
+	}
+
+	/**
+	 * The service's answer for one row restored.
+	 *
+	 * @return array<string, mixed>
+	 */
+	private function restore(
+		int    $fileId,
+		string $hash,
+		string $as,
+	): array
+	{
+		return $this->service->restore( $this->user(), $fileId, 'sha1', $hash, $as );
+	}
+
+	/**
+	 * A file named $name in $folder, hashed, then moved to the trash.
+	 *
+	 * @return array{0: int, 1: string}  its id and hash
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
+	private function trashed(
+		Folder $folder,
+		string $name,
+	): array
+	{
+		$content = "fcias dact $name " . bin2hex( random_bytes( 3 ) );
+		$file    = $folder->newFile( $name, $content );
+		$hash    = $this->hashed( $file, $content );
+		$id      = $file->getId();
+		$file->delete();
+
+		return [ $id, $hash ];
 	}
 
 	/**

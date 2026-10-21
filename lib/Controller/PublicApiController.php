@@ -1002,6 +1002,84 @@ class PublicApiController
 	}
 
 	/**
+	 * Restore one row of a duplicate group, the caller's own. The body is
+	 * JSON, `{ "fileId": 42, "algo": "sha1", "hash": "…", "as": "original" }`:
+	 * `original` restores a trashed file to its place, `version` a trashed
+	 * version into the file at its place, and `file` any version as a new
+	 * file. The row must still hold that hash. The answer is the row's
+	 * result ({@see DuplicateActionService::restore()}).
+	 *
+	 * @noinspection PhpUnused
+	 */
+	// No #[NoCSRFRequired], for the reason given on recalcHash().
+	#[NoAdminRequired]
+	#[UserRateLimit( limit: 20, period: 60 )]
+	#[ApiRoute( verb: 'POST', url: '/api/v1/duplicates/restore' )]
+	public function restoreDuplicate(): DataResponse
+	{
+		$own  = $this->scopeOrRefusal();
+		$user = $this->userSession->getUser();
+
+		if ( $own instanceof DataResponse || $user === null )
+		{
+			return $own instanceof DataResponse
+				? $own
+				: new DataResponse( [ 'success' => false, 'error' => $this->l10n->t( 'Not logged in.' ) ], Http::STATUS_UNAUTHORIZED );
+		}
+
+		$body   = json_decode( (string) file_get_contents( 'php://input' ), true );
+		$body   = is_array( $body )
+			? $body
+			: [];
+		$fileId = $body['fileId'] ?? null;
+		$as     = $body['as'] ?? null;
+		$algo   = is_string( $body['algo'] ?? null )
+			? strtolower( $body['algo'] )
+			: '';
+		$hash   = is_string( $body['hash'] ?? null )
+			? strtolower( trim( $body['hash'] ) )
+			: '';
+
+		if ( ! is_int( $fileId ) || ! in_array( $as, [ DuplicateActionService::AS_ORIGINAL, DuplicateActionService::AS_VERSION, DuplicateActionService::AS_FILE ], true ) )
+		{
+			return new DataResponse(
+				// TRANSLATORS: fileId and as are parameter names, and original, version and file the values as takes; keep them
+				[ 'success' => false, 'error' => $this->l10n->t( 'fileId must name a file, and as one of original, version and file.' ) ],
+				Http::STATUS_BAD_REQUEST,
+			);
+		}
+
+		if ( ! $this->catalogue->isValid( $algo ) || preg_match( '/^[0-9a-f]+$/', $hash ) !== 1 )
+		{
+			return new DataResponse(
+				// TRANSLATORS: algo and hash are parameter names; keep them
+				[ 'success' => false, 'error' => $this->l10n->t( 'algo must name an algorithm, and hash its checksum in hexadecimal.' ) ],
+				Http::STATUS_BAD_REQUEST,
+			);
+		}
+
+		try
+		{
+			return new DataResponse( [ 'result' => $this->duplicateActions->restore( $user, $fileId, $algo, $hash, $as ) ] );
+		}
+		catch ( Throwable $e )
+		{
+			$this->logger->error(
+				'FCIAS PublicApiController: restoreDuplicate failed',
+				[
+					'app'       => Application::APP_ID,
+					'exception' => $e,
+				],
+			);
+
+			return new DataResponse(
+				[ 'success' => false, 'error' => $this->l10n->t( 'Internal server error.' ) ],
+				Http::STATUS_INTERNAL_SERVER_ERROR,
+			);
+		}
+	}
+
+	/**
 	 * The answer to `?mimetype=1` while MIME types are not detected: a 400
 	 * that says why, and where they would be switched on, before anything is
 	 * read. Null where they are detected, or were not asked for.

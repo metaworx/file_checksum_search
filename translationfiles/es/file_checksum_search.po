@@ -623,8 +623,14 @@ msgstr "Error interno del servidor."
 msgid "Invalid request body."
 msgstr "Cuerpo de la solicitud no válido."
 
+msgid "It cannot be restored that way."
+msgstr "No se puede restaurar de esa forma."
+
 msgid "It could not be deleted."
 msgstr "No se pudo eliminar."
+
+msgid "It could not be restored."
+msgstr "No se pudo restaurar."
 
 msgid "It is not among your files."
 msgstr "No está entre sus archivos."
@@ -762,6 +768,9 @@ msgstr "No hay documentación disponible."
 
 msgid "No duplicate files found."
 msgstr "No se encontraron archivos duplicados."
+
+msgid "No file of yours is at its place to take it."
+msgstr "En su lugar no hay ningún archivo suyo que pueda recibirlo."
 
 msgid "No grants."
 msgstr "No hay autorizaciones."
@@ -1123,6 +1132,9 @@ msgstr "Los algoritmos que las reglas pueden calcular y los selectores pueden of
 msgid "The default must be one of the allowed algorithms."
 msgstr "El predeterminado debe ser uno de los algoritmos permitidos."
 
+msgid "The file at its place already has a version of that time."
+msgstr "El archivo en su lugar ya tiene una versión de ese momento."
+
 msgid "The file chosen for the versions cannot take them."
 msgstr "El archivo elegido para las versiones no puede recibirlas."
 
@@ -1410,6 +1422,10 @@ msgstr "eliminados {deleted}, aún sin finalizar"
 #. TRANSLATORS: a background job's last run ended with an error; {reason} is the error as the server logs it, in English
 msgid "failed: {reason}"
 msgstr "falló: {reason}"
+
+#. TRANSLATORS: fileId and as are parameter names, and original, version and file the values as takes; keep them
+msgid "fileId must name a file, and as one of original, version and file."
+msgstr "fileId debe indicar un archivo, y as uno de original, version y file."
 
 #. TRANSLATORS: fileIds is a parameter name; keep it
 #, php-format

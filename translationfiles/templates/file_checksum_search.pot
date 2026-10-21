@@ -622,7 +622,13 @@ msgstr ""
 msgid "Invalid request body."
 msgstr ""
 
+msgid "It cannot be restored that way."
+msgstr ""
+
 msgid "It could not be deleted."
+msgstr ""
+
+msgid "It could not be restored."
 msgstr ""
 
 msgid "It is not among your files."
@@ -760,6 +766,9 @@ msgid "No documentation available."
 msgstr ""
 
 msgid "No duplicate files found."
+msgstr ""
+
+msgid "No file of yours is at its place to take it."
 msgstr ""
 
 msgid "No grants."
@@ -1120,6 +1129,9 @@ msgstr ""
 msgid "The default must be one of the allowed algorithms."
 msgstr ""
 
+msgid "The file at its place already has a version of that time."
+msgstr ""
+
 msgid "The file chosen for the versions cannot take them."
 msgstr ""
 
@@ -1405,6 +1417,10 @@ msgstr ""
 
 #. TRANSLATORS: a background job's last run ended with an error; {reason} is the error as the server logs it, in English
 msgid "failed: {reason}"
+msgstr ""
+
+#. TRANSLATORS: fileId and as are parameter names, and original, version and file the values as takes; keep them
+msgid "fileId must name a file, and as one of original, version and file."
 msgstr ""
 
 #. TRANSLATORS: fileIds is a parameter name; keep it

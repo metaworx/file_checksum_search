@@ -54,6 +54,9 @@
 				<referencedClass name="OCA\Files_Versions\Versions\IDeletableVersionBackend" />
 				<referencedClass name="OCA\Files_Versions\Versions\IMetadataVersion" />
 				<referencedClass name="OCA\Files_Versions\Versions\IVersionsImporterBackend" />
+				<!-- TrashedVersion: a version of a home's trashed file is its own version and backend, which the versions app's importer takes; loaded only where the app is there. -->
+				<referencedClass name="OCA\Files_Versions\Versions\IVersion" />
+				<referencedClass name="OCA\Files_Versions\Versions\IVersionBackend" />
 				<!-- FilecacheService: the trash app's manager, which alone opens a team folder's trashed file; DuplicateActionService: removes trashed files and pauses the trash through it. Used only where the app is there. -->
 				<referencedClass name="OCA\Files_Trashbin\Trash\ITrashManager" />
 				<!-- FileListener: the versions app's event for a restored version, which only that app dispatches. -->
@@ -78,6 +81,13 @@
 				<referencedClass name="Doctrine\DBAL\Schema\Table" />
 			</errorLevel>
 		</UndefinedDocblockClass>
+
+		<MissingDependency>
+			<errorLevel type="suppress">
+				<!-- DuplicateActionService: it makes a TrashedVersion, which implements the versions app's interfaces (UndefinedClass above). By file: the issue names no class to suppress it by. -->
+				<file name="lib/Service/DuplicateActionService.php" />
+			</errorLevel>
+		</MissingDependency>
 
 		<!--
 			Not a finding about Nextcloud's API, but one this code disagrees with.

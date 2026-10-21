@@ -619,8 +619,14 @@ msgstr "内部サーバーエラーが発生しました。"
 msgid "Invalid request body."
 msgstr "リクエストの本文が無効です。"
 
+msgid "It cannot be restored that way."
+msgstr "その方法では復元できません。"
+
 msgid "It could not be deleted."
 msgstr "削除できませんでした。"
+
+msgid "It could not be restored."
+msgstr "復元できませんでした。"
 
 msgid "It is not among your files."
 msgstr "あなたのファイルの中にありません。"
@@ -758,6 +764,9 @@ msgstr "利用できるドキュメントはありません。"
 
 msgid "No duplicate files found."
 msgstr "重複ファイルは見つかりませんでした。"
+
+msgid "No file of yours is at its place to take it."
+msgstr "元の場所に、それを受け取れるあなたのファイルがありません。"
 
 msgid "No grants."
 msgstr "承認はありません。"
@@ -1115,6 +1124,9 @@ msgstr "ルールが計算でき、選択リストが提示できるアルゴリ
 msgid "The default must be one of the allowed algorithms."
 msgstr "デフォルトは許可されたアルゴリズムのいずれかである必要があります。"
 
+msgid "The file at its place already has a version of that time."
+msgstr "元の場所にあるファイルには、その時刻のバージョンが既にあります。"
+
 msgid "The file chosen for the versions cannot take them."
 msgstr "バージョンの移動先に選んだファイルは、それらを受け取れません。"
 
@@ -1400,6 +1412,10 @@ msgstr "削除：{deleted}、未完了"
 #. TRANSLATORS: a background job's last run ended with an error; {reason} is the error as the server logs it, in English
 msgid "failed: {reason}"
 msgstr "失敗：{reason}"
+
+#. TRANSLATORS: fileId and as are parameter names, and original, version and file the values as takes; keep them
+msgid "fileId must name a file, and as one of original, version and file."
+msgstr "fileId にはファイルを、as には original、version、file のいずれかを指定する必要があります。"
 
 #. TRANSLATORS: fileIds is a parameter name; keep it
 #, php-format

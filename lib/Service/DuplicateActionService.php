@@ -20,6 +20,8 @@ use OCP\Files\File;
 use OCP\Files\FileInfo;
 use OCP\Files\IRootFolder;
 use OCP\Files\Storage\ISharedStorage;
+use OCP\Files\Folder;
+use OCP\IDateTimeZone;
 use OCP\IL10N;
 use OCP\IUser;
 use OCP\Server;
@@ -56,6 +58,26 @@ class DuplicateActionService
 	/** A file that may take the earlier versions of the files deleted beside it. */
 	public const ACTION_MERGE_INTO = 'mergeInto';
 
+	/** A trashed file that may be restored to its place ({@see AS_ORIGINAL}). */
+	public const ACTION_RESTORE = 'restore';
+
+	/** A trashed version that may go into the file at its place ({@see AS_VERSION}). */
+	public const ACTION_RESTORE_AS_VERSION = 'restoreAsVersion';
+
+	/** A version that may be saved as a new file ({@see AS_FILE}). */
+	public const ACTION_SAVE_AS_FILE = 'saveAsFile';
+
+	/** How {@see restore()} restores: a trashed file to its place. */
+	public const AS_ORIGINAL = 'original';
+
+	/** How {@see restore()} restores: a trashed version into the file at its place. */
+	public const AS_VERSION = 'version';
+
+	/** How {@see restore()} restores: a version as a new file. */
+	public const AS_FILE = 'file';
+
+	public const STATUS_RESTORED = 'restored';
+
 	/** A dry run's answer for a row it would act on. */
 	public const STATUS_READY = 'ready';
 
@@ -91,10 +113,19 @@ class DuplicateActionService
 		private readonly FilecacheService $filecacheService,
 		private readonly MetadataService  $metadataService,
 		private readonly IAppManager      $appManager,
+		private readonly IDateTimeZone    $timeZone,
 		private readonly IL10N            $l10n,
 		private readonly LoggerInterface  $logger,
 	) {
 	}
+
+	/**
+	 * The trash's root items by account, while {@see withActions()} reads
+	 * a page; null otherwise, when every lookup asks the trash afresh.
+	 *
+	 * @var array<string, list<\OCA\Files_Trashbin\Trash\ITrashItem>>|null
+	 */
+	private ?array $trashRoots = null;
 
 
 //  other non-static methods
@@ -216,50 +247,413 @@ class DuplicateActionService
 
 		$rows = [];
 
-		foreach ( $this->filecacheService->locateAll( $fileIds ) as $fileId => $location )
+		// The trash's items read once for the whole page, not once a row.
+		$this->trashRoots = [];
+
+		try
 		{
-			$rows[ $fileId ] = $this->openAs( $user, $location );
+			foreach ( $this->filecacheService->locateAll( $fileIds ) as $fileId => $location )
+			{
+				$rows[ $fileId ] = $this->openAs( $user, $location );
+			}
+
+			return array_map(
+				fn ( array $group ): array => [
+					'files' => array_map(
+						fn ( array $file ): array => $file + [ 'actions' => $this->actionsOf( $user, $rows[ (int) $file['fileid'] ] ?? null ) ],
+						(array) ( $group['files'] ?? [] ),
+					),
+				] + $group,
+				$groups,
+			);
+		}
+		finally
+		{
+			$this->trashRoots = null;
+		}
+	}
+
+	/**
+	 * Restore one row of a duplicate group, the account's own, as $as says:
+	 *
+	 * - {@see AS_ORIGINAL}, a file in the trash, to its place: the trash's
+	 *   own restore, with the folders it was in made again where they are
+	 *   gone, and the file moved there where the trash put it elsewhere;
+	 * - {@see AS_VERSION}, a version of a trashed file, into the file now at
+	 *   that file's place, as an earlier version of it;
+	 * - {@see AS_FILE}, any version, as a new file beside its file, or at
+	 *   the trashed file's place, named after it and the version's time.
+	 *
+	 * A name taken is made unique. The row must still hold $hash under
+	 * $algo; a version restored stays where it was, as a copy does.
+	 *
+	 * @return array{fileid: int, kind: ?string, status: string, reason?: string, restored?: array{fileid: int, path: string}}
+	 */
+	public function restore(
+		IUser  $user,
+		int    $fileId,
+		string $algo,
+		string $hash,
+		string $as,
+	): array
+	{
+		$row     = $this->open( $user, [ $fileId ], $algo, $hash )[0];
+		$result  = [
+			'fileid' => $fileId,
+			'kind'   => $row->kind,
+		];
+		$refusal = $row->refusal ?? $this->restoreRefusal( $user, $row, $as );
+
+		if ( $refusal !== null )
+		{
+			return $result + [
+				'status' => self::STATUS_REFUSED,
+				'reason' => $refusal,
+			];
 		}
 
-		return array_map(
-			fn ( array $group ): array => [
-				'files' => array_map(
-					fn ( array $file ): array => $file + [ 'actions' => $this->actionsOf( $rows[ (int) $file['fileid'] ] ?? null ) ],
-					(array) ( $group['files'] ?? [] ),
-				),
-			] + $group,
-			$groups,
+		try
+		{
+			$node = match ( $as )
+			{
+				self::AS_ORIGINAL => $this->restoreTrashed( $user, $row ),
+				self::AS_VERSION  => $this->restoreAsVersion( $user, $row ),
+				default           => $this->saveAsFile( $user, $row ),
+			};
+		}
+		catch ( Throwable $e )
+		{
+			$this->logger->warning(
+				'FCIAS DuplicateActionService: a row could not be restored',
+				[
+					'app'       => Application::APP_ID,
+					'user'      => $user->getUID(),
+					'fileId'    => $fileId,
+					'as'        => $as,
+					'exception' => $e,
+				],
+			);
+
+			return $result + [
+				'status' => self::STATUS_FAILED,
+				'reason' => $this->l10n->t( 'It could not be restored.' ),
+			];
+		}
+
+		$this->logger->info(
+			'FCIAS DuplicateActionService: a duplicate was restored',
+			[
+				'app'    => Application::APP_ID,
+				'user'   => $user->getUID(),
+				'fileId' => $fileId,
+				'as'     => $as,
+			],
 		);
+
+		return $result + [
+			'status'   => self::STATUS_RESTORED,
+			'restored' => [
+				'fileid' => $node->getId(),
+				'path'   => (string) $this->rootFolder->getUserFolder( $user->getUID() )->getRelativePath( $node->getPath() ),
+			],
+		];
 	}
 
 	/**
 	 * What may be done to $row, of {@see ACTION_TRASH}, {@see ACTION_DELETE}
-	 * and {@see ACTION_MERGE_INTO}: moving to the trash, and taking the
-	 * versions of others, are a file's alone.
+	 * and {@see ACTION_MERGE_INTO}, which are a file's alone but deleting,
+	 * and of {@see ACTION_RESTORE}, {@see ACTION_RESTORE_AS_VERSION} and
+	 * {@see ACTION_SAVE_AS_FILE}, which are a trashed file's and a
+	 * version's.
 	 *
 	 * @return list<string>
 	 */
-	private function actionsOf( ?DuplicateRow $row ): array
+	private function actionsOf(
+		IUser         $user,
+		?DuplicateRow $row,
+	): array
 	{
+		if ( $row === null || $row->refusal !== null )
+		{
+			return [];
+		}
+
 		$actions = [];
 
 		foreach ( [ self::ACTION_TRASH, self::ACTION_DELETE ] as $action )
 		{
-			if ( $row !== null
-			     && $row->refusal === null
-			     && ( $action === self::ACTION_DELETE || $row->kind === self::KIND_FILE )
+			if ( ( $action === self::ACTION_DELETE || $row->kind === self::KIND_FILE )
 			     && $this->refusalOf( $row, $action ) === null )
 			{
 				$actions[] = $action;
 			}
 		}
 
-		if ( $row !== null && $this->mayTakeVersions( $row ) )
+		if ( $this->mayTakeVersions( $row ) )
 		{
 			$actions[] = self::ACTION_MERGE_INTO;
 		}
 
+		foreach (
+			[
+				self::AS_ORIGINAL => self::ACTION_RESTORE,
+				self::AS_VERSION  => self::ACTION_RESTORE_AS_VERSION,
+				self::AS_FILE     => self::ACTION_SAVE_AS_FILE,
+			] as $as => $action
+		)
+		{
+			if ( $this->restoreRefusal( $user, $row, $as ) === null )
+			{
+				$actions[] = $action;
+			}
+		}
+
 		return $actions;
+	}
+
+	/**
+	 * Why $row may not be restored as $as, or null where it may: a row of
+	 * another kind; for a version into a file, no file at its place that
+	 * may take it, or one with a version of that second already.
+	 */
+	private function restoreRefusal(
+		IUser        $user,
+		DuplicateRow $row,
+		string       $as,
+	): ?string
+	{
+		$fits = match ( $as )
+		{
+			self::AS_ORIGINAL => $row->kind === self::KIND_TRASH && $row->trashItem !== null,
+			self::AS_VERSION  => $row->kind === self::KIND_TRASHED_VERSION,
+			self::AS_FILE     => $row->kind === self::KIND_VERSION || $row->kind === self::KIND_TRASHED_VERSION,
+			default           => false,
+		};
+
+		if ( ! $fits )
+		{
+			return $this->l10n->t( 'It cannot be restored that way.' );
+		}
+
+		if ( $as !== self::AS_VERSION )
+		{
+			return null;
+		}
+
+		$target = $this->fileAtPlaceOf( $user, $row );
+
+		if ( $target === null || ! $this->mayTakeVersions( new DuplicateRow( $target->getId(), self::KIND_FILE, node: $target ) ) )
+		{
+			return $this->l10n->t( 'No file of yours is at its place to take it.' );
+		}
+
+		$timestamp = (string) $this->timestampOf( $row );
+
+		foreach ( $this->listVersions( $user, $target ) as $version )
+		{
+			if ( (string) $version->getRevisionId() === $timestamp )
+			{
+				return $this->l10n->t( 'The file at its place already has a version of that time.' );
+			}
+		}
+
+		return null;
+	}
+
+	/**
+	 * The trashed file back at its place, its folders made again where
+	 * gone; moved there where the trash put it elsewhere, as it does a file
+	 * inside a trashed folder, one whose folder is gone, and, in a team
+	 * folder, one whose name is taken in a subfolder.
+	 */
+	private function restoreTrashed(
+		IUser        $user,
+		DuplicateRow $row,
+	): File
+	{
+		$userFolder = $this->rootFolder->getUserFolder( $user->getUID() );
+		$place      = ltrim( (string) $row->trashItem?->getOriginalLocation(), '/' );
+		$folder     = self::folderAt( $userFolder, dirname( $place ) );
+
+		$this->trashManager()?->restoreItem( $row->trashItem );
+
+		$node = $userFolder->getFirstNodeById( $row->fileId );
+
+		if ( ! $node instanceof File )
+		{
+			throw new \RuntimeException( 'The trash restored the file where it cannot be found.' );
+		}
+
+		if ( $node->getParent()->getId() !== $folder->getId() )
+		{
+			$node = $node->move( $folder->getPath() . '/' . $folder->getNonExistingName( basename( $place ) ) );
+		}
+
+		if ( ! $node instanceof File )
+		{
+			throw new \RuntimeException( 'The restored file could not be moved to its place.' );
+		}
+
+		return $node;
+	}
+
+	/**
+	 * A version of a trashed file imported into the file now at that
+	 * file's place. A home's is handed to the importer through
+	 * {@see TrashedVersion}, a team folder's as the versions app lists it.
+	 */
+	private function restoreAsVersion(
+		IUser        $user,
+		DuplicateRow $row,
+	): File
+	{
+		$target  = $this->fileAtPlaceOf( $user, $row );
+		$source  = $this->trashedFileOf( $user, $row );
+		$version = $row->version;
+
+		if ( $target === null || $source === null )
+		{
+			throw new \RuntimeException( 'The trashed file, or the file at its place, is gone.' );
+		}
+
+		if ( $version === null && $row->node !== null )
+		{
+			$version = new TrashedVersion( $row->node, $source, $this->timestampOf( $row ), $user );
+		}
+
+		$importer = $this->importerFor( $target );
+
+		if ( $importer === null || $version === null )
+		{
+			throw new \RuntimeException( 'The version cannot be imported into the file at its place.' );
+		}
+
+		$importer->importVersionsForFile( $user, $source, $target, [ $version ] );
+
+		return $target;
+	}
+
+	/**
+	 * A version's content as a new file: beside its file, or at its trashed
+	 * file's place, made again where gone; named after the file and the
+	 * version's time, in the account's time zone, unique in its folder.
+	 */
+	private function saveAsFile(
+		IUser        $user,
+		DuplicateRow $row,
+	): File
+	{
+		$timestamp = $this->timestampOf( $row );
+
+		if ( $row->kind === self::KIND_VERSION && $row->node !== null )
+		{
+			$name    = $row->node->getName();
+			$folder  = $row->node->getParent();
+			$content = $this->versionManager()?->getVersionFile( $user, $row->node, $timestamp )->fopen( 'r' );
+		}
+		else
+		{
+			$source  = $this->trashedFileOf( $user, $row );
+			$place   = ltrim( (string) ( $source === null ? '' : $this->placeOf( $user, $source ) ), '/' );
+			$name    = basename( $place );
+			$folder  = self::folderAt( $this->rootFolder->getUserFolder( $user->getUID() ), dirname( $place ) );
+			$content = $row->version === null
+				? $row->node?->fopen( 'r' )
+				: ( $source === null ? null : $this->versionManager()?->getVersionFile( $user, $source, $timestamp )->fopen( 'r' ) );
+		}
+
+		if ( ! is_resource( $content ) || $name === '' )
+		{
+			throw new \RuntimeException( 'The version could not be read.' );
+		}
+
+		$at = ( new \DateTimeImmutable( '@' . $timestamp ) )->setTimezone( $this->timeZone->getTimeZone( $timestamp, $user->getUID() ) );
+
+		return $folder->newFile( $folder->getNonExistingName( self::versionedName( $name, $at->format( 'Y-m-d H-i-s' ) ) ), $content );
+	}
+
+	/**
+	 * The file now at the place of $row's trashed file, or null: none
+	 * there, or a folder.
+	 */
+	private function fileAtPlaceOf(
+		IUser        $user,
+		DuplicateRow $row,
+	): ?File
+	{
+		$source = $this->trashedFileOf( $user, $row );
+		$place  = $source === null
+			? null
+			: $this->placeOf( $user, $source );
+
+		try
+		{
+			$node = $place === null
+				? null
+				: $this->rootFolder->getUserFolder( $user->getUID() )->get( ltrim( $place, '/' ) );
+		}
+		catch ( Throwable )
+		{
+			return null;
+		}
+
+		return $node instanceof File
+			? $node
+			: null;
+	}
+
+	/**
+	 * The trashed file a version of one is of: a team folder's row was
+	 * opened through it; a home's is found by the version's own path.
+	 */
+	private function trashedFileOf(
+		IUser        $user,
+		DuplicateRow $row,
+	): ?File
+	{
+		if ( $row->kind === self::KIND_TRASH || $row->version !== null )
+		{
+			return $row->node;
+		}
+
+		$location = $this->filecacheService->locate( $row->fileId );
+		$file     = $location === null
+			? null
+			: $this->filecacheService->filesOfVersions( [ $location ] )[ $row->fileId ] ?? null;
+		$node     = $file === null
+			? null
+			: $this->trashManager()?->getTrashNodeById( $user, $file->fileId );
+
+		return $node instanceof File
+			? $node
+			: null;
+	}
+
+	/**
+	 * Where a trashed file was, below the account's folder, as its trash
+	 * item says; null where the trash cannot say.
+	 */
+	private function placeOf(
+		IUser $user,
+		File  $trashed,
+	): ?string
+	{
+		$manager = $this->trashManager();
+		$item    = $manager === null
+			? null
+			: $this->trashItemOf( $user, $manager, $trashed );
+
+		return $item?->getOriginalLocation();
+	}
+
+	/**
+	 * When the file held the version $row is.
+	 */
+	private function timestampOf( DuplicateRow $row ): int
+	{
+		return $row->version !== null
+			? (int) $row->version->getRevisionId()
+			: (int) $this->filecacheService->locate( $row->fileId )?->version?->timestamp;
 	}
 
 	/**
@@ -833,7 +1227,9 @@ class DuplicateActionService
 	): ?object
 	{
 		$path    = $node->getPath() . '/';
-		$pending = $manager->listTrashRoot( $user );
+		$pending = $this->trashRoots === null
+			? $manager->listTrashRoot( $user )
+			: $this->trashRoots[ $user->getUID() ] ??= $manager->listTrashRoot( $user );
 
 		while ( $pending !== [] )
 		{
@@ -888,5 +1284,56 @@ class DuplicateActionService
 	{
 		return $node->getInternalPath() === ''
 		       && $node->getStorage()->instanceOfStorage( ISharedStorage::class );
+	}
+
+	/**
+	 * The folder at $path below $root, its missing folders made a segment
+	 * at a time; $root itself for `.`, as dirname() gives for a name
+	 * alone, or nothing.
+	 */
+	private static function folderAt(
+		Folder $root,
+		string $path,
+	): Folder
+	{
+		$folder = $root;
+
+		foreach ( explode( '/', $path === '.' ? '' : trim( $path, '/' ) ) as $segment )
+		{
+			if ( $segment === '' )
+			{
+				continue;
+			}
+
+			$next = $folder->nodeExists( $segment )
+				? $folder->get( $segment )
+				: $folder->newFolder( $segment );
+
+			if ( ! $next instanceof Folder )
+			{
+				throw new \RuntimeException( 'A file stands where a folder of the path was.' );
+			}
+
+			$folder = $next;
+		}
+
+		return $folder;
+	}
+
+	/**
+	 * $name with $stamp before its extension: `report (2026-10-21
+	 * 13-37-05).pdf`; after the whole name where it has none, or is all
+	 * extension, as `.env` is.
+	 */
+	private static function versionedName(
+		string $name,
+		string $stamp,
+	): string
+	{
+		$dot = strrpos( $name, '.' );
+
+		return $dot === false || $dot === 0
+			? "$name ($stamp)"
+			: substr( $name, 0, $dot ) . " ($stamp)" . substr( $name, $dot );
 	}
 }
