@@ -548,6 +548,10 @@ msgstr "重複ファイルを検索"
 msgid "Find other files sharing a checksum with this file."
 msgstr "このファイルと同じチェックサムを持つ他のファイルを検索します。"
 
+#. TRANSLATORS: the placeholder of the Duplicates page's path filter
+msgid "Folder, name or pattern"
+msgstr "フォルダー、名前、またはパターン"
+
 msgid "Force (delete and recalculate all checksums)"
 msgstr "全件（すべてのチェックサムを削除して再計算）"
 
@@ -1149,6 +1153,13 @@ msgstr "ハッシュがこれに一致する重複グループのみ表示"
 msgid "Show only groups whose hash matches what you type. Whole values come first, then those that start with what you typed. Turn on \"Match anywhere in the hash\" to match it in the middle of a hash too. Upper case is fine."
 msgstr "入力した内容にハッシュが一致する重複グループのみを表示します。完全一致が先に、続いて入力した文字列で始まるものが表示されます。ハッシュの途中にも一致させるには、「ハッシュ内で部分一致」をオンにしてください。大文字でも構いません。"
 
+msgid "Show only groups with a file at this path"
+msgstr "このパスにファイルがある重複グループのみ表示"
+
+#. TRANSLATORS: Backup, *.bak and /Photos/2019 are examples of what to type; keep them as they are
+msgid "Show only groups with a file at this path; the group keeps its other files. A name, such as Backup or *.bak, matches anywhere, a file of that name or a folder and everything in it. With a slash, such as /Photos/2019, it matches from the top of your files. * stands for any part of a name, ** for any number of folders, ? for one character. Upper case is fine."
+msgstr "このパスにファイルがある重複グループのみを表示します。グループのほかのファイルもそのまま表示されます。Backup や *.bak のような名前はどの場所でも一致し、その名前のファイル、またはその名前のフォルダーとその中のすべてに一致します。/Photos/2019 のようにスラッシュを含む場合は、ファイルの最上位から一致させます。* は名前の任意の部分、** は任意の数のフォルダー、? は 1 文字を表します。大文字でも構いません。"
+
 msgid "Smallest group to list: files sharing a checksum, 2 to 100"
 msgstr "表示する最小の重複グループ：同じチェックサムを持つファイル数（2～100）"
 
@@ -1232,6 +1243,11 @@ msgstr "最後の手段として、外部ストレージやチームフォルダ
 
 msgid "The one account whose home folder this rule addresses."
 msgstr "このルールが対象とするホームフォルダーの持ち主である、1つのアカウントです。"
+
+#. TRANSLATORS: the path filter of the duplicates listing, a folder or a pattern such as *.bak
+#, php-format
+msgid "The path filter may be at most %s characters long."
+msgstr "パスフィルターは %s 文字以内にしてください。"
 
 msgid "The path is not in a folder you can write to."
 msgstr "このパスは書き込み可能なフォルダー内にありません。"

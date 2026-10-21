@@ -348,6 +348,33 @@ class PublicApiTest
 	}
 
 	/**
+	 * `path` keeps the groups with a file it matches, by name or by folder;
+	 * an empty one is no filter, and one longer than a path is refused.
+	 */
+	public function testThePathFilterKeepsTheGroupsWithAFileItMatches(): void
+	{
+		$listed = fn( string $path ): array => array_column(
+			$this->httpGet( "/api/v1/duplicates?algo=sha1&hash=$this->sharedSha1Hash&path=" . rawurlencode( $path ) )['duplicates'] ?? [],
+			'hash_value',
+		);
+		$name   = Server::get( IRootFolder::class )
+		                ->getUserFolder( self::$testUser )
+		                ->getFirstNodeById( $this->testFileId2 )
+		                ?->getName()
+		;
+
+		$this->assertSame( [ $this->sharedSha1Hash ], $listed( (string) $name ) );
+		$this->assertSame( [ $this->sharedSha1Hash ], $listed( '/fcias_http_*.dat' ) );
+		$this->assertSame( [ $this->sharedSha1Hash ], $listed( '' ) );
+		$this->assertSame( [], $listed( '/Nowhere' ) );
+
+		$refused = $this->httpGet( '/api/v1/duplicates?path=' . str_repeat( 'a', 256 ) );
+
+		$this->assertFalse( $refused['success'] ?? null );
+		$this->assertArrayNotHasKey( 'duplicates', $refused );
+	}
+
+	/**
 	 * Asked, the own listing says what the caller may do to each file: the
 	 * seeded pair are theirs, to the trash or for good, and each may take
 	 * the other's versions.

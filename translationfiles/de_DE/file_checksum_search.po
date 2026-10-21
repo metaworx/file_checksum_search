@@ -554,6 +554,10 @@ msgstr "Duplikate suchen"
 msgid "Find other files sharing a checksum with this file."
 msgstr "Andere Dateien mit derselben Prüfsumme wie diese Datei suchen."
 
+#. TRANSLATORS: the placeholder of the Duplicates page's path filter
+msgid "Folder, name or pattern"
+msgstr "Ordner, Name oder Muster"
+
 msgid "Force (delete and recalculate all checksums)"
 msgstr "Erzwingen (alle Prüfsummen löschen und neu berechnen)"
 
@@ -1159,6 +1163,13 @@ msgstr "Nur Gruppen zeigen, deren Hash zu dieser Eingabe passt"
 msgid "Show only groups whose hash matches what you type. Whole values come first, then those that start with what you typed. Turn on \"Match anywhere in the hash\" to match it in the middle of a hash too. Upper case is fine."
 msgstr "Nur Gruppen zeigen, deren Hash zu Ihrer Eingabe passt. Vollständige Treffer kommen zuerst, dann Hashes, die mit Ihrer Eingabe beginnen. Aktivieren Sie „An beliebiger Stelle im Hash suchen“, damit die Eingabe auch mitten in einem Hash gefunden wird. Groß- und Kleinschreibung spielt keine Rolle."
 
+msgid "Show only groups with a file at this path"
+msgstr "Nur Gruppen zeigen, die eine Datei unter diesem Pfad haben"
+
+#. TRANSLATORS: Backup, *.bak and /Photos/2019 are examples of what to type; keep them as they are
+msgid "Show only groups with a file at this path; the group keeps its other files. A name, such as Backup or *.bak, matches anywhere, a file of that name or a folder and everything in it. With a slash, such as /Photos/2019, it matches from the top of your files. * stands for any part of a name, ** for any number of folders, ? for one character. Upper case is fine."
+msgstr "Nur Gruppen zeigen, die eine Datei unter diesem Pfad haben; die Gruppe behält ihre übrigen Dateien. Ein Name wie Backup oder *.bak passt überall, auf eine Datei dieses Namens oder auf einen Ordner und alles darin. Mit Schrägstrich, wie /Photos/2019, passt er ab dem obersten Ordner Ihrer Dateien. * steht für einen beliebigen Teil eines Namens, ** für beliebig viele Ordner, ? für ein Zeichen. Groß- und Kleinschreibung spielt keine Rolle."
+
 msgid "Smallest group to list: files sharing a checksum, 2 to 100"
 msgstr "Kleinste aufzulistende Gruppe: Dateien mit gleicher Prüfsumme, 2 bis 100"
 
@@ -1242,6 +1253,11 @@ msgstr "Das letzte Mittel: Regeln für jeden Speicher, externe Speicher und Team
 
 msgid "The one account whose home folder this rule addresses."
 msgstr "Das Konto, dessen Home-Ordner diese Regel erfasst."
+
+#. TRANSLATORS: the path filter of the duplicates listing, a folder or a pattern such as *.bak
+#, php-format
+msgid "The path filter may be at most %s characters long."
+msgstr "Der Pfadfilter darf höchstens %s Zeichen lang sein."
 
 msgid "The path is not in a folder you can write to."
 msgstr "Der Pfad liegt in keinem Ordner, in den Sie schreiben dürfen."

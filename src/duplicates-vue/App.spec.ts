@@ -323,6 +323,24 @@ describe('duplicates App', () => {
 		expect(wrapper!.findAll('.db-file-actions')).toHaveLength(2)
 	})
 
+	// The path filter is read from the address, sent as typed after a pause,
+	// and written back.
+	it('filters by path from the address and as typed', async () => {
+		const { requests } = await open('#mine?path=Backup')
+		const listed = () => requests.filter((url) => url.includes('/api/v1/duplicates'))
+		const field = () => wrapper!.find<HTMLInputElement>('#fcias-duplicates-path')
+
+		expect(field().element.value).toBe('Backup')
+		expect(listed().at(-1)).toContain('path=Backup')
+
+		await field().setValue('*.bak')
+		await new Promise((resolve) => setTimeout(resolve, 350))
+		await flushPromises()
+
+		expect(listed().at(-1)).toContain('path=*.bak')
+		expect(written.at(-1)).toBe('replace #mine?path=*.bak')
+	})
+
 	// Empty files are left out by the server unless asked for; the switch
 	// asks, the address says so, and their group says what it is.
 	it('asks for the empty files only once the switch is on, and labels their group', async () => {

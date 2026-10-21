@@ -23,6 +23,7 @@ import DuplicateGroup from './DuplicateGroup.vue'
 import { useDuplicates, type DuplicateScope, type DuplicateGroup as GroupType } from '../composables/useDuplicates'
 import { deleteRows, restoreRow, type RestoreAs, type RowAction, type RowResult } from '../duplicateActions'
 import { sameParams, type ListingParams } from '../urlState'
+import { MAX_PATTERN_LENGTH } from '../pathPattern'
 import { type AlgoOption } from '../../algorithms'
 import { toastError, toastSuccess, toastUndo } from '../../toast'
 import { n, t } from '../../l10n'
@@ -70,6 +71,8 @@ const HELP = {
 	limit: t('file_checksum_search', 'How many groups one page shows. Nothing here is read from disk until you verify a group or a file, so a larger page costs a longer query, not longer reads.'),
 	// TRANSLATORS: "Match anywhere in the hash" is the switch beside the field; translate it as that switch does
 	hash: t('file_checksum_search', 'Show only groups whose hash matches what you type. Whole values come first, then those that start with what you typed. Turn on "Match anywhere in the hash" to match it in the middle of a hash too. Upper case is fine.'),
+	// TRANSLATORS: Backup, *.bak and /Photos/2019 are examples of what to type; keep them as they are
+	path: t('file_checksum_search', 'Show only groups with a file at this path; the group keeps its other files. A name, such as Backup or *.bak, matches anywhere, a file of that name or a folder and everything in it. With a slash, such as /Photos/2019, it matches from the top of your files. * stands for any part of a name, ** for any number of folders, ? for one character. Upper case is fine.'),
 	empty: t('file_checksum_search', 'Every empty file has the same checksum, so all of them form one large group per algorithm, and deleting one frees no space. They are left out unless this is on.'),
 }
 
@@ -85,6 +88,9 @@ const TITLES = {
 	anywhere: t('file_checksum_search', 'Match the term anywhere in the hash, not only at its start'),
 	hash: t('file_checksum_search', 'Show only groups whose hash matches this'),
 	hashPlaceholder: t('file_checksum_search', 'Whole hash or part of one'),
+	path: t('file_checksum_search', 'Show only groups with a file at this path'),
+	// TRANSLATORS: the placeholder of the Duplicates page's path filter
+	pathPlaceholder: t('file_checksum_search', 'Folder, name or pattern'),
 }
 
 const {
@@ -92,6 +98,7 @@ const {
 	canRecalc,
 	hash,
 	anywhere,
+	path,
 	includeEmpty,
 	// Renamed: the prop is the caller's wish, this ref is what the composable
 	// currently asks the server for. The watcher below copies one to the other.
@@ -125,6 +132,18 @@ function onHashInput(value: string | number): void {
 	hash.value = String(value)
 	clearTimeout(hashTimer)
 	hashTimer = setTimeout(() => {
+		resetOffset()
+		load()
+	}, 300)
+}
+
+/** The path filter reloads as it is typed, after the same pause as the hash. */
+let pathTimer: ReturnType<typeof setTimeout> | undefined
+
+function onPathInput(value: string | number): void {
+	path.value = String(value)
+	clearTimeout(pathTimer)
+	pathTimer = setTimeout(() => {
 		resetOffset()
 		load()
 	}, 300)
@@ -226,6 +245,7 @@ function currentParams(): ListingParams {
 	return {
 		hash: hash.value,
 		anywhere: anywhere.value,
+		path: path.value,
 		algo: algo.value,
 		includeEmpty: includeEmpty.value,
 		minCount: minCount.value,
@@ -242,10 +262,12 @@ function applyParams(next: ListingParams, force = false): void {
 	if (!force && sameParams(next, currentParams())) {
 		return
 	}
-	// A hash typed a moment ago must not load over what the address says.
+	// A hash or path typed a moment ago must not load over what the address says.
 	clearTimeout(hashTimer)
+	clearTimeout(pathTimer)
 	hash.value = next.hash
 	anywhere.value = next.anywhere
+	path.value = next.path
 	algo.value = next.algo
 	includeEmpty.value = next.includeEmpty
 	minCount.value = next.minCount
@@ -267,7 +289,7 @@ watch(() => props.params, (next) => {
 // The URL follows the controls. Reported on every change, a keystroke in
 // the hash field included; the page replaces the address rather than
 // pushing it, so that costs no history.
-watch([hash, anywhere, algo, includeEmpty, minCount, limit, offset], () => {
+watch([hash, anywhere, path, algo, includeEmpty, minCount, limit, offset], () => {
 	emit('update:params', currentParams())
 })
 
@@ -493,6 +515,7 @@ onBeforeUnmount(() => {
 	// The Others listing is destroyed on leaving the tab; a pending hash
 	// load would otherwise fire into a component that is gone.
 	clearTimeout(hashTimer)
+	clearTimeout(pathTimer)
 })
 </script>
 
@@ -575,6 +598,21 @@ onBeforeUnmount(() => {
 					:placeholder="TITLES.hashPlaceholder"
 					:title="TITLES.hash"
 					@update:model-value="onHashInput" />
+			</div>
+			<div class="db-field db-field--path">
+				<span class="db-label">
+					<label :for="`${props.idPrefix}-path`">{{ t('file_checksum_search', 'Path') }}</label>
+					<HelpPopover :text="HELP.path" :label="t('file_checksum_search', 'Path')" />
+				</span>
+				<NcTextField
+					:id="`${props.idPrefix}-path`"
+					:model-value="path"
+					:label="t('file_checksum_search', 'Path')"
+					label-outside
+					:maxlength="MAX_PATTERN_LENGTH"
+					:placeholder="TITLES.pathPlaceholder"
+					:title="TITLES.path"
+					@update:model-value="onPathInput" />
 			</div>
 			<!-- A filter with no field below it: on the fields' bottom edge,
 			     beside the button, with its help where every label has it. -->
@@ -682,6 +720,11 @@ onBeforeUnmount(() => {
    its label row. */
 .db-field--hash {
 	width: 420px;
+}
+
+/* A folder and a pattern, seldom longer than a few names. */
+.db-field--path {
+	width: 260px;
 }
 
 /* The switch is a caption-sized control here, not a settings row. */

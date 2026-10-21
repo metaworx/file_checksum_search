@@ -317,6 +317,22 @@ class TeamFolderAclTest
 	}
 
 	/**
+	 * The path filter reads each copy's path as the viewer has it: the copy
+	 * in `Secret` matches for the member who may read it, and for the one
+	 * denied it is no copy at all, so the group is not found through it.
+	 */
+	public function testThePathFilterMatchesOnlyWhatTheViewerReaches(): void
+	{
+		[ 'secret' => $secret, 'open' => $open, 'home' => $home ] = self::$fileId;
+
+		$request = 'GET /api/v1/duplicates?algo=sha1&hash=' . self::$hash . '&path=';
+
+		$this->assertSame( [ $secret, $open ], $this->idsOfGroups( $this->as( 'allowed', $request . 'Secret' ) ), 'the whole group, as the member sees it' );
+		$this->assertSame( [], $this->idsOfGroups( $this->as( 'denied', $request . 'Secret' ) ) );
+		$this->assertSame( [ $open, $home ], $this->idsOfGroups( $this->as( 'denied', $request . 'Open' ) ) );
+	}
+
+	/**
 	 * A page whose one file was denied comes back empty, and its `next`
 	 * says the listing goes on.
 	 */

@@ -75,6 +75,8 @@ interface State {
 	hash: string
 	/** Match the term anywhere in the hash rather than at its start. */
 	anywhere: boolean
+	/** Only the groups with a file this path pattern matches; empty is no filter. */
+	path: string
 	/** List the empty files' groups too, which the server leaves out by default. */
 	includeEmpty: boolean
 	minCount: number
@@ -103,6 +105,7 @@ export function useDuplicates() {
 		algo: '',
 		hash: '',
 		anywhere: false,
+		path: '',
 		includeEmpty: false,
 		minCount: 2,
 		limit: 50,
@@ -149,6 +152,9 @@ export function useDuplicates() {
 				if (state.anywhere) {
 					params.set('anywhere', '1')
 				}
+			}
+			if (state.path.trim()) {
+				params.set('path', state.path.trim())
 			}
 			if (state.includeEmpty) {
 				params.set('includeEmpty', '1')

@@ -12,6 +12,7 @@
  * accept: a shared link should open, not refuse.
  */
 import type { DuplicateScope } from './composables/useDuplicates'
+import { MAX_PATTERN_LENGTH } from './pathPattern'
 
 export type Tab = 'mine' | 'others' | 'help'
 
@@ -19,6 +20,8 @@ export type Tab = 'mine' | 'others' | 'help'
 export interface ListingParams {
 	hash: string
 	anywhere: boolean
+	/** Only the groups with a file this path pattern matches; empty is no filter. */
+	path: string
 	algo: string
 	/** List the empty files' groups too; the server leaves them out by default. */
 	includeEmpty: boolean
@@ -30,6 +33,7 @@ export interface ListingParams {
 export const LISTING_DEFAULTS: Readonly<ListingParams> = Object.freeze({
 	hash: '',
 	anywhere: false,
+	path: '',
 	algo: '',
 	includeEmpty: false,
 	minCount: 2,
@@ -71,6 +75,7 @@ export function listingFromParams(params: URLSearchParams, algorithmIds: readonl
 		hash,
 		// Meaningless without a term, and written only with one.
 		anywhere: hash !== '' && params.get('anywhere') === '1',
+		path: (params.get('path') ?? '').trim().slice(0, MAX_PATTERN_LENGTH),
 		algo: known ? algo : '',
 		includeEmpty: params.get('includeEmpty') === '1',
 		minCount: bounded(params.get('minCount'), 2, 100, LISTING_DEFAULTS.minCount),
@@ -99,6 +104,7 @@ export function sameScope(a: DuplicateScope, b: DuplicateScope): boolean {
 export function sameParams(a: ListingParams, b: ListingParams): boolean {
 	return a.hash === b.hash
 		&& a.anywhere === b.anywhere
+		&& a.path === b.path
 		&& a.algo === b.algo
 		&& a.includeEmpty === b.includeEmpty
 		&& a.minCount === b.minCount
@@ -117,6 +123,10 @@ export function fragmentFor(tab: Tab, listing: ListingParams | null = null, scop
 			if (listing.anywhere) {
 				params.set('anywhere', '1')
 			}
+		}
+		const path = listing.path.trim()
+		if (path) {
+			params.set('path', path)
 		}
 		if (listing.algo) {
 			params.set('algo', listing.algo)

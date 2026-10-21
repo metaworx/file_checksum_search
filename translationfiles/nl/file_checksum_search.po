@@ -554,6 +554,10 @@ msgstr "Duplicaten zoeken"
 msgid "Find other files sharing a checksum with this file."
 msgstr "Andere bestanden zoeken met dezelfde controlesom als dit bestand."
 
+#. TRANSLATORS: the placeholder of the Duplicates page's path filter
+msgid "Folder, name or pattern"
+msgstr "Map, naam of patroon"
+
 msgid "Force (delete and recalculate all checksums)"
 msgstr "Forceren (alle controlesommen verwijderen en opnieuw berekenen)"
 
@@ -1159,6 +1163,13 @@ msgstr "Alleen groepen tonen waarvan de hash hiermee overeenkomt"
 msgid "Show only groups whose hash matches what you type. Whole values come first, then those that start with what you typed. Turn on \"Match anywhere in the hash\" to match it in the middle of a hash too. Upper case is fine."
 msgstr "Alleen groepen tonen waarvan de hash overeenkomt met wat je typt. Volledige waarden komen eerst, daarna de waarden die beginnen met wat je hebt getypt. Schakel “Overal in de hash zoeken” in om het ook midden in een hash te vinden. Hoofdletters zijn geen probleem."
 
+msgid "Show only groups with a file at this path"
+msgstr "Alleen groepen tonen met een bestand op dit pad"
+
+#. TRANSLATORS: Backup, *.bak and /Photos/2019 are examples of what to type; keep them as they are
+msgid "Show only groups with a file at this path; the group keeps its other files. A name, such as Backup or *.bak, matches anywhere, a file of that name or a folder and everything in it. With a slash, such as /Photos/2019, it matches from the top of your files. * stands for any part of a name, ** for any number of folders, ? for one character. Upper case is fine."
+msgstr "Alleen groepen tonen met een bestand op dit pad; de groep houdt zijn andere bestanden. Een naam, zoals Backup of *.bak, past overal: een bestand met die naam, of een map en alles erin. Met een schuine streep, zoals /Photos/2019, past hij vanaf het begin van je bestanden. * staat voor een willekeurig deel van een naam, ** voor een willekeurig aantal mappen, ? voor één teken. Hoofdletters zijn geen probleem."
+
 msgid "Smallest group to list: files sharing a checksum, 2 to 100"
 msgstr "Kleinste groep om te tonen: bestanden met dezelfde controlesom, 2 tot en met 100"
 
@@ -1242,6 +1253,11 @@ msgstr "Het laatste redmiddel, voor elke opslag – externe opslag en teammappen
 
 msgid "The one account whose home folder this rule addresses."
 msgstr "Het ene account waarvan deze regel de thuismap betreft."
+
+#. TRANSLATORS: the path filter of the duplicates listing, a folder or a pattern such as *.bak
+#, php-format
+msgid "The path filter may be at most %s characters long."
+msgstr "Het padfilter mag hoogstens %s tekens lang zijn."
 
 msgid "The path is not in a folder you can write to."
 msgstr "Het pad ligt niet in een map waarin je mag schrijven."

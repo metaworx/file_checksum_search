@@ -319,6 +319,18 @@ paths:
           schema:
             type: boolean
             default: false
+        - name: path
+          in: query
+          required: false
+          description: >-
+            Keep only groups with a file whose `path` this path pattern matches, each group whole.
+            `*` within a name, `**` across folders, `?` one character; without `/` a name anywhere,
+            with `/` from the top; a folder matches everything in it; case is ignored. See
+            "Path patterns" in api-v1.md.
+          schema:
+            type: string
+            maxLength: 255
+            example: /Photos/2019
         - name: includeEmpty
           in: query
           required: false
@@ -345,6 +357,8 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/DuplicatesResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
         "429":
           $ref: "#/components/responses/RateLimited"
         "500":
@@ -814,6 +828,13 @@ paths:
           schema:
             type: boolean
             default: false
+        - name: path
+          in: query
+          required: false
+          description: As on the ordinary route — only groups with a file this path pattern matches
+          schema:
+            type: string
+            maxLength: 255
       responses:
         "200":
           description: As the ordinary route

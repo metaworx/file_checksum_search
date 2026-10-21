@@ -28,6 +28,10 @@ the first stable release.
   group, to the trash or for good, their versions kept in a copy that
   stays; rows restored; Undo after a move to the trash.
 
+- `GET /api/v1/duplicates`, `path`, and the Duplicates page's *Path*:
+  only groups with a file under a folder or matching a pattern
+  (`docs/api-v1.md`, *Path patterns*).
+
 ### Changed
 
 - Duplicates page: *Verify all* and *Verify* in a menu on each group and

@@ -19,6 +19,7 @@ use OCA\FileChecksumSearch\Service\HintedInvalidArgumentException;
 use OCA\FileChecksumSearch\Service\JobStatsService;
 use OCA\FileChecksumSearch\Service\MetadataService;
 use OCA\FileChecksumSearch\Service\MimeTypeService;
+use OCA\FileChecksumSearch\Service\PathPattern;
 use OCA\FileChecksumSearch\Service\PermissionService;
 use OCA\FileChecksumSearch\Service\RuleDefinitionValidator;
 use OCP\IGroupManager;
@@ -620,6 +621,47 @@ class ChecksumApiTest
 		$result = $this->api->findDuplicates( 'sha256', 3 );
 
 		$this->assertEmpty( $result['duplicates'] );
+	}
+
+	/**
+	 * The path filter reaches the listing compiled; an empty one is no filter.
+	 */
+	public function testFindDuplicatesHandsThePathFilterOnCompiled(): void
+	{
+		$this->signedInAs( 'bob' );
+
+		$patterns = [];
+		$this->hashIndexService->method( 'listDuplicatesForUser' )
+		                       ->willReturnCallback( function( ...$arguments ) use ( &$patterns ): array
+		                       {
+			                       $patterns[] = $arguments[9] ?? null;
+
+			                       return $this->emptyListing();
+		                       } )
+		;
+
+		$this->api->findDuplicates( path: '/Backup' );
+		$this->api->findDuplicates( path: ' ' );
+
+		$this->assertInstanceOf( PathPattern::class, $patterns[0] );
+		$this->assertTrue( $patterns[0]->matches( '/Backup/a.txt' ) );
+		$this->assertNull( $patterns[1] );
+	}
+
+	/**
+	 * A path filter longer than a path is refused, with a hint to show.
+	 */
+	public function testFindDuplicatesRefusesAPathFilterTooLong(): void
+	{
+		$this->signedInAs( 'bob' );
+
+		$this->hashIndexService->expects( $this->never() )
+		                       ->method( 'listDuplicatesForUser' )
+		;
+
+		$this->expectException( HintedInvalidArgumentException::class );
+
+		$this->api->findDuplicates( path: str_repeat( 'a', PathPattern::MAX_LENGTH + 1 ) );
 	}
 
 	public function testFindDuplicatesReturnsEmptyWhenNoUser(): void

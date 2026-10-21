@@ -394,6 +394,10 @@ class HashIndexService
 	 *                                                  accounts hold through a
 	 *                                                  share is located by the
 	 *                                                  share.
+	 * @param  PathPattern|null          $path          Only the groups with a
+	 *                                                  row whose `path` it
+	 *                                                  matches; their other
+	 *                                                  rows stay.
 	 *
 	 * @return array{duplicates: array<int, array{algo: string, hash_value: string, file_count: int, empty: bool,
 	 *                            files: array<int, array{fileid: int, path: string, name: string, owner: ?string,
@@ -416,6 +420,7 @@ class HashIndexService
 		bool    $anywhere = false,
 		bool    $includeEmpty = false,
 		bool    $canonical = false,
+		?PathPattern $path = null,
 	): array
 	{
 		// Who names the rows: the accounts' own views, read once.
@@ -506,6 +511,13 @@ class HashIndexService
 				}
 
 				if ( count( $files ) < $minCount || ! self::isDuplicate( $files ) )
+				{
+					continue;
+				}
+
+				// On the paths as the accounts see them, which only the
+				// rendering above knows: a mount's path differs per view.
+				if ( $path !== null && ! $path->matchesAny( array_column( $files, 'path' ) ) )
 				{
 					continue;
 				}

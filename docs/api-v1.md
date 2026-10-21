@@ -19,13 +19,14 @@ class as their single public contract.
 3. [The trash](#the-trash)
 4. [MIME types](#mime-types)
 5. [File state](#file-state)
-6. [PHP API](#php-api)
-7. [HTTP REST API](#http-rest-api)
-8. [Rules](#rules)
-9. [Authentication](#authentication)
-10. [Versioning & Compatibility](#versioning--compatibility)
-11. [Rate Limiting](#rate-limiting)
-12. [Error Handling](#error-handling)
+6. [Path patterns](#path-patterns)
+7. [PHP API](#php-api)
+8. [HTTP REST API](#http-rest-api)
+9. [Rules](#rules)
+10. [Authentication](#authentication)
+11. [Versioning & Compatibility](#versioning--compatibility)
+12. [Rate Limiting](#rate-limiting)
+13. [Error Handling](#error-handling)
 
 ---
 
@@ -255,6 +256,33 @@ a change on an external storage a scan takes in.
   and so, until the `missing-stamps` repair has stamped it,
   is a file whose hash rows have no stamp row;
   a version is where its file is ([Versions](#versions)).
+
+---
+
+## Path patterns
+
+The duplicates listing's `path` keeps the groups with a file whose `path`
+([Locations and paths](#locations-and-paths)) a pattern matches,
+and keeps each such group whole.
+The Duplicates page selects rows by the same patterns.
+
+- `*` matches within a name, `**` across folders, `?` one character.
+- A pattern without `/` matches a name anywhere:
+  a file of that name, or a folder of that name and everything in it.
+  `Backup` matches `/Backup/a.txt` and `/Old/Backup/a.txt`,
+  not `/Backup2/a.txt`.
+- A pattern with `/` matches from the top of the path:
+  the path itself, or a folder on it and everything in it.
+  `/Photos/2019` matches `/Photos/2019/x.jpg`, not `/Archive/Photos/2019/x.jpg`.
+  The leading `/` is optional.
+- A trailing `/` matches folders only.
+- Case is ignored.
+- A version or a trashed row is matched by the path its file had:
+  a version of `/Backup/a.txt` is under `/Backup`.
+- At most 255 characters; a longer one is refused with 400.
+
+Not a rule's glob ([Rules](#rules)), whose `*` crosses folders:
+a rule names an area, a pattern a place in someone's files.
 
 ---
 
@@ -745,6 +773,7 @@ findDuplicates(
     bool $anywhere = false,
     bool $includeEmpty = false,
     bool $withMimeType = false,
+    ?string $path = null,
 ): array
 ```
 
@@ -764,6 +793,7 @@ An administrator sees their own files, not everyone's.
 | `$anywhere` | `bool` | No | With `$hash`: match it anywhere in the hash, not only at the start |
 | `$includeEmpty` | `bool` | No | List the empty files' groups too (default `false`); see [Empty files](#empty-files) |
 | `$withMimeType` | `bool` | No | Add `mimetype` to each group: the type of the content its files share, as detected for the first of them that has one ([MIME types](#mime-types)) |
+| `$path` | `?string` | No | Only the groups with a file this [path pattern](#path-patterns) matches; empty is none. Over 255 characters: `HintedInvalidArgumentException` |
 
 `pagination.next_offset` is where the next page starts, null on the last,
 as on [route 5](#5-find-all-duplicates).
@@ -805,6 +835,7 @@ findDuplicatesFor(
     bool $includeEmpty = false,
     bool $canonical = false,
     bool $withMimeType = false,
+    ?string $path = null,
 ): array
 ```
 
@@ -1350,7 +1381,7 @@ hashing on request is exactly what `ignore` still allows.
 #### 5. Find All Duplicates
 
 ```
-GET /ocs/v2.php/apps/file_checksum_search/api/v1/duplicates?algo=<algo>&minCount=<n>&limit=<n>&offset=<n>&hash=<hash>&anywhere=<0|1>&includeEmpty=<0|1>
+GET /ocs/v2.php/apps/file_checksum_search/api/v1/duplicates?algo=<algo>&minCount=<n>&limit=<n>&offset=<n>&hash=<hash>&anywhere=<0|1>&path=<pattern>&includeEmpty=<0|1>
 ```
 
 | Parameter | Type | Required | Default | Max |
@@ -1361,9 +1392,14 @@ GET /ocs/v2.php/apps/file_checksum_search/api/v1/duplicates?algo=<algo>&minCount
 | `offset` | int | No | 0 | — |
 | `hash` | string | No | — | — |
 | `anywhere` | bool | No | false | — |
+| `path` | string | No | — | 255 characters |
 | `includeEmpty` | bool | No | false | — |
 | `mimetype` | bool | No | false | — |
 | `actions` | bool | No | false | — |
+
+`path` keeps the groups with a file whose `path` the
+[path pattern](#path-patterns) matches, each with all its files;
+the cross-account twin takes it too.
 
 `mimetype=1` gives each group `mimetype`, the type of the content its files
 share ([MIME types](#mime-types)).

@@ -12,6 +12,7 @@ namespace OCA\FileChecksumSearch\Tests\Unit\Controller;
 use OCA\FileChecksumSearch\Controller\PublicApiController;
 use OCA\FileChecksumSearch\Service\AlgorithmCatalogue;
 use OCA\FileChecksumSearch\Service\DuplicateActionService;
+use OCA\FileChecksumSearch\Service\HintedInvalidArgumentException;
 use OCP\Config\IUserConfig;
 use OCP\IAppConfig;
 use OCA\FileChecksumSearch\Public\ChecksumApi;
@@ -1219,6 +1220,38 @@ class PublicApiControllerTest
 		$this->assertInstanceOf( DataResponse::class, $response );
 		$data = $response->getData();
 		$this->assertSame( 0, $data['total_groups'] );
+	}
+
+	/**
+	 * The path filter goes to the listing as given, on either route; one
+	 * the listing refuses is the caller's to fix, with the hint to show.
+	 */
+	public function testFindAllDuplicatesPassesThePathFilterAndRefusesWhatTheListingRefuses(): void
+	{
+		$asked = [];
+
+		$this->api->method( 'findDuplicatesFor' )
+		          ->willReturnCallback(
+			          static function( ...$args ) use ( &$asked ): array
+			          {
+				          $asked[] = $args[10] ?? null;
+
+				          if ( $args[10] === 'too long' )
+				          {
+					          throw new HintedInvalidArgumentException( 'The path filter is too long.', 'Shorter, please.' );
+				          }
+
+				          return [ 'duplicates' => [], 'total_groups' => 0, 'pagination' => [ 'offset' => 0, 'limit' => 50, 'next_offset' => null ] ];
+			          },
+		          )
+		;
+
+		$this->controller->findAllDuplicates( path: '/Backup' );
+		$refused = $this->controller->findAllDuplicates( path: 'too long' );
+
+		$this->assertSame( [ '/Backup', 'too long' ], $asked );
+		$this->assertSame( Http::STATUS_BAD_REQUEST, $refused->getStatus() );
+		$this->assertSame( 'Shorter, please.', $refused->getData()['error'] );
 	}
 
 	public function testFindAllDuplicatesReturnsServerErrorOnException(): void

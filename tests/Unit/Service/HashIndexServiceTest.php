@@ -15,6 +15,7 @@ use OCA\FileChecksumSearch\Service\FileLocation;
 use OCA\FileChecksumSearch\Service\HashCalculationService;
 use OCA\FileChecksumSearch\Service\HashIndexService;
 use OCA\FileChecksumSearch\Service\MetadataService;
+use OCA\FileChecksumSearch\Service\PathPattern;
 use OCA\FileChecksumSearch\Tests\Unit\FciasUnitTestCase;
 use PHPUnit\Framework\MockObject\MockObject;
 
@@ -846,6 +847,28 @@ class HashIndexServiceTest
 
 		$this->assertSame( [ 'd' ], array_column( $second['duplicates'], 'hash_value' ) );
 		$this->assertNull( $second['pagination']['next_offset'] );
+	}
+
+	/**
+	 * A path filter keeps a group where one of its rows matches, with all
+	 * its rows; the groups it leaves out cost no room on the page.
+	 */
+	public function testAPathFilterKeepsTheGroupsWithAMatchingRowWhole(): void
+	{
+		$this->duplicates->method( 'findAllDuplicates' )
+		                 ->willReturn( [ $this->group( 'a', [ 1, 2 ] ), $this->group( 'b', [ 3, 4 ] ), $this->group( 'c', [ 5, 6 ] ) ] )
+		;
+		$this->filecacheService->method( 'batchLookupFilecachePaths' )
+		                       ->willReturnCallback(
+			                       fn( array $fileIds ): array => $this->paths( $fileIds ),
+		                       )
+		;
+
+		$result = $this->service->listDuplicatesForUser( 'bob', 'sha1', 2, 1, 0, path: PathPattern::of( 'f4.pdf' ) );
+
+		$this->assertSame( [ 'b' ], array_column( $result['duplicates'], 'hash_value' ) );
+		$this->assertSame( [ 3, 4 ], array_column( $result['duplicates'][0]['files'], 'fileid' ) );
+		$this->assertNull( $result['pagination']['next_offset'] );
 	}
 
 	/**

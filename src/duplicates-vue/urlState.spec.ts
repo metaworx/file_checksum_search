@@ -49,10 +49,11 @@ describe('listingFromParams', () => {
 	})
 
 	it('reads every field, trimmed and typed', () => {
-		const params = new URLSearchParams('hash=%20ABC%20&anywhere=1&algo=sha256&includeEmpty=1&minCount=3&limit=10&offset=20')
+		const params = new URLSearchParams('hash=%20ABC%20&anywhere=1&path=%20%2FPhotos%2F2019%20&algo=sha256&includeEmpty=1&minCount=3&limit=10&offset=20')
 		expect(listingFromParams(params)).toEqual({
 			hash: 'ABC',
 			anywhere: true,
+			path: '/Photos/2019',
 			algo: 'sha256',
 			includeEmpty: true,
 			minCount: 3,
@@ -66,6 +67,10 @@ describe('listingFromParams', () => {
 		expect(listingFromParams(params)).toMatchObject({ minCount: 2, limit: 500, offset: 0 })
 		expect(listingFromParams(new URLSearchParams('minCount=x&limit=y&offset=z')))
 			.toMatchObject({ minCount: 2, limit: 50, offset: 0 })
+	})
+
+	it('cuts a path longer than the field takes', () => {
+		expect(listingFromParams(new URLSearchParams(`path=${'a'.repeat(300)}`)).path).toHaveLength(255)
 	})
 
 	it('drops anywhere without a term', () => {
@@ -113,6 +118,7 @@ describe('fragmentFor', () => {
 		expect(fragmentFor('mine', { ...LISTING_DEFAULTS, anywhere: true })).toBe('#mine')
 		expect(fragmentFor('mine', { ...LISTING_DEFAULTS, hash: 'abc', anywhere: true })).toBe('#mine?hash=abc&anywhere=1')
 		expect(fragmentFor('mine', { ...LISTING_DEFAULTS, includeEmpty: true })).toBe('#mine?includeEmpty=1')
+		expect(fragmentFor('mine', { ...LISTING_DEFAULTS, path: ' *.bak ' })).toBe('#mine?path=*.bak')
 	})
 
 	it('writes the scope after the filters', () => {
@@ -123,7 +129,7 @@ describe('fragmentFor', () => {
 	})
 
 	it('round-trips through parse', () => {
-		const listing = { hash: 'DEADBEEF', anywhere: true, algo: 'sha256', includeEmpty: true, minCount: 3, limit: 25, offset: 50 }
+		const listing = { hash: 'DEADBEEF', anywhere: true, path: '/Archive/**/*.pdf', algo: 'sha256', includeEmpty: true, minCount: 3, limit: 25, offset: 50 }
 		const scope = { all: false, users: ['alice'], groups: ['team', 'other'] }
 		const { tab, params } = parseFragment(fragmentFor('others', listing, scope))
 		expect(tab).toBe('others')
@@ -137,6 +143,7 @@ describe('sameParams', () => {
 		expect(sameParams({ ...LISTING_DEFAULTS }, { ...LISTING_DEFAULTS })).toBe(true)
 		expect(sameParams({ ...LISTING_DEFAULTS }, { ...LISTING_DEFAULTS, offset: 1 })).toBe(false)
 		expect(sameParams({ ...LISTING_DEFAULTS }, { ...LISTING_DEFAULTS, includeEmpty: true })).toBe(false)
+		expect(sameParams({ ...LISTING_DEFAULTS }, { ...LISTING_DEFAULTS, path: 'Backup' })).toBe(false)
 	})
 })
 

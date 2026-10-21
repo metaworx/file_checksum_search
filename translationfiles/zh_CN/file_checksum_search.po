@@ -548,6 +548,10 @@ msgstr "查找重复文件"
 msgid "Find other files sharing a checksum with this file."
 msgstr "查找与此文件校验和相同的其他文件。"
 
+#. TRANSLATORS: the placeholder of the Duplicates page's path filter
+msgid "Folder, name or pattern"
+msgstr "文件夹、名称或模式"
+
 msgid "Force (delete and recalculate all checksums)"
 msgstr "重建（删除并重新计算所有校验和）"
 
@@ -1149,6 +1153,13 @@ msgstr "仅显示哈希值与此相符的文件组"
 msgid "Show only groups whose hash matches what you type. Whole values come first, then those that start with what you typed. Turn on \"Match anywhere in the hash\" to match it in the middle of a hash too. Upper case is fine."
 msgstr "仅显示哈希值与您的输入相符的文件组。完全匹配的值排在最前，其后是以您输入的内容开头的值。开启“在哈希值的任意位置匹配”，即可同时匹配哈希值中间的部分。不区分大小写。"
 
+msgid "Show only groups with a file at this path"
+msgstr "仅显示在此路径下有文件的文件组"
+
+#. TRANSLATORS: Backup, *.bak and /Photos/2019 are examples of what to type; keep them as they are
+msgid "Show only groups with a file at this path; the group keeps its other files. A name, such as Backup or *.bak, matches anywhere, a file of that name or a folder and everything in it. With a slash, such as /Photos/2019, it matches from the top of your files. * stands for any part of a name, ** for any number of folders, ? for one character. Upper case is fine."
+msgstr "仅显示在此路径下有文件的文件组；组内的其他文件仍会显示。名称（例如 Backup 或 *.bak）可在任意位置匹配：同名文件，或同名文件夹及其中的所有内容。包含斜杠时（例如 /Photos/2019），从您文件的顶层开始匹配。* 代表名称的任意部分，** 代表任意数量的文件夹，? 代表单个字符。不区分大小写。"
+
 msgid "Smallest group to list: files sharing a checksum, 2 to 100"
 msgstr "列出的最小文件组：校验和相同的文件数，2 到 100"
 
@@ -1232,6 +1243,11 @@ msgstr "最后的手段，涵盖所有存储，包括外部存储和团队文件
 
 msgid "The one account whose home folder this rule addresses."
 msgstr "此规则所针对的主目录所属的账号。"
+
+#. TRANSLATORS: the path filter of the duplicates listing, a folder or a pattern such as *.bak
+#, php-format
+msgid "The path filter may be at most %s characters long."
+msgstr "路径筛选条件最多只能有 %s 个字符。"
 
 msgid "The path is not in a folder you can write to."
 msgstr "该路径不在您可写入的文件夹中。"

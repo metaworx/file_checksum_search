@@ -560,6 +560,10 @@ msgstr "Rechercher les doublons"
 msgid "Find other files sharing a checksum with this file."
 msgstr "Rechercher d'autres fichiers ayant la même somme de contrôle que ce fichier."
 
+#. TRANSLATORS: the placeholder of the Duplicates page's path filter
+msgid "Folder, name or pattern"
+msgstr "Dossier, nom ou motif"
+
 msgid "Force (delete and recalculate all checksums)"
 msgstr "Forcer (supprimer et recalculer toutes les sommes de contrôle)"
 
@@ -1169,6 +1173,13 @@ msgstr "N'afficher que les groupes dont l'empreinte correspond à cette saisie"
 msgid "Show only groups whose hash matches what you type. Whole values come first, then those that start with what you typed. Turn on \"Match anywhere in the hash\" to match it in the middle of a hash too. Upper case is fine."
 msgstr "N'afficher que les groupes dont l'empreinte correspond à votre saisie. Les valeurs complètes viennent en premier, puis celles qui commencent par ce que vous avez saisi. Activez « Rechercher n'importe où dans l'empreinte » pour la trouver aussi au milieu d'une empreinte. Les majuscules sont acceptées."
 
+msgid "Show only groups with a file at this path"
+msgstr "N'afficher que les groupes ayant un fichier à ce chemin"
+
+#. TRANSLATORS: Backup, *.bak and /Photos/2019 are examples of what to type; keep them as they are
+msgid "Show only groups with a file at this path; the group keeps its other files. A name, such as Backup or *.bak, matches anywhere, a file of that name or a folder and everything in it. With a slash, such as /Photos/2019, it matches from the top of your files. * stands for any part of a name, ** for any number of folders, ? for one character. Upper case is fine."
+msgstr "N'afficher que les groupes ayant un fichier à ce chemin. Le groupe garde ses autres fichiers. Un nom, comme Backup ou *.bak, correspond partout, à un fichier de ce nom ou à un dossier et à tout son contenu. Avec une barre oblique, comme /Photos/2019, il correspond à partir de la racine de vos fichiers. Le signe * remplace une partie quelconque d'un nom, ** un nombre quelconque de dossiers et ? un seul caractère. Les majuscules sont acceptées."
+
 msgid "Smallest group to list: files sharing a checksum, 2 to 100"
 msgstr "Plus petit groupe à afficher : fichiers ayant la même somme de contrôle, de 2 à 100"
 
@@ -1252,6 +1263,11 @@ msgstr "Le dernier recours, qui couvre tous les stockages – stockages externes
 
 msgid "The one account whose home folder this rule addresses."
 msgstr "Le compte dont cette règle vise le dossier personnel."
+
+#. TRANSLATORS: the path filter of the duplicates listing, a folder or a pattern such as *.bak
+#, php-format
+msgid "The path filter may be at most %s characters long."
+msgstr "Le filtre de chemin ne peut pas dépasser %s caractères."
 
 msgid "The path is not in a folder you can write to."
 msgstr "Le chemin ne se trouve dans aucun dossier dans lequel vous pouvez écrire."

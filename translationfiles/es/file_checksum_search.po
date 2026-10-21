@@ -560,6 +560,10 @@ msgstr "Buscar duplicados"
 msgid "Find other files sharing a checksum with this file."
 msgstr "Buscar otros archivos que compartan una suma de verificación con este archivo."
 
+#. TRANSLATORS: the placeholder of the Duplicates page's path filter
+msgid "Folder, name or pattern"
+msgstr "Carpeta, nombre o patrón"
+
 msgid "Force (delete and recalculate all checksums)"
 msgstr "Forzar (eliminar y recalcular todas las sumas de verificación)"
 
@@ -1169,6 +1173,13 @@ msgstr "Mostrar solo los grupos cuyo hash coincida con esto"
 msgid "Show only groups whose hash matches what you type. Whole values come first, then those that start with what you typed. Turn on \"Match anywhere in the hash\" to match it in the middle of a hash too. Upper case is fine."
 msgstr "Mostrar solo los grupos cuyo hash coincida con lo que escriba. Primero aparecen los valores completos y luego los que empiezan por lo que ha escrito. Active «Buscar en cualquier parte del hash» para que también coincida en medio de un hash. Se admiten mayúsculas."
 
+msgid "Show only groups with a file at this path"
+msgstr "Mostrar solo los grupos con un archivo en esta ruta"
+
+#. TRANSLATORS: Backup, *.bak and /Photos/2019 are examples of what to type; keep them as they are
+msgid "Show only groups with a file at this path; the group keeps its other files. A name, such as Backup or *.bak, matches anywhere, a file of that name or a folder and everything in it. With a slash, such as /Photos/2019, it matches from the top of your files. * stands for any part of a name, ** for any number of folders, ? for one character. Upper case is fine."
+msgstr "Mostrar solo los grupos con un archivo en esta ruta; el grupo conserva sus demás archivos. Un nombre, como Backup o *.bak, coincide en cualquier lugar: un archivo con ese nombre, o una carpeta y todo su contenido. Con una barra, como /Photos/2019, coincide desde la raíz de sus archivos. * representa cualquier parte de un nombre, ** cualquier número de carpetas y ? un solo carácter. Se admiten mayúsculas."
+
 msgid "Smallest group to list: files sharing a checksum, 2 to 100"
 msgstr "Grupo más pequeño que listar: archivos que comparten una suma de verificación, de 2 a 100"
 
@@ -1252,6 +1263,11 @@ msgstr "El último recurso, que abarca todos los almacenamientos, incluidos el a
 
 msgid "The one account whose home folder this rule addresses."
 msgstr "La única cuenta a cuya carpeta personal se dirige esta regla."
+
+#. TRANSLATORS: the path filter of the duplicates listing, a folder or a pattern such as *.bak
+#, php-format
+msgid "The path filter may be at most %s characters long."
+msgstr "El filtro de ruta puede tener como máximo %s caracteres."
 
 msgid "The path is not in a folder you can write to."
 msgstr "La ruta no está en una carpeta en la que pueda escribir."

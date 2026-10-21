@@ -17,6 +17,8 @@ use OCA\FileChecksumSearch\Config\ConfigLexicon;
 use OCA\FileChecksumSearch\Service\DuplicateActionService;
 use OCA\FileChecksumSearch\Service\DuplicateService;
 use OCA\FileChecksumSearch\Service\HashListingService;
+use OCA\FileChecksumSearch\Service\HintedInvalidArgumentException;
+use OCA\FileChecksumSearch\Service\PathPattern;
 use OCP\AppFramework\ApiController;
 use OCP\AppFramework\Http;
 use OCP\AppFramework\Http\Attribute\ApiRoute;
@@ -818,7 +820,8 @@ class PublicApiController
 	 * Empty files are left out unless `includeEmpty` asks for them: they all
 	 * share one checksum per algorithm, and deleting a copy frees nothing.
 	 * With `actions`, each file says what the caller may do to it
-	 * ({@see DuplicateActionService::withActions()}).
+	 * ({@see DuplicateActionService::withActions()}). With `path`, only the
+	 * groups with a file the pattern matches ({@see PathPattern}).
 	 *
 	 * @noinspection PhpUnused
 	 */
@@ -836,6 +839,7 @@ class PublicApiController
 		bool    $includeEmpty = false,
 		bool    $mimetype = false,
 		bool    $actions = false,
+		?string $path = null,
 	): DataResponse
 	{
 		$scope = $this->scopeOrRefusal();
@@ -845,7 +849,7 @@ class PublicApiController
 			return $scope;
 		}
 
-		$response = $this->duplicatesFor( $scope, $algo, $minCount, $limit, $offset, $hash, $anywhere, $includeEmpty, withMimeType: $mimetype );
+		$response = $this->duplicatesFor( $scope, $algo, $minCount, $limit, $offset, $hash, $anywhere, $includeEmpty, withMimeType: $mimetype, path: $path );
 		$user     = $this->userSession->getUser();
 
 		// What the caller may do to each row, which opens a node per row:
@@ -895,6 +899,7 @@ class PublicApiController
 		?array  $groups = null,
 		bool    $includeEmpty = false,
 		bool    $mimetype = false,
+		?string $path = null,
 	): DataResponse
 	{
 		$scope = $this->sudoNamedOrRefusal( $users, $groups );
@@ -902,7 +907,7 @@ class PublicApiController
 		return $scope instanceof DataResponse
 			? $scope
 			: $this->markOpenable(
-				$this->duplicatesFor( $scope, $algo, $minCount, $limit, $offset, $hash, $anywhere, $includeEmpty, $this->readsCanonically(), $mimetype ),
+				$this->duplicatesFor( $scope, $algo, $minCount, $limit, $offset, $hash, $anywhere, $includeEmpty, $this->readsCanonically(), $mimetype, $path ),
 			);
 	}
 
@@ -1132,6 +1137,7 @@ class PublicApiController
 		bool    $includeEmpty = false,
 		bool    $canonical = false,
 		bool    $withMimeType = false,
+		?string $path = null,
 	): DataResponse
 	{
 		$refused = $this->mimeTypesNotDetected( $withMimeType );
@@ -1170,6 +1176,7 @@ class PublicApiController
 				includeEmpty: $includeEmpty,
 				canonical: $canonical,
 				withMimeType: $withMimeType,
+				path: $path,
 			);
 
 			// Whether the viewer may recalculate by hand, which is what
@@ -1178,6 +1185,14 @@ class PublicApiController
 			// does not name, as the sidebar hides its own: a button that can
 			// only fail is not an offer.
 			return new DataResponse( $result + [ 'canRecalc' => $this->mayRecalc() ] );
+		}
+		catch ( HintedInvalidArgumentException $e )
+		{
+			// A path filter too long: the caller's to shorten.
+			return new DataResponse(
+				[ 'success' => false, 'error' => $e->hint ],
+				Http::STATUS_BAD_REQUEST,
+			);
 		}
 		catch ( Throwable $e )
 		{

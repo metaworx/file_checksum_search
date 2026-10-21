@@ -554,6 +554,10 @@ msgstr "Find duplicates"
 msgid "Find other files sharing a checksum with this file."
 msgstr "Find other files sharing a checksum with this file."
 
+#. TRANSLATORS: the placeholder of the Duplicates page's path filter
+msgid "Folder, name or pattern"
+msgstr "Folder, name or pattern"
+
 msgid "Force (delete and recalculate all checksums)"
 msgstr "Force (delete and recalculate all checksums)"
 
@@ -1159,6 +1163,13 @@ msgstr "Show only groups whose hash matches this"
 msgid "Show only groups whose hash matches what you type. Whole values come first, then those that start with what you typed. Turn on \"Match anywhere in the hash\" to match it in the middle of a hash too. Upper case is fine."
 msgstr "Show only groups whose hash matches what you type. Whole values come first, then those that start with what you typed. Turn on \"Match anywhere in the hash\" to match it in the middle of a hash too. Upper case is fine."
 
+msgid "Show only groups with a file at this path"
+msgstr "Show only groups with a file at this path"
+
+#. TRANSLATORS: Backup, *.bak and /Photos/2019 are examples of what to type; keep them as they are
+msgid "Show only groups with a file at this path; the group keeps its other files. A name, such as Backup or *.bak, matches anywhere, a file of that name or a folder and everything in it. With a slash, such as /Photos/2019, it matches from the top of your files. * stands for any part of a name, ** for any number of folders, ? for one character. Upper case is fine."
+msgstr "Show only groups with a file at this path; the group keeps its other files. A name, such as Backup or *.bak, matches anywhere, a file of that name or a folder and everything in it. With a slash, such as /Photos/2019, it matches from the top of your files. * stands for any part of a name, ** for any number of folders, ? for one character. Upper case is fine."
+
 msgid "Smallest group to list: files sharing a checksum, 2 to 100"
 msgstr "Smallest group to list: files sharing a checksum, 2 to 100"
 
@@ -1242,6 +1253,11 @@ msgstr "The last resort, covering every storage — external storage and team fo
 
 msgid "The one account whose home folder this rule addresses."
 msgstr "The one account whose home folder this rule addresses."
+
+#. TRANSLATORS: the path filter of the duplicates listing, a folder or a pattern such as *.bak
+#, php-format
+msgid "The path filter may be at most %s characters long."
+msgstr "The path filter may be at most %s characters long."
 
 msgid "The path is not in a folder you can write to."
 msgstr "The path is not in a folder you can write to."

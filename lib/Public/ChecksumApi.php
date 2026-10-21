@@ -21,6 +21,7 @@ use OCA\FileChecksumSearch\Service\HashListingService;
 use OCA\FileChecksumSearch\Service\HintedInvalidArgumentException;
 use OCA\FileChecksumSearch\Service\MetadataService;
 use OCA\FileChecksumSearch\Service\MimeTypeService;
+use OCA\FileChecksumSearch\Service\PathPattern;
 use OCA\FileChecksumSearch\Service\RuleDefinitionValidator;
 use OCA\FileChecksumSearch\Service\PermissionService;
 use OCP\IGroupManager;
@@ -774,12 +775,14 @@ class ChecksumApi
 	 *                                     checksum per algorithm
 	 * @param  bool         $withMimeType  Each group gains `mimetype`, as
 	 *                                     {@see findDuplicatesFor()}.
+	 * @param  string|null  $path          Only the groups with a file it
+	 *                                     matches, as {@see findDuplicatesFor()}.
 	 *
 	 * @return array{duplicates: array, total_groups: int, pagination: array{offset: int, limit: int, next_offset: ?int}}
 	 *         `next_offset` is the $offset of the next page, null when there
 	 *         is none ({@see HashIndexService::listDuplicatesForUser()}).
 	 * @throws HintedInvalidArgumentException  For $withMimeType while detection
-	 *                                         is off.
+	 *                                         is off, or a $path too long.
 	 */
 	public function findDuplicates(
 		?string $algo = null,
@@ -790,9 +793,11 @@ class ChecksumApi
 		bool    $anywhere = false,
 		bool    $includeEmpty = false,
 		bool    $withMimeType = false,
+		?string $path = null,
 	): array
 	{
 		$this->assertMimeTypesReadable( $withMimeType );
+		$this->pathPatternOf( $path );
 
 		$user = $this->userSession->getUser();
 		$uid  = $user?->getUID();
@@ -810,7 +815,7 @@ class ChecksumApi
 			];
 		}
 
-		return $this->findDuplicatesFor( [ $uid ],$algo, $minCount, $limit, $offset, $hash, $anywhere, $includeEmpty, withMimeType: $withMimeType );
+		return $this->findDuplicatesFor( [ $uid ], $algo, $minCount, $limit, $offset, $hash, $anywhere, $includeEmpty, withMimeType: $withMimeType, path: $path );
 	}
 
 	/**
@@ -832,10 +837,14 @@ class ChecksumApi
 	 *                                           the type of the content its
 	 *                                           files share, as detected
 	 *                                           ({@see groupsWithMimeTypes()}).
+	 * @param  string|null        $path          Only the groups with a file
+	 *                                           whose `path` this pattern
+	 *                                           matches ({@see PathPattern});
+	 *                                           empty is no filter.
 	 *
 	 * @return array{duplicates: array, total_groups: int, pagination: array{offset: int, limit: int, next_offset: ?int}}
 	 * @throws HintedInvalidArgumentException  For $withMimeType while detection
-	 *                                         is off.
+	 *                                         is off, or a $path too long.
 	 */
 	public function findDuplicatesFor(
 		?array  $reachUids,
@@ -848,9 +857,11 @@ class ChecksumApi
 		bool    $includeEmpty = false,
 		bool    $canonical = false,
 		bool    $withMimeType = false,
+		?string $path = null,
 	): array
 	{
 		$this->assertMimeTypesReadable( $withMimeType );
+		$pattern = $this->pathPatternOf( $path );
 
 		$limit  = max( 1, min( $limit, 500 ) );
 		$answer = $this->hashIndexService->listDuplicatesForUser(
@@ -863,6 +874,7 @@ class ChecksumApi
 			$anywhere,
 			$includeEmpty,
 			$canonical,
+			$pattern,
 		);
 
 		if ( $withMimeType )
@@ -1427,6 +1439,31 @@ class ChecksumApi
 		{
 			throw new HintedInvalidArgumentException( 'MIME types were asked for, and MIME type detection is not on.', $refusal );
 		}
+	}
+
+	/**
+	 * A listing's path filter compiled; null for none.
+	 *
+	 * @throws HintedInvalidArgumentException  For one longer than
+	 *                                         {@see PathPattern::MAX_LENGTH}.
+	 */
+	private function pathPatternOf( ?string $path ): ?PathPattern
+	{
+		if ( $path === null )
+		{
+			return null;
+		}
+
+		if ( mb_strlen( $path ) > PathPattern::MAX_LENGTH )
+		{
+			throw new HintedInvalidArgumentException(
+				'The path filter is longer than ' . PathPattern::MAX_LENGTH . ' characters.',
+				// TRANSLATORS: the path filter of the duplicates listing, a folder or a pattern such as *.bak
+				$this->l10n->t( 'The path filter may be at most %s characters long.', [ (string) PathPattern::MAX_LENGTH ] ),
+			);
+		}
+
+		return PathPattern::of( $path );
 	}
 
 	/**
