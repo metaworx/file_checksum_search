@@ -60,11 +60,11 @@ const webdavUrl = ( path ) => `/remote.php/dav/files/${ adminUser }${ path }`
 // the page may legitimately show others, and asserting on the first one
 // would make this spec depend on an ordering nothing promises.
 const ownGroup = () => cy.get( '.db-group', { timeout: FIND_TIMEOUT } )
+	.filter( ( _i, el ) => el.querySelector( '.db-hash' )?.textContent?.trim() === DUP_HASH )
 
 // Past core's password dialog into the Others tab, where the dialog opens:
 // whether it does is not this spec's to know (`fciasConfirmPasswordIfAsked`).
 const intoOthers = () => cy.fciasConfirmPasswordIfAsked( adminPassword, ( $body ) => $body.find( '[data-testid="fcias-others"]' ).length > 0 )
-	.filter( ( _i, el ) => el.querySelector( '.db-hash' )?.textContent?.trim() === DUP_HASH )
 
 describe( 'FCIAS Duplicates page', () => {
 	before( () => {
