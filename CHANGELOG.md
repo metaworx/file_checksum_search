@@ -11,6 +11,8 @@ the first stable release.
 
 ## [Unreleased]
 
+## [0.30.0] - 2026-10-22
+
 ### Added
 
 - `GET /api/v1/duplicates`: each file carries `mtime` and `size`, and
