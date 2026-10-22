@@ -167,8 +167,8 @@ const reapE2eAccounts = () => {
 				for ( const user of Object.keys( users ) ) {
 					if ( user.startsWith( 'fcias_e2e_' ) ) {
 						cy.exec( `${ occ } user:delete '${ user }'`, { failOnNonZeroExit: false } )
-							.then( ( { code, stderr } ) => {
-								if ( code !== 0 ) {
+							.then( ( { exitCode, stderr } ) => {
+								if ( exitCode !== 0 ) {
 									cy.log( `reaper: could not delete ${ user }: ${ stderr }` )
 								}
 							} )

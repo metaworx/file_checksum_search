@@ -33,7 +33,7 @@ const EXEC_TIMEOUT = 300000
 
 /**
  * Every capture: one window, one theme, one locale (the browser's, forced
- * to en-US). 1600 wide, the headless window's own width (cypress.config.cjs):
+ * to en-US, and each account's, en_US, which the dates follow). 1600 wide, the headless window's own width (cypress.config.cjs):
  * the admin rules table needs the room beside the settings navigation, and
  * a viewport wider than the window is scaled down with every shot in it.
  */
@@ -98,6 +98,9 @@ const DUP_SHA1 = '0beec7b5ea3f0fdbc95d0dd47f3c5bc275da8a33'
 /** What the administrator's theme was before this run; put back in after(). */
 let adminThemeWas = null
 
+/** What the administrator's locale was before this run; put back in after(). */
+let adminLocaleWas = null
+
 /** The administrator's a.txt, for the sidebar shot; resolved in before(). */
 let adminFileId = null
 
@@ -143,17 +146,8 @@ const dav = ( account, method, path, body = undefined ) => cy.clearCookies().the
 
 const exec = ( command ) => cy.exec( `${ occ } ${ command }`, { timeout: EXEC_TIMEOUT, failOnNonZeroExit: false } )
 
-/**
- * One capture, named after the file it becomes in docs/Screenshots/ (the
- * config's after:screenshot hook moves it there). An element where the shot
- * is one part of the page; the viewport where the chrome around it is the
- * point.
- */
-const shot = ( name, subject = null ) => (
-	subject
-		? subject.screenshot( name, { overwrite: true } )
-		: cy.screenshot( name, { capture: 'viewport', overwrite: true } )
-)
+// Every capture is named after the file it becomes in docs/Screenshots/:
+// the config's after:screenshot hook moves it there.
 
 /** The `.fcias-section` an element sits in: one heading, its hint and its control. */
 const sectionOf = ( selector ) => cy.get( selector, { timeout: FIND_TIMEOUT } ).parents( '.fcias-section' ).first()
@@ -212,13 +206,21 @@ const shotAround = ( name, subject, margin = 24, trim = 0 ) => {
 		// Down to the lowest descendant, not the element's own box: a tab
 		// panel's box can end above the table it holds.
 		const bottom = Math.max( rect.bottom, ...Array.from( $el[ 0 ].querySelectorAll( '*' ) ).map( ( child ) => child.getBoundingClientRect().bottom ) )
+		// The viewport as the shot has it: a shot may set a taller one.
+		const view = $el[ 0 ].ownerDocument.defaultView
+		// Within the frame the settings scroll in: above it is the header,
+		// below it the page's background, as a strip.
+		const scroller = $el[ 0 ].closest( SETTINGS_SCROLLER )
+		const frame = scroller === null ? { top: 0, bottom: view.innerHeight } : scroller.getBoundingClientRect()
+		const ceiling = Math.max( 0, Math.ceil( frame.top ) )
+		const floor = Math.min( view.innerHeight, Math.floor( frame.bottom ) )
 		const x = Math.max( 0, Math.floor( rect.left ) - margin )
-		const y = Math.max( 0, Math.floor( rect.top ) - margin )
+		const y = Math.max( ceiling, Math.floor( rect.top ) - margin )
 		// The trim takes a scrollbar off an edge the crop reaches; a crop
-		// that ends inside the viewport gets a little room instead.
-		const width = Math.min( VIEWPORT.width - x, Math.ceil( rect.width ) + 2 * margin ) - trim
-		const wanted = Math.ceil( bottom - rect.top ) + 2 * margin
-		const height = y + wanted >= VIEWPORT.height ? VIEWPORT.height - y - trim : wanted + 12
+		// that ends inside the frame gets a little room instead.
+		const width = Math.min( view.innerWidth - x, Math.ceil( rect.width ) + 2 * margin ) - trim
+		const end = Math.ceil( bottom ) + margin
+		const height = end >= floor ? floor - y - trim : Math.min( end + 12, floor ) - y
 		cy.screenshot( name, { capture: 'viewport', overwrite: true, clip: { x, y, width, height } } )
 	} )
 }
@@ -233,6 +235,13 @@ const theme = ( uid, value ) => (
 	value === null
 		? exec( `user:setting --delete ${ uid } theming enabled-themes` )
 		: exec( `user:setting ${ uid } theming enabled-themes '${ JSON.stringify( [ value ] ) }'` )
+)
+
+/** Set the locale an account's dates follow; `null` puts it back to the instance default. */
+const locale = ( uid, value ) => (
+	value === null
+		? exec( `user:setting --delete ${ uid } core locale` )
+		: exec( `user:setting ${ uid } core locale ${ value }` )
 )
 
 describe( 'FCIAS screenshots', () => {
@@ -278,11 +287,21 @@ describe( 'FCIAS screenshots', () => {
 
 			// One theme for the whole set. The administrator's own choice is
 			// remembered and put back; the demo accounts stay light.
-			exec( `user:setting ${ adminUser } theming enabled-themes` ).then( ( { code, stdout } ) => {
-				adminThemeWas = code === 0 && stdout.trim() !== '' ? stdout.trim() : null
+			exec( `user:setting ${ adminUser } theming enabled-themes` ).then( ( { exitCode, stdout } ) => {
+				adminThemeWas = exitCode === 0 && stdout.trim() !== '' ? stdout.trim() : null
 			} )
 			for ( const uid of [ adminUser, demo.alice.user, demo.bob.user ] ) {
 				theme( uid, 'light' )
+			}
+
+			// One locale, as one theme: the page dates a row by the account's,
+			// not the browser's, and a Swiss date in an English shot reads
+			// wrong. The administrator's own is remembered and put back.
+			exec( `user:setting ${ adminUser } core locale` ).then( ( { exitCode, stdout } ) => {
+				adminLocaleWas = exitCode === 0 && stdout.trim() !== '' ? stdout.trim() : null
+			} )
+			for ( const uid of [ adminUser, demo.alice.user, demo.bob.user ] ) {
+				locale( uid, 'en_US' )
 			}
 
 			// A group on the second group folder, so the rule dialog and the
@@ -298,6 +317,10 @@ describe( 'FCIAS screenshots', () => {
 			for ( const { name, content } of ADMIN_FILES ) {
 				dav( admin, 'PUT', `${ ADMIN_DIR }/${ name }`, content )
 			}
+			// Each run's overwrite, and the Duplicates spec's, gives a.txt a
+			// version, and the sidebar shot would list them all above
+			// Recalculate: the folder's versions go, and nothing else's.
+			exec( `versions:cleanup --path="/${ adminUser }/files/${ ADMIN_DIR }" ${ adminUser }` )
 			cy.clearCookies()
 			cy.request( {
 				method: 'PROPFIND',
@@ -372,6 +395,7 @@ describe( 'FCIAS screenshots', () => {
 		exec( `groupfolders:group ${ DESIGN_ASSETS_FOLDER_ID } ${ DESIGNERS } --delete` )
 		exec( `group:delete ${ DESIGNERS }` )
 		theme( adminUser, adminThemeWas )
+		locale( adminUser, adminLocaleWas )
 		// The files, not the folders: Photos and Documents are alice's own on
 		// the demo instance, and may hold more than this spec put there.
 		for ( const { path } of ALICE_FILES ) {
@@ -390,7 +414,7 @@ describe( 'FCIAS screenshots', () => {
 	it( 'holds the state every capture starts from', () => {
 		exec( 'fcias:rules:list -o json' ).then( ( { stdout } ) => {
 			const rules = JSON.parse( stdout )
-			expect( rules.filter( ( rule ) => rule.enabled === 'yes' ).map( ( rule ) => rule.selector ).sort() )
+			expect( rules.filter( ( rule ) => rule.enabled === 'yes' ).map( ( rule ) => scopeOf( rule ).selector ).sort() )
 				.to.deep.equal( [ 'groupfolder:1', 'home:*', `home:${ demo.alice.user }` ] )
 		} )
 
@@ -438,18 +462,31 @@ describe( 'FCIAS screenshots', () => {
 		// Scrolled to its end — the section is the last thing on the page and
 		// shorter than the viewport, so that shows all of it — and the
 		// section cut out of the viewport.
+		// Twice: what renders above the table after the first scroll pushes
+		// it down, past that scroll's end, and the shot cut a row in half.
 		cy.get( '#app-content-vue', { timeout: FIND_TIMEOUT } ).scrollTo( 'bottom' )
+		cy.wait( 1000 )
+		cy.get( '#app-content-vue' ).scrollTo( 'bottom' )
 		cy.wait( 300 )
 		shotAround( 'Admin-Rules', sectionOf( '#fcias-rules-list' ), 16 )
 	} )
 
-	// Alice's personal page: the enforced band she may not touch, her own
-	// rule, the defaults below, and her preferred algorithm.
+	// Alice's personal page: her preferred algorithm, her own rule and the
+	// defaults below, down to Add rule. The Sudo tokens after it are a shot
+	// of their own, and with her app password listed the page runs past the
+	// window, which an element capture cannot scroll.
 	it( 'User-Settings', () => {
 		cy.login( demo.alice.user, demo.alice.password )
 		cy.visit( PERSONAL_URL )
 		cy.get( '#fcias-personal-rules', { timeout: FIND_TIMEOUT } ).should( 'contain', 'Photos' )
-		shot( 'User-Settings', cy.get( '#fcias-personal-settings' ) )
+		cy.get( '#fcias-personal-add', { timeout: FIND_TIMEOUT } ).then( ( $add ) => {
+			cy.get( '#fcias-personal-settings' ).then( ( $page ) => {
+				const page = $page[ 0 ].getBoundingClientRect()
+				const y = Math.max( 0, Math.floor( page.top ) )
+				const bottom = Math.ceil( $add[ 0 ].getBoundingClientRect().bottom ) + 16
+				cy.screenshot( 'User-Settings', { capture: 'viewport', overwrite: true, clip: { x: Math.floor( page.left ), y, width: Math.ceil( page.width ), height: bottom - y } } )
+			} )
+		} )
 	} )
 
 	// The Files sidebar on a hashed file, as the administrator: the hashes,
@@ -469,8 +506,8 @@ describe( 'FCIAS screenshots', () => {
 		} )
 	} )
 
-	// The Duplicates page on Mine, one group opened to its files and their
-	// Verify buttons.
+	// The Duplicates page on Mine, one group opened to its files, each with
+	// the date it last changed and a menu.
 	it( 'Duplicates-Page', () => {
 		cy.visit( DUPLICATES_URL )
 		cy.get( '.db-group', { timeout: FIND_TIMEOUT } ).should( 'have.length.at.least', 1 )
@@ -578,11 +615,15 @@ describe( 'FCIAS screenshots', () => {
 	} )
 
 	// A rule on a group folder that does not exist: inert, and badged so.
+	// The table whole, with every folder no rule covers below it: a taller
+	// viewport than the set's, within the window (cypress.config.cjs), and
+	// the table's top clear of the navigation toggle over the frame.
 	it( 'Provider-Missing', () => {
+		cy.viewport( VIEWPORT.width, 960 )
 		exec( 'fcias:rules:add --selector groupfolder:99 --path \'**\' --type include -a sha1 --enable' )
 		cy.visit( ADMIN_URL )
 		cy.get( '.fcias-provider-missing', { timeout: FIND_TIMEOUT } ).should( 'exist' )
-		cy.get( SETTINGS_SCROLLER ).scrollTo( 'bottom' )
+		sectionOf( '#fcias-rules-list' ).scrollIntoView( { offset: { top: -56, left: 0 } } )
 		cy.wait( 300 )
 		shotAround( 'Provider-Missing', sectionOf( '#fcias-rules-list' ), 16 )
 		ruleId( 'groupfolder:99' ).then( ( id ) => exec( `fcias:rules:delete ${ id } -y` ) )
