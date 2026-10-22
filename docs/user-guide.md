@@ -45,7 +45,7 @@ The pictures in this guide load from the project's site,
 so they need a connection to it; the words stand without them.
 
 ![The Duplicates page on Mine: one group opened to its files,
-each with a Verify button][shot-duplicates-page]
+each with the date it last changed and a menu][shot-duplicates-page]
 
 The page has **Mine** and **Help** (this guide), and — if your
 administrator lets you look across accounts — **Others** as well.
@@ -406,8 +406,7 @@ Open **Personal settings → File Checksum Index & Search**.
 The page has two tabs: **Rules**, and **Help**, which is this guide.
 
 ![The personal rules page: your preferred algorithm,
-an enforced rule you may not touch, your own rule,
-the defaults below][shot-user-settings]
+your own rule, the defaults below][shot-user-settings]
 
 Above the rules sits **Your preferred algorithm**:
 the one the sidebar's first quick button offers.

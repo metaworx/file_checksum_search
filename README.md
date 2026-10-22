@@ -1017,7 +1017,7 @@ FCIAS provides a global duplicate file browser at
 entry in the top navigation).
 
 ![The Duplicates page on Mine: one group opened to its files,
-each with a Verify button][shot-duplicates-page]
+each with the date it last changed and a menu][shot-duplicates-page]
 
 Features:
 

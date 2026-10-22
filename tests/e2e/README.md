@@ -178,7 +178,8 @@ a concurrent run's included.
 
 `screenshots.cy.js` puts the instance into the one state every shot starts from
 — the harness's `alice` and `bob` under readable display names and a password
-minted for the run, a light theme, a group on the second group folder,
+minted for the run, a light theme, an en_US locale,
+a group on the second group folder,
 files with hashes, three enabled rules across the bands — takes the set,
 and puts the instance back.
 It runs only when asked:
@@ -188,6 +189,12 @@ CYPRESS_capture=1 \
 CYPRESS_baseUrl=https://nextcloud-34.ddev.site \
 CYPRESS_occ="$HOME/projects/nextcloud_testing/scripts/nc-test 34 --env OC_PASS occ" \
 npx cypress run --spec tests/e2e/screenshots.cy.js
+```
+
+The store's slideshow is made from the listing's shots after them:
+
+```bash
+scripts/slideshow.sh docs/Screenshots/Slideshow.gif
 ```
 
 In an ordinary run it counts as pending.
