@@ -116,6 +116,7 @@ class DuplicateActionService
 		private readonly IDateTimeZone    $timeZone,
 		private readonly IL10N            $l10n,
 		private readonly LoggerInterface  $logger,
+		private readonly TrashQueue       $trashQueue,
 	) {
 	}
 
@@ -151,7 +152,7 @@ class DuplicateActionService
 	 * @param  int|null   $mergeInto  The file that takes the versions.
 	 *
 	 * @return list<array{fileid: int, kind: ?string, status: string, action?: string, reason?: string, versions?: list<array{timestamp: int, size: int, label: ?string}>, merge?: array{imported: int, skipped: int, failed: bool}}>
-	 *         In the order the rows were acted on.
+	 *         The rows refused, then the others in the order they went.
 	 */
 	public function delete(
 		IUser  $user,
@@ -163,17 +164,104 @@ class DuplicateActionService
 		?int   $mergeInto = null,
 	): array
 	{
-		$rows   = $this->open( $user, $fileIds, $algo, $hash );
-		$target = $mergeInto === null
+		return $this->deleteGroups(
+			$user,
+			[
+				[
+					'fileIds'   => $fileIds,
+					'algo'      => $algo,
+					'hash'      => $hash,
+					'mergeInto' => $mergeInto,
+				],
+			],
+			$forGood,
+			$dryRun,
+		)[0];
+	}
+
+	/**
+	 * {@see delete()} for several groups at once, their rows in one queue
+	 * ({@see TrashQueue}): a file going to the trash whose name the trash
+	 * took this second waits at the back while the others go, so that the
+	 * trash keeps every one of several files sharing a name. A group is
+	 * opened after the ones before it acted, as each would be alone; one
+	 * that cannot be opened answers for its rows alone.
+	 *
+	 * @param  list<array{fileIds: list<int>, algo: string, hash: string, mergeInto?: ?int}>  $groups
+	 *
+	 * @return list<list<array<string, mixed>>>  Per group, in their order,
+	 *                                           as {@see delete()} answers one.
+	 */
+	public function deleteGroups(
+		IUser $user,
+		array $groups,
+		bool  $forGood,
+		bool  $dryRun,
+	): array
+	{
+		$results = array_fill( 0, count( $groups ), [] );
+
+		foreach ( array_values( $groups ) as $i => $group )
+		{
+			try
+			{
+				$this->queueGroup( $user, $group, $forGood, $dryRun, $results[ $i ] );
+			}
+			catch ( Throwable $e )
+			{
+				$this->logger->error(
+					'FCIAS DuplicateActionService: a group could not be opened',
+					[
+						'app'       => Application::APP_ID,
+						'user'      => $user->getUID(),
+						'algo'      => $group['algo'],
+						'exception' => $e,
+					],
+				);
+
+				$results[ $i ] = array_map(
+					fn ( int $fileId ): array => [
+						'fileid' => $fileId,
+						'kind'   => null,
+						'status' => self::STATUS_FAILED,
+						'reason' => $this->l10n->t( 'It could not be deleted.' ),
+					],
+					$group['fileIds'],
+				);
+			}
+		}
+
+		$this->trashQueue->workOff( true );
+
+		return $results;
+	}
+
+	/**
+	 * One group's rows opened and weighed: a row refused, or in a dry run,
+	 * answered at once; any other handed to the queue, which answers it into
+	 * $results when it goes.
+	 *
+	 * @param  array{fileIds: list<int>, algo: string, hash: string, mergeInto?: ?int}  $group
+	 * @param  list<array<string, mixed>>                                               $results
+	 */
+	private function queueGroup(
+		IUser $user,
+		array $group,
+		bool  $forGood,
+		bool  $dryRun,
+		array &$results,
+	): void
+	{
+		$mergeInto = $group['mergeInto'] ?? null;
+		$rows      = $this->open( $user, $group['fileIds'], $group['algo'], $group['hash'] );
+		$target    = $mergeInto === null
 			? null
-			: $this->mergeTarget( $user, $mergeInto, $fileIds, $algo, $hash );
+			: $this->mergeTarget( $user, $mergeInto, $group['fileIds'], $group['algo'], $group['hash'] );
 
 		usort(
 			$rows,
 			static fn ( DuplicateRow $a, DuplicateRow $b ): int => ( self::ORDER[ $a->kind ?? '' ] ?? 9 ) <=> ( self::ORDER[ $b->kind ?? '' ] ?? 9 ),
 		);
-
-		$results = [];
 
 		foreach ( $rows as $row )
 		{
@@ -212,12 +300,25 @@ class DuplicateActionService
 
 			$result['action'] = $action;
 
-			$results[] = $dryRun
-				? $result + [ 'status' => self::STATUS_READY ]
-				: $result + $this->act( $user, $row, $action );
-		}
+			if ( $dryRun )
+			{
+				$results[] = $result + [ 'status' => self::STATUS_READY ];
 
-		return $results;
+				continue;
+			}
+
+			// Only a file to the trash is kept there by its name; the rest go
+			// for good, and wait for nothing.
+			$this->trashQueue->add(
+				$action === self::ACTION_TRASH && $row->kind === self::KIND_FILE
+					? $row->node?->getName()
+					: null,
+				function() use ( $user, $row, $action, $result, &$results ): void
+				{
+					$results[] = $result + $this->act( $user, $row, $action );
+				},
+			);
+		}
 	}
 
 	/**

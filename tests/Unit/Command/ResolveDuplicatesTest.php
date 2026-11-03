@@ -124,32 +124,13 @@ class ResolveDuplicatesTest
 			                       ),
 		                       )
 		;
-		$this->duplicateActions->method( 'delete' )
+		// Each group answered as the service answers one.
+		$this->duplicateActions->method( 'deleteGroups' )
 		                       ->willReturnCallback(
-			                       function( IUser $user, array $fileIds, string $algo, string $hash, bool $forGood, bool $dryRun, ?int $mergeInto ): array
-			                       {
-				                       $this->calls[] = [ 'forGood' => $forGood, 'mergeInto' => $mergeInto ];
-
-				                       if ( $dryRun )
-				                       {
-					                       $this->deleted[ "$algo:$hash" ] = [ ...$this->deleted[ "$algo:$hash" ] ?? [], ...$fileIds ];
-				                       }
-				                       else
-				                       {
-					                       $this->acted[ "$algo:$hash" ] = [ ...$this->acted[ "$algo:$hash" ] ?? [], ...$fileIds ];
-				                       }
-
-				                       return array_map(
-					                       fn ( int $fileId ): array => [ 'fileid' => $fileId, 'kind' => 'file' ] + match ( true )
-					                       {
-						                       isset( $this->refusals[ $fileId ] )                  => [ 'status' => 'refused', 'reason' => $this->refusals[ $fileId ] ],
-						                       $dryRun                                              => [ 'status' => 'ready', 'action' => $forGood ? 'delete' : 'trash' ],
-						                       in_array( $fileId, $this->failures, true )           => [ 'action' => 'trash', 'status' => 'failed', 'reason' => 'The storage is read-only.' ],
-						                       default                                              => [ 'action' => $forGood ? 'delete' : 'trash', 'status' => $forGood ? 'deleted' : 'trashed' ],
-					                       },
-					                       $fileIds,
-				                       );
-			                       },
+			                       fn( IUser $user, array $groups, bool $forGood, bool $dryRun ): array => array_map(
+				                       fn ( array $group ): array => $this->answered( $group['fileIds'], $group['algo'], $group['hash'], $forGood, $dryRun, $group['mergeInto'] ?? null ),
+				                       $groups,
+			                       ),
 		                       )
 		;
 
@@ -207,6 +188,46 @@ class ResolveDuplicatesTest
 
 
 //  other non-static methods
+
+	/**
+	 * One group's rows as the service answers them, recorded: a dry run's
+	 * as `deleted`, the others as `acted`.
+	 *
+	 * @param  list<int>  $fileIds
+	 *
+	 * @return list<array<string, mixed>>
+	 */
+	private function answered(
+		array  $fileIds,
+		string $algo,
+		string $hash,
+		bool   $forGood,
+		bool   $dryRun,
+		?int   $mergeInto,
+	): array
+	{
+		$this->calls[] = [ 'forGood' => $forGood, 'mergeInto' => $mergeInto ];
+
+		if ( $dryRun )
+		{
+			$this->deleted[ "$algo:$hash" ] = [ ...$this->deleted[ "$algo:$hash" ] ?? [], ...$fileIds ];
+		}
+		else
+		{
+			$this->acted[ "$algo:$hash" ] = [ ...$this->acted[ "$algo:$hash" ] ?? [], ...$fileIds ];
+		}
+
+		return array_map(
+			fn ( int $fileId ): array => [ 'fileid' => $fileId, 'kind' => 'file' ] + match ( true )
+			{
+				isset( $this->refusals[ $fileId ] )        => [ 'status' => 'refused', 'reason' => $this->refusals[ $fileId ] ],
+				$dryRun                                    => [ 'status' => 'ready', 'action' => $forGood ? 'delete' : 'trash' ],
+				in_array( $fileId, $this->failures, true ) => [ 'action' => 'trash', 'status' => 'failed', 'reason' => 'The storage is read-only.' ],
+				default                                    => [ 'action' => $forGood ? 'delete' : 'trash', 'status' => $forGood ? 'deleted' : 'trashed' ],
+			},
+			$fileIds,
+		);
+	}
 
 	private function user( string $uid ): IUser&MockObject
 	{

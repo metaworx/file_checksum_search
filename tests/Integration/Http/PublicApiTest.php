@@ -16,8 +16,11 @@ use OCA\FileChecksumSearch\Config\ConfigLexicon;
 use OCP\DB\QueryBuilder\IQueryBuilder;
 use OCA\FileChecksumSearch\Service\MetadataService;
 use OCA\FileChecksumSearch\Tests\Integration\DatabaseTestCase;
+use OCA\Files_Trashbin\Trash\ITrashManager;
+use OCP\App\IAppManager;
 use OCP\Files\IRootFolder;
 use OCP\IAppConfig;
+use OCP\IUserManager;
 use OCP\Server;
 use Throwable;
 
@@ -444,6 +447,57 @@ class PublicApiTest
 
 		$this->assertSame( 'restored', $response['result']['status'] ?? null, (string) json_encode( $response ) );
 		$this->assertSame( $path, $userFolder->getFirstNodeById( $this->testFileId2 )?->getPath() );
+	}
+
+	/**
+	 * Copies sharing a name, deleted in one batch, all reach the trash: it
+	 * keeps a file by its name and the second, and of two that share both
+	 * kept one.
+	 *
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
+	public function testABatchKeepsEveryCopySharingANameInTheTrash(): void
+	{
+		$apps = Server::get( IAppManager::class );
+
+		if ( ! $apps->isEnabledForUser( 'files_trashbin' ) )
+		{
+			$this->markTestSkipped( 'FCIAS integration: the trash is not enabled on this instance.' );
+		}
+
+		$apps->loadApp( 'files_trashbin' );
+
+		$userFolder = Server::get( IRootFolder::class )->getUserFolder( self::$testUser );
+		$run        = bin2hex( random_bytes( 4 ) );
+		$ids        = [];
+
+		foreach ( [ 'one', 'two' ] as $folder )
+		{
+			$id = $userFolder->newFolder( "fcias_http_same_{$run}_$folder" )
+			                 ->newFile( "fcias_http_same_$run.dat", self::FILE_1_CONTENT )
+			                 ->getId()
+			;
+
+			$ids[]                  = $id;
+			$this->cleanupFileIds[] = $id;
+
+			$this->insertHashMetadata( $id, [ 'sha1' => $this->sharedSha1Hash ] );
+		}
+
+		$response = $this->httpPost(
+			'/api/v1/duplicates/delete',
+			[ 'groups' => [ [ 'algo' => 'sha1', 'hash' => $this->sharedSha1Hash, 'fileIds' => $ids ] ] ],
+		);
+
+		$this->assertSame( [ 'trashed', 'trashed' ], array_column( $response['groups'][0]['results'] ?? [], 'status' ), (string) json_encode( $response ) );
+
+		$user = Server::get( IUserManager::class )->get( self::$testUser );
+		$this->assertNotNull( $user );
+
+		foreach ( $ids as $id )
+		{
+			$this->assertNotNull( Server::get( ITrashManager::class )->getTrashNodeById( $user, $id ), 'in the trash, not overwritten there' );
+		}
 	}
 
 	/**

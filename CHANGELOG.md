@@ -17,6 +17,11 @@ the first stable release.
   *Select duplicates* deletes them, to the trash or `--permanent`, for
   `--user` or `--all`, after a question unless `-y`; `--dry-run` reports.
 
+### Fixed
+
+- `POST /api/v1/duplicates/delete`, and the Duplicates page's delete:
+  copies sharing a name, deleted together, all reach the trash.
+
 ## [0.30.0] - 2026-10-22
 
 ### Added

@@ -346,11 +346,8 @@ class ResolveDuplicatesTest
 	}
 
 	/**
-	 * Three copies of one content in a folder of its own: the oldest in it,
-	 * then one in `Backup`, the newest in `Old`, each hashed.
-	 *
-	 * Each has a name of its own: the trash names what it takes by its name
-	 * and the second it went, and keeps one of two that share both.
+	 * Three copies of one content and one name in a folder of its own: the
+	 * oldest in it, then one in `Backup`, the newest in `Old`, each hashed.
 	 *
 	 * @return array{0: File, 1: File, 2: File, 3: string, 4: string}  the
 	 *         copies, oldest first, their hash, and the folder's name
@@ -368,7 +365,7 @@ class ResolveDuplicatesTest
 			$in   = $sub === ''
 				? $folder
 				: $folder->newFolder( $sub );
-			$file = $in->newFile( ( $sub === '' ? 'a' : strtolower( $sub ) ) . '.txt', $content );
+			$file = $in->newFile( 'a.txt', $content );
 			$file->touch( time() - $age );
 
 			$file = $this->home()->getFirstNodeById( $file->getId() );

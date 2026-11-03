@@ -623,8 +623,10 @@ HELP,
 	}
 
 	/**
-	 * The rows of each group handed to the service, as a dry run or not:
-	 * each group gains `results`, the service's answer per row, with its path.
+	 * The rows of the account's groups handed to the service together, as a
+	 * dry run or not, so that they share one queue: copies sharing a name go
+	 * to the trash a second apart, between the others. Each group gains
+	 * `results`, the service's answer per row, with its path.
 	 *
 	 * @param  list<array<string, mixed>>  $groups  As {@see resolve()} gives them.
 	 *
@@ -637,17 +639,27 @@ HELP,
 		bool  $dryRun,
 	): array
 	{
-		foreach ( $groups as &$group )
-		{
-			$group['results'] = [];
+		$answers = $this->duplicateActions->deleteGroups(
+			$user,
+			array_map(
+				static fn ( array $group ): array => [
+					'fileIds'   => $group['going'],
+					'algo'      => $group['algo'],
+					'hash'      => $group['hash_value'],
+					'mergeInto' => $group['mergeInto'],
+				],
+				$groups,
+			),
+			$forGood,
+			$dryRun,
+		);
 
-			foreach ( array_chunk( $group['going'], DuplicateActionService::MAX_ROWS ) as $part )
-			{
-				foreach ( $this->duplicateActions->delete( $user, $part, $group['algo'], $group['hash_value'], $forGood, $dryRun, $group['mergeInto'] ) as $result )
-				{
-					$group['results'][] = $result + [ 'path' => $group['paths'][ $result['fileid'] ] ?? '' ];
-				}
-			}
+		foreach ( $groups as $i => &$group )
+		{
+			$group['results'] = array_map(
+				static fn ( array $result ): array => $result + [ 'path' => $group['paths'][ $result['fileid'] ] ?? '' ],
+				$answers[ $i ] ?? [],
+			);
 		}
 
 		unset( $group );

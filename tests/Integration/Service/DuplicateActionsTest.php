@@ -190,6 +190,80 @@ class DuplicateActionsTest
 	}
 
 	/**
+	 * Copies sharing a name, trashed in one call, all reach the trash: it
+	 * keeps a file by its name and the second, and of two that share both
+	 * would keep one (D10 of AP DuplicateCli).
+	 *
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
+	public function testCopiesSharingANameAllReachTheTrash(): void
+	{
+		$name    = 'same-' . bin2hex( random_bytes( 3 ) ) . '.txt';
+		$content = "fcias dact $name";
+		$files   = [];
+
+		foreach ( [ 'one', 'two', 'three' ] as $folder )
+		{
+			$files[] = $this->home()->newFolder( "$folder-" . bin2hex( random_bytes( 3 ) ) )->newFile( $name, $content );
+		}
+
+		$hash = sha1( $content );
+
+		foreach ( $files as $file )
+		{
+			$this->hashed( $file, $content );
+		}
+
+		$results = $this->delete( array_map( static fn ( File $file ): int => $file->getId(), $files ), $hash );
+
+		foreach ( $files as $file )
+		{
+			$this->assertSame( DuplicateActionService::STATUS_TRASHED, $results[ $file->getId() ]['status'] ?? null );
+			$this->assertNotNull( Server::get( ITrashManager::class )->getTrashNodeById( $this->user(), $file->getId() ), 'in the trash, not overwritten there' );
+		}
+	}
+
+	/**
+	 * Several groups deleted together share one queue: a name the first
+	 * group trashed waits behind the second group's rows, and all reach
+	 * the trash.
+	 *
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
+	public function testGroupsDeletedTogetherKeepEveryCopyInTheTrash(): void
+	{
+		$name   = 'shared-' . bin2hex( random_bytes( 3 ) ) . '.txt';
+		$groups = [];
+		$files  = [];
+
+		foreach ( [ 'a', 'b' ] as $group )
+		{
+			$content = "fcias dact $name $group";
+			$ids     = [];
+
+			foreach ( [ 'one', 'two' ] as $folder )
+			{
+				$file    = $this->home()->newFolder( "$group-$folder-" . bin2hex( random_bytes( 3 ) ) )->newFile( $name, $content );
+				$ids[]   = $file->getId();
+				$files[] = $file;
+
+				$this->hashed( $file, $content );
+			}
+
+			$groups[] = [ 'fileIds' => $ids, 'algo' => 'sha1', 'hash' => sha1( $content ) ];
+		}
+
+		$answers = $this->service->deleteGroups( $this->user(), $groups, false, false );
+
+		$this->assertSame( [ [ 'trashed', 'trashed' ], [ 'trashed', 'trashed' ] ], array_map( static fn ( array $results ): array => array_column( $results, 'status' ), $answers ) );
+
+		foreach ( $files as $file )
+		{
+			$this->assertNotNull( Server::get( ITrashManager::class )->getTrashNodeById( $this->user(), $file->getId() ), 'in the trash, not overwritten there' );
+		}
+	}
+
+	/**
 	 * For good: past the trash, and its versions with it.
 	 *
 	 * @noinspection PhpUnhandledExceptionInspection

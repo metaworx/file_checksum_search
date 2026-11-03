@@ -1107,11 +1107,13 @@ class PublicApiController
 	}
 
 	/**
-	 * Rows of several groups deleted together, each group as one alone.
-	 * The groups' shape and their rows' count are the request's: one wrong
-	 * refuses it whole, before anything is opened. A group's algorithm and
-	 * hash, and what befalls its rows, are its own: a group that names
-	 * none, or that fails, is answered on its rows, and the others go on.
+	 * Rows of several groups deleted together, their rows in one queue
+	 * ({@see DuplicateActionService::deleteGroups()}), each group otherwise
+	 * as one alone. The groups' shape and their rows' count are the
+	 * request's: one wrong refuses it whole, before anything is opened. A
+	 * group's algorithm and hash, and what befalls its rows, are its own: a
+	 * group that names none, or that cannot be opened, is answered on its
+	 * rows, and the others go on.
 	 *
 	 * @param  array<array-key, mixed>  $body
 	 */
@@ -1165,22 +1167,53 @@ class PublicApiController
 		$forGood = ( $body['forGood'] ?? false ) === true;
 		$dryRun  = ( $body['dryRun'] ?? false ) === true;
 		$answer  = [];
+		$going   = [];
 
-		foreach ( $parsed as $group )
+		foreach ( $parsed as $i => $group )
 		{
-			$answer[] = [
+			$held = $this->groupHeld( $group['algo'], $group['hash'], $group['fileIds'], 'deleteDuplicates' );
+
+			$answer[ $i ] = [
 				'algo'    => $group['algo'],
 				'hash'    => $group['hash'],
-				'results' => $this->groupHeld( $group['algo'], $group['hash'], $group['fileIds'], 'deleteDuplicates' )
-				             ?? $this->answeredPerRow(
-					             $group['fileIds'],
-					             'deleteDuplicates',
-					             fn (): array => $this->duplicateActions->delete( $user, $group['fileIds'], $group['algo'], $group['hash'], $forGood, $dryRun, $group['mergeInto'] ),
-				             ),
+				'results' => $held ?? [],
 			];
+
+			if ( $held === null )
+			{
+				$going[ $i ] = $group;
+			}
 		}
 
-		return new DataResponse( [ 'groups' => $answer ] );
+		// The groups in one call, so that their rows share one queue: copies
+		// sharing a name, which a batch of duplicates mostly holds, then go
+		// to the trash a second apart without holding the rest up.
+		try
+		{
+			$results = $this->duplicateActions->deleteGroups( $user, array_values( $going ), $forGood, $dryRun );
+		}
+		catch ( Throwable $e )
+		{
+			$this->logger->error(
+				'FCIAS PublicApiController: deleteDuplicates failed for its groups',
+				[
+					'app'       => Application::APP_ID,
+					'exception' => $e,
+				],
+			);
+
+			$results = array_map(
+				fn ( array $group ): array => $this->eachRow( $group['fileIds'], DuplicateActionService::STATUS_FAILED, $this->l10n->t( 'Internal server error.' ) ),
+				array_values( $going ),
+			);
+		}
+
+		foreach ( array_keys( $going ) as $n => $i )
+		{
+			$answer[ $i ]['results'] = $results[ $n ] ?? [];
+		}
+
+		return new DataResponse( [ 'groups' => array_values( $answer ) ] );
 	}
 
 	/**
