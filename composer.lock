@@ -241,16 +241,16 @@
         },
         {
             "name": "mwx/nextcloud-testing",
-            "version": "0.2.0",
+            "version": "0.2.1",
             "source": {
                 "type": "git",
                 "url": "https://gitlab.com/metaworx/open-source/php-library/nextcloud-testing.git",
-                "reference": "e8f84153e21fcbaa448d2a6f8b64978e10f01d9b"
+                "reference": "514743edc5b1fbaaf68f335cf2b55fea6a6e95ac"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://gitlab.com/api/v4/projects/metaworx%2Fopen-source%2Fphp-library%2Fnextcloud-testing/repository/archive.zip?sha=e8f84153e21fcbaa448d2a6f8b64978e10f01d9b",
-                "reference": "e8f84153e21fcbaa448d2a6f8b64978e10f01d9b",
+                "url": "https://gitlab.com/api/v4/projects/metaworx%2Fopen-source%2Fphp-library%2Fnextcloud-testing/repository/archive.zip?sha=514743edc5b1fbaaf68f335cf2b55fea6a6e95ac",
+                "reference": "514743edc5b1fbaaf68f335cf2b55fea6a6e95ac",
                 "shasum": ""
             },
             "require": {
@@ -279,9 +279,9 @@
             "description": "Test doubles for a Nextcloud app's unit tests: an in-memory IAppConfig, IUserConfig, system config and ICache, an IL10N that answers in English, a MIME type detector, the Emitter stub, and a bootstrap that finds the server or falls back to nextcloud/ocp",
             "support": {
                 "issues": "https://gitlab.com/metaworx/open-source/php-library/nextcloud-testing/-/issues",
-                "source": "https://gitlab.com/metaworx/open-source/php-library/nextcloud-testing/-/tree/v0.2.0"
+                "source": "https://gitlab.com/metaworx/open-source/php-library/nextcloud-testing/-/tree/v0.2.1"
             },
-            "time": "2026-11-03T12:14:06+00:00"
+            "time": "2026-11-03T15:19:00+00:00"
         },
         {
             "name": "mwx/tools",
