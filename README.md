@@ -157,7 +157,7 @@ while the server's cached list of the store is stale.
 So the app updates itself:
 
 ```bash
-php occ fcias:update [--check] [--stable|--nightly] [--output json]
+php occ fcias:update [--check] [--stable|--nightly] [-o json]
 ```
 
 reads the store, clears that cache,

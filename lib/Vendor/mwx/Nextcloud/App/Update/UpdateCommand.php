@@ -79,7 +79,7 @@ abstract class UpdateCommand
              ->addOption( 'nightly', null, InputOption::VALUE_NONE, 'Take the newest release of any kind above the installed' )
              ->addOption(
                  'output',
-                 null,
+                 $this->outputShortcut(),
                  InputOption::VALUE_REQUIRED,
                  'Output format (plain, json or json_pretty)',
                  self::OUTPUT_PLAIN,
@@ -142,6 +142,15 @@ abstract class UpdateCommand
     protected function commandAliases(): array
     {
         return [];
+    }
+
+    /**
+     * The one-letter shortcut of `--output`, `-o` unless overridden;
+     * null where the app uses the letter for something else.
+     */
+    protected function outputShortcut(): ?string
+    {
+        return 'o';
     }
 
     /**

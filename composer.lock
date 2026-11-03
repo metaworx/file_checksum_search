@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "e203a8349ca293af4555f2307b3dac45",
+    "content-hash": "6ed6f676ff4a19ed3bfe89864c5c9c8f",
     "packages": [
         {
             "name": "bamarni/composer-bin-plugin",
@@ -241,16 +241,16 @@
         },
         {
             "name": "mwx/nextcloud-app",
-            "version": "0.1.1",
+            "version": "0.2.0",
             "source": {
                 "type": "git",
                 "url": "https://gitlab.com/metaworx/open-source/nextcloud/nextcloud-app.git",
-                "reference": "7e26455efc2559c0f42cb1fdba1f798effea2ac9"
+                "reference": "4df0e9967f70a75562e2660a43e4f4187a4cd59e"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://gitlab.com/api/v4/projects/metaworx%2Fopen-source%2Fnextcloud%2Fnextcloud-app/repository/archive.zip?sha=7e26455efc2559c0f42cb1fdba1f798effea2ac9",
-                "reference": "7e26455efc2559c0f42cb1fdba1f798effea2ac9",
+                "url": "https://gitlab.com/api/v4/projects/metaworx%2Fopen-source%2Fnextcloud%2Fnextcloud-app/repository/archive.zip?sha=4df0e9967f70a75562e2660a43e4f4187a4cd59e",
+                "reference": "4df0e9967f70a75562e2660a43e4f4187a4cd59e",
                 "shasum": ""
             },
             "require": {
@@ -279,9 +279,9 @@
             "description": "An app's own update command: reads the store, clears the fetcher's cache, and lets the server's installer take a stable or nightly release",
             "support": {
                 "issues": "https://gitlab.com/metaworx/open-source/nextcloud/nextcloud-app/-/issues",
-                "source": "https://gitlab.com/metaworx/open-source/nextcloud/nextcloud-app/-/tree/v0.1.1"
+                "source": "https://gitlab.com/metaworx/open-source/nextcloud/nextcloud-app/-/tree/v0.2.0"
             },
-            "time": "2026-11-03T18:01:24+00:00"
+            "time": "2026-11-03T21:41:17+00:00"
         },
         {
             "name": "mwx/nextcloud-testing",
