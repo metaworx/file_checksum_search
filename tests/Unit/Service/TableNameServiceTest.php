@@ -10,27 +10,23 @@ declare( strict_types=1 );
 namespace OCA\FileChecksumSearch\Tests\Unit\Service;
 
 use OCA\FileChecksumSearch\Service\TableNameService;
-use OCP\IConfig;
-use PHPUnit\Framework\MockObject\MockObject;
+use OCA\FileChecksumSearch\Tests\Unit\AppDoubles;
 use PHPUnit\Framework\TestCase;
 
 class TableNameServiceTest
     extends
     TestCase
 {
+	use AppDoubles;
+
 
 //  other non-static methods
 
 	private function makeService( string $prefix ): TableNameService
 	{
-		/** @var MockObject|IConfig $config */
-		$config = $this->createMock( IConfig::class );
-		$config->method( 'getSystemValueString' )
-		       ->with( 'dbtableprefix', 'oc_' )
-		       ->willReturn( $prefix )
-		;
+		$this->systemValues['dbtableprefix'] = $prefix;
 
-		return new TableNameService( $config );
+		return new TableNameService( $this->systemConfig() );
 	}
 
 	public function testGetPrefixReturnsConfiguredPrefix(): void
@@ -49,6 +45,13 @@ class TableNameServiceTest
 		$this->assertSame( 'nc_custom_', $service->getPrefix() );
 	}
 
+	public function testGetPrefixIsServersDefaultWhereNoneIsConfigured(): void
+	{
+		$service = new TableNameService( $this->systemConfig() );
+
+		$this->assertSame( 'oc_', $service->getPrefix() );
+	}
+
 	public function testGetFilecacheTableNameUsesConfiguredPrefix(): void
 	{
 		$service = $this->makeService( 'oc_' );
@@ -65,19 +68,20 @@ class TableNameServiceTest
 
 	public function testPrefixIsReadOnceAtConstructionTime(): void
 	{
-		/** @var MockObject|IConfig $config */
-		$config = $this->createMock( IConfig::class );
+		$this->systemValues['dbtableprefix'] = 'oc_';
+
+		$config = $this->systemConfig();
 		$config->expects( $this->once() )
 		       ->method( 'getSystemValueString' )
 		       ->with( 'dbtableprefix', 'oc_' )
-		       ->willReturn( 'oc_' )
 		;
 
 		$service = new TableNameService( $config );
 
 		// Calling the getters repeatedly must not re-read config — the
-		// expects( once() ) above is the real assertion; these check that the
-		// cached answers stay the same rather than discarding them.
+		// expects( once() ) above is the real assertion, counting the reads
+		// while the double answers; these check that the cached answers stay
+		// the same rather than discarding them.
 		$this->assertSame( 'oc_', $service->getPrefix() );
 		$this->assertSame( 'oc_', $service->getPrefix() );
 		$this->assertSame( 'oc_filecache', $service->getFilecacheTableName() );

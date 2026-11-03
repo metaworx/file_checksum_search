@@ -58,7 +58,7 @@ class FilecacheServiceTest
 		$this->db         = $this->createMock( IDBConnection::class );
 		$this->setUpQueryBuilderMock();
 
-		$this->config      = $this->createMock( IConfig::class );
+		$this->config      = $this->systemConfig();
 		$this->userManager = $this->createMock( IUserManager::class );
 		$this->encryption  = $this->createMock( IEncryptionManager::class );
 
@@ -1012,10 +1012,7 @@ class FilecacheServiceTest
 	 */
 	public function testListAddressableStoragesLeavesOutWhatOtherSelectorsOwn(): void
 	{
-		$this->config->method( 'getSystemValue' )
-		             ->with( 'datadirectory', '' )
-		             ->willReturn( '/var/www/html/data' )
-		;
+		$this->systemValues['datadirectory'] = '/var/www/html/data';
 
 		// The SQL already drops home:: / object::user: / shared::; what
 		// reaches PHP is the rest, and two of those belong to other

@@ -20,7 +20,7 @@ use OCA\FileChecksumSearch\State\Format\JsonFormat;
 use OCA\FileChecksumSearch\State\Format\SumFormat;
 use OCA\FileChecksumSearch\State\ImportPolicy;
 use OCA\FileChecksumSearch\State\ImportReport;
-use OCP\IConfig;
+use OCA\FileChecksumSearch\Tests\Unit\AppDoubles;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\LoggerInterface;
@@ -36,6 +36,8 @@ class ImportServiceTest
     extends
     TestCase
 {
+	use AppDoubles;
+
 
 //  constants
 
@@ -70,16 +72,13 @@ class ImportServiceTest
 		$this->metadataService  = $this->createMock( MetadataService::class );
 		$this->filecacheService = $this->createMock( FilecacheService::class );
 
-		$config = $this->createMock( IConfig::class );
-		$config->method( 'getSystemValueString' )
-		       ->willReturnMap( [ [ 'instanceid', '', self::HERE ] ] )
-		;
+		$this->systemValues = [ 'instanceid' => self::HERE ];
 
 		$this->service = new ImportService(
 			$this->appConfigService,
 			$this->metadataService,
 			$this->filecacheService,
-			$config,
+			$this->systemConfig(),
 			$this->createMock( LoggerInterface::class ),
 		);
 

@@ -20,8 +20,8 @@ use OCA\FileChecksumSearch\State\Format\FormatOptions;
 use OCA\FileChecksumSearch\State\Format\JsonFormat;
 use OCA\FileChecksumSearch\State\Format\SumFormat;
 use OCA\FileChecksumSearch\State\HashRecord;
+use OCA\FileChecksumSearch\Tests\Unit\AppDoubles;
 use OCP\App\IAppManager;
-use OCP\IConfig;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\LoggerInterface;
@@ -33,6 +33,8 @@ class ExportServiceTest
     extends
     TestCase
 {
+	use AppDoubles;
+
 
 //  private properties
 
@@ -60,17 +62,14 @@ class ExportServiceTest
 		           ->willReturn( '0.19.0' )
 		;
 
-		$config = $this->createMock( IConfig::class );
-		$config->method( 'getSystemValueString' )
-		       ->willReturn( 'ocinstanceid' )
-		;
+		$this->systemValues = [ 'instanceid' => 'ocinstanceid' ];
 
 		$this->service = new ExportService(
 			$this->appConfigService,
 			$this->metadataService,
 			$this->filecacheService,
 			$appManager,
-			$config,
+			$this->systemConfig(),
 			$this->createMock( LoggerInterface::class ),
 		);
 	}
