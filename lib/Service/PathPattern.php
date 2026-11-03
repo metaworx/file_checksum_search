@@ -41,6 +41,7 @@ readonly class PathPattern
 
 	private function __construct(
 		private string $regex,
+		private int    $folders,
 	) {
 	}
 
@@ -111,7 +112,11 @@ readonly class PathPattern
 			? '/.+$'
 			: '(?:/.*)?$';
 
-		return new self( '#' . $start . $body . $end . '#iu' );
+		$folders = $anchored
+			? count( array_diff( explode( '/', $text ), [ '**', '' ] ) )
+			: 0;
+
+		return new self( '#' . $start . $body . $end . '#iu', $folders );
 	}
 
 	/** The path a row is matched by: no scheme, no leading slash. */
@@ -126,6 +131,17 @@ readonly class PathPattern
 	public function matches( string $path ): bool
 	{
 		return preg_match( $this->regex, self::subjectOf( $path ) ) === 1;
+	}
+
+	/**
+	 * How many parts of a path the pattern names from the root, a `**`
+	 * naming none: `/Backup/keep` two, `/Backup` one, and a pattern
+	 * matching a name anywhere, such as `*.bak`, none. Where two patterns
+	 * match one path, the one naming more is the more specific.
+	 */
+	public function folders(): int
+	{
+		return $this->folders;
 	}
 
 	/**

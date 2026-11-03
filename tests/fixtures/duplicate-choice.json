@@ -1,0 +1,75 @@
+[
+	{
+		"case": "the oldest file stays",
+		"files": [
+			{ "fileid": 1, "path": "/b/a.txt", "mtime": 300 },
+			{ "fileid": 2, "path": "/c/a.txt", "mtime": 100 },
+			{ "fileid": 3, "path": "/a/a.txt", "mtime": 200 }
+		],
+		"best": [ 1, 2, 3 ],
+		"keeper": 2
+	},
+	{
+		"case": "of two as old, the first path stays",
+		"files": [
+			{ "fileid": 1, "path": "/b/a.txt", "mtime": 100 },
+			{ "fileid": 2, "path": "/a/a.txt", "mtime": 100 }
+		],
+		"best": [ 1, 2 ],
+		"keeper": 2
+	},
+	{
+		"case": "a version is no copy beside a file",
+		"files": [
+			{ "fileid": 1, "path": "/a.txt", "mtime": 300 },
+			{ "fileid": 2, "path": "versions:///b.txt", "mtime": 100, "version": { "fileid": 7, "timestamp": "1970-01-01T00:01:40+00:00" } }
+		],
+		"best": [ 1 ],
+		"keeper": 1
+	},
+	{
+		"case": "a file in the trash is no copy",
+		"files": [
+			{ "fileid": 1, "path": "/a.txt", "mtime": 300 },
+			{ "fileid": 2, "path": "trash:///a.txt", "mtime": 100, "trash": { "deletedAt": "1970-01-01T00:05:00+00:00" } }
+		],
+		"best": [ 1 ],
+		"keeper": 1
+	},
+	{
+		"case": "of versions alone, the one held longest ago stays, by its own time",
+		"files": [
+			{ "fileid": 1, "path": "versions:///a.txt", "mtime": 100, "version": { "fileid": 7, "timestamp": "1970-01-01T00:05:00+00:00" } },
+			{ "fileid": 2, "path": "versions:///b.txt", "mtime": 300, "version": { "fileid": 8, "timestamp": "1970-01-01T00:01:40+00:00" } }
+		],
+		"best": [ 1, 2 ],
+		"keeper": 2
+	},
+	{
+		"case": "a group in the trash alone has no copy to keep",
+		"files": [
+			{ "fileid": 1, "path": "trash:///a.txt", "mtime": 100, "trash": { "deletedAt": "1970-01-01T00:05:00+00:00" } },
+			{ "fileid": 2, "path": "trash:///b.txt", "mtime": 200, "version": { "fileid": 7, "timestamp": "1970-01-01T00:01:40+00:00" }, "trash": { "deletedAt": "1970-01-01T00:05:00+00:00" } }
+		],
+		"best": [],
+		"keeper": null
+	},
+	{
+		"case": "a best copy the account may not delete stays anyway, so none is kept",
+		"files": [
+			{ "fileid": 1, "path": "/a.txt", "mtime": 300, "actions": [] },
+			{ "fileid": 2, "path": "/b.txt", "mtime": 100 }
+		],
+		"best": [ 1, 2 ],
+		"keeper": null
+	},
+	{
+		"case": "a copy that may only go to the trash may be chosen",
+		"files": [
+			{ "fileid": 1, "path": "/a.txt", "mtime": 300 },
+			{ "fileid": 2, "path": "/b.txt", "mtime": 100, "actions": [ "trash" ] }
+		],
+		"best": [ 1, 2 ],
+		"keeper": 2
+	}
+]

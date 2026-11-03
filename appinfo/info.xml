@@ -228,6 +228,7 @@ O que você recebe:
 		<command>OCA\FileChecksumSearch\Command\MimeType\Refresh</command>
 		<command>OCA\FileChecksumSearch\Command\MimeType\Delete</command>
 		<command>OCA\FileChecksumSearch\Command\FindDuplicates</command>
+		<command>OCA\FileChecksumSearch\Command\ResolveDuplicates</command>
 		<command>OCA\FileChecksumSearch\Command\Rules\ListRules</command>
 		<command>OCA\FileChecksumSearch\Command\Rules\AddRule</command>
 		<command>OCA\FileChecksumSearch\Command\Rules\ModifyRule</command>

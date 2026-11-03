@@ -4,6 +4,7 @@
  */
 
 import { describe, expect, it } from 'vitest'
+import choiceCases from '../../tests/fixtures/duplicate-choice.json'
 import type { DuplicateFileItem, DuplicateGroup } from './composables/useDuplicates'
 import {
 	bestCopies,
@@ -205,6 +206,17 @@ describe('a group\'s best copies', () => {
 	it('are its files outside the trash, else its versions outside the trash', () => {
 		expect(bestCopies(group('a', [file(1, '/a'), file(2, 'versions:///a', version), file(3, 'trash:///a', trash)])).map((row) => row.fileid)).toEqual([1])
 		expect(bestCopies(group('a', [file(2, 'versions:///a', version), file(3, 'trash:///a', trash)])).map((row) => row.fileid)).toEqual([2])
+	})
+})
+
+// The cases are the occ command's too (DuplicateChoiceTest): one table, so
+// that the command keeps the copy Select duplicates keeps.
+describe('the copies a group keeps, as the command keeps them', () => {
+	it.each(choiceCases.map((entry) => [entry.case, entry] as const))('%s', (_, entry) => {
+		const g = group('a', entry.files.map((row) => file(row.fileid, row.path, row as Partial<DuplicateFileItem>)))
+
+		expect(bestCopies(g).map((row) => row.fileid)).toEqual(entry.best)
+		expect(keeperOf(g)).toBe(entry.keeper)
 	})
 })
 

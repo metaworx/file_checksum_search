@@ -60,6 +60,17 @@ class PathPatternTest
 		$this->assertNull( PathPattern::of( '  / ' ) );
 	}
 
+	/** D8-A of AP DuplicateCli: how specific a pattern is, for --path against --no-path. */
+	public function testAPatternNamesTheFoldersItReachesFromTheRoot(): void
+	{
+		$this->assertSame( 2, PathPattern::of( '/Backup/keep' )?->folders() );
+		$this->assertSame( 2, PathPattern::of( 'Backup/keep/' )?->folders() );
+		$this->assertSame( 1, PathPattern::of( '/Backup' )?->folders() );
+		$this->assertSame( 2, PathPattern::of( '/Archive/**/*.pdf' )?->folders(), 'a ** names no folder' );
+		$this->assertSame( 0, PathPattern::of( 'Backup' )?->folders(), 'a name anywhere names none' );
+		$this->assertSame( 0, PathPattern::of( '*.bak' )?->folders() );
+	}
+
 	public function testAGroupMatchesWhereOneOfItsRowsDoes(): void
 	{
 		$pattern = PathPattern::of( '/Backup' );
