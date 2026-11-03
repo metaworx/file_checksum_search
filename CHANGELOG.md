@@ -13,9 +13,9 @@ the first stable release.
 
 ### Added
 
-- `occ fcias:resolve-duplicates --dry-run`: the copies of an account's
-  duplicates *Select duplicates* would delete, for `--user` or `--all`,
-  chosen by `--path`, `--no-path`, `--keep` or `--remove-last`.
+- `occ fcias:resolve-duplicates`: an account's duplicates deleted as
+  *Select duplicates* deletes them, to the trash or `--permanent`, for
+  `--user` or `--all`, after a question unless `-y`; `--dry-run` reports.
 
 ## [0.30.0] - 2026-10-22
 
