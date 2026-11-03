@@ -12,6 +12,10 @@ cookie*.txt
 
 /vendor
 /vendor-bin/*/vendor/
+# Strauss's phar (composer vendor:scope). composer install ends in
+# `composer bin all install`, which takes the directory for a namespace of
+# its own and writes a composer.json, a lock and a vendor/ beside the phar.
+/vendor-bin/strauss/
 /log/
 # The guidelines root ignores its own runtime directories; these entries are
 # kept so a checkout without the submodule still ignores them.
