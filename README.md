@@ -102,8 +102,8 @@ database?](docs/FAQ.md#what-am-i-looking-at-in-the-database).
 - **The trash** — a deleted file keeps its checksums, is found where it was,
   and comes back with them (see [The trash](#the-trash))
 - **Public API v1** — HTTP REST and PHP surfaces with an OpenAPI spec
-- **23 CLI commands** for search, duplicates, rule management, MIME types,
-  administration, and maintenance
+- **24 CLI commands** for search, duplicates, rule management, MIME types,
+  administration, maintenance, and updating the app
 - **User guide & FAQ** — served in-app,
   split by audience (see [Documentation](#documentation))
 
@@ -120,7 +120,16 @@ database?](docs/FAQ.md#what-am-i-looking-at-in-the-database).
 > FCIAS uses Nextcloud's built-in files metadata index and adds composite indices on it.
 > No custom tables are required.
 
-## Installation
+## Installing and updating
+
+While the app's releases are nightlies, as every release below 1.0.0 is,
+it is installed from the app store with
+
+```bash
+php occ app:install --allow-unstable file_checksum_search
+```
+
+or from a clone of the repository:
 
 ```bash
 # Clone into your Nextcloud apps directory
@@ -142,11 +151,37 @@ the checksums the filecache already holds into its index.
 No file is read, and nothing is hashed until you enable a rule — see [How
 hashing happens](#how-hashing-happens).
 
+The Apps page never offers a nightly,
+and `occ app:update --allow-unstable` cannot see one
+while the server's cached list of the store is stale.
+So the app updates itself:
+
+```bash
+php occ fcias:update [--check] [--stable|--nightly] [--output json]
+```
+
+reads the store, clears that cache,
+and lets the server's own installer download, verify and install.
+It takes the newest release of the kind installed,
+a nightly for a nightly and a stable release for a stable one,
+unless `--stable` or `--nightly` says otherwise;
+it never takes a version below the installed one.
+`--check` reports what it would take and installs nothing,
+but clears the cache all the same:
+after a `--nightly --check` on a server on the stable channel,
+the Apps page may list unstable releases of every app for a while.
+A clone is updated with `git pull` and a build instead:
+the installer does not replace a git checkout, and the command says so.
+
+It exits 0 when it updated, or under `--check` when there is something to take;
+1 when there is nothing to take;
+2 on a failure, a usage error among them.
+
 ## CLI Reference
 
-FCIAS provides 23 `occ` commands — five for files and search, five for rules,
+FCIAS provides 24 `occ` commands — five for files and search, five for rules,
 two for status, five for MIME types, four for the state the app owns,
-one for repair, and one for the queue.
+one for repair, one for the queue, and one for updating the app.
 Run them as `php occ <command>`.
 
 ### Core Commands
@@ -300,6 +335,16 @@ Each run counts what it did with the files it took — hashed,
 dropped unread because no include rule wants them any more, failed,
 and the rarer outcomes where they happen — and `-v` names each file it did not hash,
 and why; `-vv` the hashed ones too.
+
+### Update Command
+
+| Command | Description |
+|---------|-------------|
+| `file-checksum-search:update [--check] [--stable\|--nightly] [--output=<fmt>]` | Update the app from the store, to a stable or a nightly release; also `fcias:update` |
+
+What it takes, and why the app has it, is in
+[Installing and updating](#installing-and-updating).
+`--output` accepts `plain` (default), `json`, or `json_pretty`.
 
 ### State Commands
 

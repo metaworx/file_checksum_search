@@ -545,6 +545,20 @@ See [README.md § Rule-editing
 permissions](../README.md#rule-editing-permissions-admin_enforced) for the full
 permission model.
 
+## Why does the Apps page offer no update?
+
+Because every release below 1.0.0 reaches the app store as a nightly,
+and the Apps page never offers one.
+`occ app:update --allow-unstable` could,
+but it reads the server's cached list of the store,
+which keeps only stable releases until the store's list changes.
+
+`occ fcias:update` reads the store itself, clears that cache,
+and lets the server's own installer download, verify and install the release,
+a nightly for a nightly and a stable release for a stable one;
+`--check` says what it would take and installs nothing
+([README.md § Installing and updating](../README.md#installing-and-updating)).
+
 ## Troubleshooting
 
 ### The index is out of sync with filecache

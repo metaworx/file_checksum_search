@@ -18,7 +18,7 @@ the first stable release.
   `--user` or `--all`, after a question unless `-y`; `--dry-run` reports.
 
 - `occ fcias:update`: the app updates itself from the store, nightlies
-  included.
+  included (README, *Installing and updating*).
 
 ### Changed
 
