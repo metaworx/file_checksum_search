@@ -4,8 +4,9 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "6ed6f676ff4a19ed3bfe89864c5c9c8f",
-    "packages": [
+    "content-hash": "eeddae84270a1f8204e256b7c2448819",
+    "packages": [],
+    "packages-dev": [
         {
             "name": "bamarni/composer-bin-plugin",
             "version": "1.9.1",
@@ -62,9 +63,7 @@
                 "source": "https://github.com/bamarni/composer-bin-plugin/tree/1.9.1"
             },
             "time": "2026-02-04T10:18:12+00:00"
-        }
-    ],
-    "packages-dev": [
+        },
         {
             "name": "clue/arguments",
             "version": "v2.1.0",

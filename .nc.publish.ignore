@@ -32,6 +32,7 @@
 # Agent / project tooling
 /GUIDELINES
 /AGENTS.md
+/CLAUDE.md
 /.aiignore
 /.roo
 /.junie
@@ -60,6 +61,9 @@
 # Tests & dev-only docs
 /tests
 /docs/app-store-publishing.md
+# The sources of the app's icon and the repository's social preview; the
+# app's own images are in img/.
+/docs/branding
 /CONTRIBUTING.md
 /CODE_OF_CONDUCT.md
 /CODE_STYLE.md
