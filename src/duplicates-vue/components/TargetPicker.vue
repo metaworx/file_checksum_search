@@ -20,7 +20,7 @@ import { generateOcsUrl } from '@nextcloud/router'
 import NcSelect from '@nextcloud/vue/components/NcSelect'
 import { OCS_API_V1 } from '../../routes'
 import type { DuplicateScope } from '../composables/useDuplicates'
-import { t } from '../../l10n'
+import { t } from '@metaworx/nextcloud-vue'
 
 interface Option {
 	id: string

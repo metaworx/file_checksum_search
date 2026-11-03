@@ -12,12 +12,10 @@
  */
 import { computed, onMounted, ref } from 'vue'
 import { generateOcsUrl } from '@nextcloud/router'
+import { HelpPopover, t, toastError, toastSaved } from '@metaworx/nextcloud-vue'
 import AlgorithmSelect from '../components/AlgorithmSelect.vue'
-import HelpPopover from '../components/HelpPopover.vue'
 import { OCS_API_V1 } from '../routes'
-import { toastError, toastSaved } from '../toast'
 import type { AlgoOption } from '../algorithms'
-import { t } from '../l10n'
 
 defineProps<{
 	/** The algorithms in force on this instance, from the rules payload. */

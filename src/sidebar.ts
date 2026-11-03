@@ -7,10 +7,14 @@
  */
 import { getSidebar, registerFileAction } from '@nextcloud/files'
 import { defineCustomElement } from 'vue'
-import { t } from './l10n'
+import { setTexts, t } from '@metaworx/nextcloud-vue'
+import '@metaworx/nextcloud-vue/style.css'
+import { appTexts } from './texts'
 import ChecksumsSidebarTab from './sidebar-vue/ChecksumsSidebarTab.vue'
 import appIconSvg from '../img/app.svg?raw'
 import type { FileNode } from './sidebar-vue/types'
+
+setTexts(appTexts())
 
 const APP_ICON = appIconSvg.replace('fill="#fff"', 'fill="currentColor"')
 const TAG = 'file_checksum_search-files-sidebar-tab'

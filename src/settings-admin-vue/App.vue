@@ -20,8 +20,7 @@ import TunablesSection from './TunablesSection.vue'
 import MimeTypeSection from './MimeTypeSection.vue'
 import DocsViewer from '../docs-vue/DocsViewer.vue'
 import { useAdminSettings } from './composables/useAdminSettings'
-import { toastSuccess } from '../toast'
-import { formatDateTime, formatDuration, keepNumbersWithWords, n, t } from '../l10n'
+import { formatDateTime, formatDuration, keepNumbersWithWords, n, t, toastSuccess } from '@metaworx/nextcloud-vue'
 
 /** The words each permission section shows; the component is the same. */
 const PERMISSION_HELP = {

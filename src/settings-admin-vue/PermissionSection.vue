@@ -15,10 +15,8 @@ import NcCheckboxRadioSwitch from '@nextcloud/vue/components/NcCheckboxRadioSwit
 import NcSettingsSelectGroup from '@nextcloud/vue/components/NcSettingsSelectGroup'
 import NcSelect from '@nextcloud/vue/components/NcSelect'
 import NcButton from '@nextcloud/vue/components/NcButton'
-import HelpPopover from '../components/HelpPopover.vue'
+import { HelpPopover, t, toastError, toastSaved } from '@metaworx/nextcloud-vue'
 import { OCS_SETTINGS } from '../routes'
-import { toastError, toastSaved } from '../toast'
-import { t } from '../l10n'
 
 interface UserOption {
 	id: string

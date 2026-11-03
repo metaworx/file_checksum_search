@@ -39,7 +39,7 @@ import type { DuplicateGroup as GroupType } from '../composables/useDuplicates'
 import { choosable } from '../pageSelection'
 import { pairsOf } from '../identicalGroups'
 import type { RowAction } from '../duplicateActions'
-import { formatDateTime, n, t } from '../../l10n'
+import { formatDateTime, n, t } from '@metaworx/nextcloud-vue'
 
 type FileItem = GroupType['files'][number]
 

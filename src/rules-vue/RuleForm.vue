@@ -18,11 +18,10 @@ import NcCheckboxRadioSwitch from '@nextcloud/vue/components/NcCheckboxRadioSwit
 import NcSelect from '@nextcloud/vue/components/NcSelect'
 import NcEllipsisedOption from '@nextcloud/vue/components/NcEllipsisedOption'
 import NcNoteCard from '@nextcloud/vue/components/NcNoteCard'
-import HelpPopover from '../components/HelpPopover.vue'
+import { HelpPopover, t } from '@metaworx/nextcloud-vue'
 import AlgorithmSelect from '../components/AlgorithmSelect.vue'
 import { bandLabel, bandOfKind, selectorKind, selectorTarget } from './bands'
 import type { GroupFolderOption, RuleDraft } from './types'
-import { t } from '../l10n'
 
 const props = defineProps<{
 	rule: RuleDraft | null

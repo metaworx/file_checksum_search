@@ -13,7 +13,7 @@
  */
 
 import type { GroupFolderOption, Rule } from './types'
-import { t } from '../l10n'
+import { t } from '@metaworx/nextcloud-vue'
 
 /** Display bands: the selector's specificity rank, enforced 1–4, unenforced 5–8. */
 export const BAND = {

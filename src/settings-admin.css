@@ -171,7 +171,7 @@
 /* HelpPopover sizes its trigger for a form row; in a table heading that would
    set the row height on its own. Narrower here, and never squeezed away by a
    long column label. */
-.fcias-rules-table th .fcias-help-icon {
+.fcias-rules-table th .mwx-help-icon {
 	width: 22px;
 	height: 22px;
 	min-width: 22px;
@@ -180,7 +180,7 @@
 	flex: 0 0 auto;
 }
 
-.fcias-rules-table th .fcias-help-icon svg {
+.fcias-rules-table th .mwx-help-icon svg {
 	width: 16px;
 	height: 16px;
 }

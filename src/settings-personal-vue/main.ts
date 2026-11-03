@@ -6,7 +6,11 @@
  */
 
 import { createApp } from 'vue'
+import { setTexts } from '@metaworx/nextcloud-vue'
+import '@metaworx/nextcloud-vue/style.css'
+import { appTexts } from '../texts'
 import App from './App.vue'
 import '../settings-admin.css'
 
+setTexts(appTexts())
 createApp(App).mount('#fcias-personal-settings')

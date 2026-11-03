@@ -16,8 +16,8 @@ import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import NcButton from '@nextcloud/vue/components/NcButton'
 import NcCheckboxRadioSwitch from '@nextcloud/vue/components/NcCheckboxRadioSwitch'
 import NcTextField from '@nextcloud/vue/components/NcTextField'
+import { HelpPopover, n, t, toastError, toastSuccess, toastUndo } from '@metaworx/nextcloud-vue'
 import AlgorithmSelect from '../../components/AlgorithmSelect.vue'
-import HelpPopover from '../../components/HelpPopover.vue'
 import DeleteDialog from './DeleteDialog.vue'
 import PageDeleteDialog from './PageDeleteDialog.vue'
 import DuplicateGroup from './DuplicateGroup.vue'
@@ -49,8 +49,6 @@ import {
 	type Chosen,
 } from '../pageSelection'
 import { type AlgoOption } from '../../algorithms'
-import { toastError, toastSuccess, toastUndo } from '../../toast'
-import { n, t } from '../../l10n'
 
 const props = withDefaults(
 	defineProps<{
@@ -1094,7 +1092,7 @@ onBeforeUnmount(() => {
 	color: var(--color-text-maxcontrast);
 }
 
-.db-label :deep(.fcias-help-icon) {
+.db-label :deep(.mwx-help-icon) {
 	width: 24px;
 	height: 24px;
 	min-width: 24px;

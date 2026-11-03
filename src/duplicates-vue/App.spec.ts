@@ -28,7 +28,8 @@ vi.mock('@nextcloud/password-confirmation', () => ({ confirmPassword: () => conf
 vi.mock('@nextcloud/password-confirmation/style.css', () => ({}))
 
 // Toasts are asserted in the listing's own spec; here they only must not throw.
-vi.mock('../toast', () => ({
+vi.mock('@metaworx/nextcloud-vue', async (importOriginal) => ({
+	...await importOriginal<typeof import('@metaworx/nextcloud-vue')>(),
 	toastSuccess: () => undefined,
 	toastError: () => undefined,
 	toastUndo: () => undefined,

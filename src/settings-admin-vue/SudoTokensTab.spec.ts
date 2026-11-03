@@ -9,7 +9,8 @@ vi.mock('@nextcloud/router', () => ({
 
 const toastSuccess = vi.fn()
 const toastError = vi.fn()
-vi.mock('../toast', () => ({
+vi.mock('@metaworx/nextcloud-vue', async (importOriginal) => ({
+	...await importOriginal<typeof import('@metaworx/nextcloud-vue')>(),
 	toastSuccess: (...args: unknown[]) => toastSuccess(...args),
 	toastError: (...args: unknown[]) => toastError(...args),
 }))

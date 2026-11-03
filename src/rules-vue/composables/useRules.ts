@@ -15,7 +15,7 @@ import { reactive, toRefs } from 'vue'
 import { generateOcsUrl } from '@nextcloud/router'
 import { API_RULES } from '../../routes'
 import type { GroupFolderOption, Rule, RuleDraft } from '../types'
-import { t } from '../../l10n'
+import { t } from '@metaworx/nextcloud-vue'
 
 declare const OC: {
 	requestToken: string

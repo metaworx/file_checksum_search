@@ -24,7 +24,7 @@ import {
 	ICON_HOME_GROUP,
 	ICON_SHARE,
 } from './icons'
-import { t } from '../l10n'
+import { t } from '@metaworx/nextcloud-vue'
 
 /**
  * The kinds a location or a selector can be. `home` and `user` are the

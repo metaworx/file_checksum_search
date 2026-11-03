@@ -309,7 +309,7 @@ describe( 'FCIAS Duplicates page', () => {
 			cy.get( `label[for="${ id }"]`, { timeout: FIND_TIMEOUT } ).should( 'exist' )
 			cy.get( `#${ id }` ).should( 'exist' )
 		}
-		cy.get( '.db-label .fcias-help-icon' ).should( 'have.length', 5 )
+		cy.get( '.db-label .mwx-help-icon' ).should( 'have.length', 5 )
 	} )
 
 	// The tab asks the server who may be named, and shows the listing on its

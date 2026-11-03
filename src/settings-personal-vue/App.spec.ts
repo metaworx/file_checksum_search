@@ -13,7 +13,8 @@ vi.mock('@nextcloud/router', async (importOriginal) => ({
 }))
 
 // Toasts are asserted in the sections' own specs; here they only must not throw.
-vi.mock('../toast', () => ({
+vi.mock('@metaworx/nextcloud-vue', async (importOriginal) => ({
+	...await importOriginal<typeof import('@metaworx/nextcloud-vue')>(),
 	toastSaved: () => undefined,
 	toastSuccess: () => undefined,
 	toastError: () => undefined,

@@ -19,7 +19,8 @@ const GROUPS = [{ id: 'staff', displayname: 'Staff' }, { id: 'admins', displayna
 
 const toastSaved = vi.fn()
 const toastError = vi.fn()
-vi.mock('../toast', () => ({
+vi.mock('@metaworx/nextcloud-vue', async (importOriginal) => ({
+	...await importOriginal<typeof import('@metaworx/nextcloud-vue')>(),
 	toastSaved: (...args: unknown[]) => toastSaved(...args),
 	toastError: (...args: unknown[]) => toastError(...args),
 }))

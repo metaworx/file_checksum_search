@@ -91,7 +91,7 @@ describe('RuleTable', () => {
 			const rules = [makeRule({ id: 'd1', band: 7 })]
 			const wrapper = mount(RuleTable, { props: { rules, variant: 'admin' } })
 
-			const help = wrapper.find('tbody tr.fcias-band-header .fcias-help-icon')
+			const help = wrapper.find('tbody tr.fcias-band-header .mwx-help-icon')
 			expect(help.exists()).toBe(true)
 			expect(help.attributes('aria-label')).toBe('Help: Band 7')
 		})
@@ -106,7 +106,7 @@ describe('RuleTable', () => {
 				'priority', 'scope', 'path', 'type', 'algos', 'mode', 'status', 'enforced',
 			])
 			for (const th of labelled) {
-				expect(th.find('.fcias-help-icon').exists()).toBe(true)
+				expect(th.find('.mwx-help-icon').exists()).toBe(true)
 			}
 		})
 	})

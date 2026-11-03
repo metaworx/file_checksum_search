@@ -39,7 +39,8 @@ vi.mock('../duplicateActions', async (importOriginal) => ({
 const toastSuccess = vi.fn()
 const toastError = vi.fn()
 const toastUndo = vi.fn()
-vi.mock('../../toast', () => ({
+vi.mock('@metaworx/nextcloud-vue', async (importOriginal) => ({
+	...await importOriginal<typeof import('@metaworx/nextcloud-vue')>(),
 	toastSuccess: (text: string) => toastSuccess(text),
 	toastError: (text: string) => toastError(text),
 	toastUndo: (text: string, onUndo: () => void) => toastUndo(text, onUndo),

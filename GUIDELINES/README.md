@@ -51,7 +51,7 @@ Editing a generated file is wasted work — change the fragment and re-run
 ---
 
 
-# File Checksum Index & Search — Project Contract (v2.16.0)
+# File Checksum Index & Search — Project Contract (v2.17.0)
 
 What binds work in this project, for everyone working on it.
 Inlined into `/AGENTS.md` for agents and into `GUIDELINES/README.md` for people,
@@ -198,12 +198,15 @@ Nextcloud's translation tool finds only what these calls spell out:
 - a short or ambiguous text gets a `TRANSLATORS` comment, which the tool
   hands to translators.
 
-In the frontend, `t` and `n` come from `src/l10n.ts`:
+In the frontend, `t` and `n` come from `@metaworx/nextcloud-vue`:
 the same signatures as `@nextcloud/l10n`'s, but they leave escaping to Vue,
 since the library's would show in a text as `&amp;`.
 A translated text therefore never goes into `v-html`,
 and a sentence carries no markup: emphasis wraps a whole sentence,
 and a name inside one is quoted.
+The package translates nothing of its own:
+the texts its components and toasts show are this app's,
+spelled out in `src/texts.ts` and handed over in each page's entry.
 
 A server message is translated where it is made, through `IL10N`,
 as Nextcloud core does: in the user's language on the web,
@@ -239,6 +242,7 @@ and CI's lint job runs `scripts/l10n.sh check`.
 
 | Version | Date       | Changed sections | Change type | Agent impact |
 |---------|------------|------------------|-------------|--------------|
+| v2.17.0 | 2026-11-03 | 3                | minor       | §3.7: `t` and `n` come from `@metaworx/nextcloud-vue`; the texts its components and toasts show are this app's, in `src/texts.ts`, handed over in each page's entry. |
 | v2.16.0 | 2026-11-03 | 3                | minor       | §3.6: the runner setup and the helpers that drive `NcSelect` and `NcActions` come from `@metaworx/nextcloud-vue/testing`; `src/test-utils/` is gone. |
 | v2.15.0 | 2026-10-01 | 1                | minor       | The shipped paths come from `project.shipped` in `config.ini`, rendered below the facts table, with the exempt paths beside them; `changelog.sh check --staged` now says which staged change owes a bullet. |
 | v2.14.0 | 2026-10-01 | 1                | minor       | The lint row: Rector runs, as the upgrade tool rather than a lint command — `composer rector:check` and `composer rector`, with Nextcloud's rules for the oldest supported version, in the harness container. |

@@ -5,7 +5,7 @@
  * What to call a file in a list that may hold other people's.
  */
 
-import { formatDateTime, t } from './l10n'
+import { formatDateTime, t } from '@metaworx/nextcloud-vue'
 
 /** What a version's path and location begin with, before its file's. */
 export const VERSION_SCHEME = 'versions://'

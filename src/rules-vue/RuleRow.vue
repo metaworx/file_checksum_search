@@ -15,8 +15,7 @@ import MdiIcon from '../components/MdiIcon.vue'
 import { ICON_BIN, ICON_PAUSE, ICON_PENCIL, ICON_PLAY, ICON_REFRESH } from '../components/icons'
 import { priorityLabel, selectorKind, selectorLabel } from './bands'
 import type { GroupFolderOption, Rule } from './types'
-import { useClipboard } from '../composables/useClipboard'
-import { t } from '../l10n'
+import { t, useClipboard } from '@metaworx/nextcloud-vue'
 
 const props = defineProps<{
 	rule: Rule

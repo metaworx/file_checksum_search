@@ -5,7 +5,7 @@
  *
  * Sidebar section header with an optional help popover.
  */
-import HelpPopover from '../../components/HelpPopover.vue'
+import { HelpPopover } from '@metaworx/nextcloud-vue'
 
 defineProps<{
 	title: string

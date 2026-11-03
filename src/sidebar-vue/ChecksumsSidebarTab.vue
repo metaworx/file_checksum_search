@@ -10,7 +10,7 @@
  * everything the instance computes. Duplicate lookup is inline.
  */
 import { computed, ref, watch } from 'vue'
-import { t } from '../l10n'
+import { t, useClipboard } from '@metaworx/nextcloud-vue'
 import NcLoadingIcon from '@nextcloud/vue/components/NcLoadingIcon'
 import { rowLink } from '../fileLink'
 import { fileLabel, labelKind, trashLabel, versionLabel } from '../fileLabel'
@@ -19,7 +19,6 @@ import LocationIcon from '../components/LocationIcon.vue'
 import { type AlgoOption, fetchAlgorithms } from '../algorithms'
 import { crossAccountUrl, emptyGroupUrl, hashForLink } from './crossAccountLink'
 import { useSidebarHashes } from './composables/useSidebarHashes'
-import { useClipboard } from '../composables/useClipboard'
 import RecalcButton from './components/RecalcButton.vue'
 import SectionHeader from './components/SectionHeader.vue'
 import type { FileNode, VersionEntry } from './types'

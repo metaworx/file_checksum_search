@@ -10,7 +10,7 @@ import { OCS_API_V1 } from '../../routes'
 import { fetchFeatures, mimeTypeSwitchedOff } from '../../features'
 import { currentUid } from '../../fileLabel'
 import type { DuplicateGroup, FileNode, HashMap, VersionEntry } from '../types'
-import { t } from '../../l10n'
+import { t } from '@metaworx/nextcloud-vue'
 
 declare const OC: {
 	requestToken: string

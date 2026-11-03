@@ -16,7 +16,7 @@ import { fileLabel, trashLabel, versionLabel } from '../../fileLabel'
 import type { DuplicateGroup as GroupType } from '../composables/useDuplicates'
 import type { GroupResults, RowResult } from '../duplicateActions'
 import { groupKey } from '../pageSelection'
-import { n, t } from '../../l10n'
+import { n, t } from '@metaworx/nextcloud-vue'
 
 const props = withDefaults(defineProps<{
 	/** The groups shown, for the rows' labels and the copies that stay. */

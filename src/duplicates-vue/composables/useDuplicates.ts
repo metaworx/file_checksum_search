@@ -10,7 +10,7 @@ import { generateOcsUrl } from '@nextcloud/router'
 import { OCS_API_V1 } from '../../routes'
 import { fetchFeatures, mimeTypeSwitchedOff } from '../../features'
 import { rowLink } from '../../fileLink'
-import { t } from '../../l10n'
+import { t } from '@metaworx/nextcloud-vue'
 import type { RowAction } from '../duplicateActions'
 import { mergeIdentical, orderPairs } from '../identicalGroups'
 

@@ -14,10 +14,8 @@ import { generateOcsUrl } from '@nextcloud/router'
 import { confirmPassword } from '@nextcloud/password-confirmation'
 import '@nextcloud/password-confirmation/style.css'
 import NcCheckboxRadioSwitch from '@nextcloud/vue/components/NcCheckboxRadioSwitch'
-import HelpPopover from '../components/HelpPopover.vue'
+import { formatDateTime, HelpPopover, t, toastError, toastSaved } from '@metaworx/nextcloud-vue'
 import { OCS_SETTINGS } from '../routes'
-import { toastError, toastSaved } from '../toast'
-import { formatDateTime, t } from '../l10n'
 
 interface TokenRow {
 	id: number

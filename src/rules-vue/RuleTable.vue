@@ -12,11 +12,10 @@
  * promote a rule past one it must not outrun.
  */
 import { computed, ref } from 'vue'
+import { HelpPopover, t } from '@metaworx/nextcloud-vue'
 import RuleRow from './RuleRow.vue'
-import HelpPopover from '../components/HelpPopover.vue'
 import { bandHelp, bandLabel, selectorKind, selectorTarget } from './bands'
 import type { GroupFolderOption, Rule } from './types'
-import { t } from '../l10n'
 
 const props = defineProps<{
 	rules: Rule[]

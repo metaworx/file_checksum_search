@@ -17,7 +17,7 @@ import NcDialog from '@nextcloud/vue/components/NcDialog'
 import { fileLabel, trashLabel, versionLabel } from '../../fileLabel'
 import type { DuplicateGroup as GroupType } from '../composables/useDuplicates'
 import type { GoingVersion, RowResult } from '../duplicateActions'
-import { formatDateTime, n, t } from '../../l10n'
+import { formatDateTime, n, t } from '@metaworx/nextcloud-vue'
 
 const props = withDefaults(defineProps<{
 	group: GroupType

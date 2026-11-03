@@ -15,8 +15,7 @@ import PreferenceSection from './PreferenceSection.vue'
 import SudoTokensSection from './SudoTokensSection.vue'
 import { OCS_ADMIN } from '../routes'
 import { useRules } from '../rules-vue/composables/useRules'
-import { toastSuccess } from '../toast'
-import { t } from '../l10n'
+import { t, toastSuccess } from '@metaworx/nextcloud-vue'
 
 declare const OC: {
 	dialogs: { confirm: (text: string, title: string, callback: (confirmed: boolean) => void, modal?: boolean) => void }

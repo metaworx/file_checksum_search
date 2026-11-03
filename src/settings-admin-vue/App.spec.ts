@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { flushPromises, mount } from '@vue/test-utils'
 import App from './App.vue'
 import { clickAction, hasAction } from '@metaworx/nextcloud-vue/testing'
-import { formatDateTime } from '../l10n'
+import { formatDateTime } from '@metaworx/nextcloud-vue'
 
 // The rest of the router as it is: the real Nextcloud components read
 // `imagePath` and friends, and a mock that names one export hides the rest.
@@ -13,7 +13,8 @@ vi.mock('@nextcloud/router', async (importOriginal) => ({
 }))
 
 // Toasts are asserted in the sections' own specs; here they only must not throw.
-vi.mock('../toast', () => ({
+vi.mock('@metaworx/nextcloud-vue', async (importOriginal) => ({
+	...await importOriginal<typeof import('@metaworx/nextcloud-vue')>(),
 	toastSaved: () => undefined,
 	toastSuccess: () => undefined,
 	toastError: () => undefined,

@@ -12,7 +12,7 @@ import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
 import { generateOcsUrl } from '@nextcloud/router'
 import NcRichText from '@nextcloud/vue/components/NcRichText'
 import { OCS_ADMIN } from '../routes'
-import { t } from '../l10n'
+import { t } from '@metaworx/nextcloud-vue'
 
 interface DocEntry {
 	label?: string

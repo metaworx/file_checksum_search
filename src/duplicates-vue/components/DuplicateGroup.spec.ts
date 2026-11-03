@@ -8,7 +8,7 @@ import { flushPromises, mount, type VueWrapper } from '@vue/test-utils'
 import DuplicateGroup from './DuplicateGroup.vue'
 import type { DuplicateGroup as GroupType } from '../composables/useDuplicates'
 import { clickAction, hasAction, openActions } from '@metaworx/nextcloud-vue/testing'
-import { formatDateTime } from '../../l10n'
+import { formatDateTime } from '@metaworx/nextcloud-vue'
 
 function group(extra: Partial<GroupType> = {}): GroupType {
 	return {

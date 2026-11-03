@@ -6,6 +6,10 @@
  */
 
 import { createApp } from 'vue'
+import { setTexts } from '@metaworx/nextcloud-vue'
+import '@metaworx/nextcloud-vue/style.css'
+import { appTexts } from '../texts'
 import App from './App.vue'
 
+setTexts(appTexts())
 createApp(App).mount('#fcias-duplicates')

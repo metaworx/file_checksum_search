@@ -19,8 +19,9 @@ the first stable release.
 
 ### Changed
 
-- Frontend specs: the runner setup and the helpers driving `NcSelect`
-  and `NcActions` come from `@metaworx/nextcloud-vue/testing`.
+- Frontend: the help popover, the toasts, `t()` and the specs' helpers
+  come from `@metaworx/nextcloud-vue`, the popover's classes renamed
+  `mwx-help*`.
 
 ### Fixed
 

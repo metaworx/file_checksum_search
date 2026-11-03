@@ -13,11 +13,9 @@
 import { computed, onMounted, ref, watch } from 'vue'
 import { generateOcsUrl } from '@nextcloud/router'
 import NcButton from '@nextcloud/vue/components/NcButton'
+import { HelpPopover, t, toastError, toastSaved } from '@metaworx/nextcloud-vue'
 import AlgorithmSelect from '../components/AlgorithmSelect.vue'
-import HelpPopover from '../components/HelpPopover.vue'
 import { OCS_SETTINGS } from '../routes'
-import { toastError, toastSaved } from '../toast'
-import { t } from '../l10n'
 
 declare const OC: { requestToken: string }
 

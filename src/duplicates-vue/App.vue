@@ -23,7 +23,7 @@ import { fetchAlgorithms } from '../algorithms'
 import { confirmPassword } from '@nextcloud/password-confirmation'
 import '@nextcloud/password-confirmation/style.css'
 import type { DuplicateScope } from './composables/useDuplicates'
-import { t } from '../l10n'
+import { t } from '@metaworx/nextcloud-vue'
 import {
 	fragmentFor,
 	listingFromParams,

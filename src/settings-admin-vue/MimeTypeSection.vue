@@ -20,10 +20,8 @@ import { generateOcsUrl } from '@nextcloud/router'
 import NcButton from '@nextcloud/vue/components/NcButton'
 import NcCheckboxRadioSwitch from '@nextcloud/vue/components/NcCheckboxRadioSwitch'
 import NcDialog from '@nextcloud/vue/components/NcDialog'
-import HelpPopover from '../components/HelpPopover.vue'
+import { HelpPopover, t, toastError, toastSaved } from '@metaworx/nextcloud-vue'
 import { OCS_SETTINGS } from '../routes'
-import { toastError, toastSaved } from '../toast'
-import { t } from '../l10n'
 
 declare const OC: { requestToken: string }
 

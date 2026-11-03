@@ -11,9 +11,8 @@
 import { onMounted, ref } from 'vue'
 import { generateOcsUrl } from '@nextcloud/router'
 import NcButton from '@nextcloud/vue/components/NcButton'
+import { formatDateTime, t, toastError, toastSuccess } from '@metaworx/nextcloud-vue'
 import { OCS_SETTINGS } from '../routes'
-import { toastError, toastSuccess } from '../toast'
-import { formatDateTime, t } from '../l10n'
 
 interface GrantRow {
 	uid: string

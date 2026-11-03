@@ -14,7 +14,7 @@ import { reactive, toRefs } from 'vue'
 import { generateOcsUrl } from '@nextcloud/router'
 import { OCS_SETTINGS } from '../../routes'
 import { useRules } from '../../rules-vue/composables/useRules'
-import { formatDateTime, t } from '../../l10n'
+import { formatDateTime, t } from '@metaworx/nextcloud-vue'
 
 /** A background job's last attempt, successful or not. */
 interface JobAttempt {

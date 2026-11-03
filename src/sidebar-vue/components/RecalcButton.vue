@@ -10,7 +10,7 @@
  */
 import { computed } from 'vue'
 import NcLoadingIcon from '@nextcloud/vue/components/NcLoadingIcon'
-import { t } from '../../l10n'
+import { t } from '@metaworx/nextcloud-vue'
 
 const props = withDefaults(
 	defineProps<{
