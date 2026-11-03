@@ -42,6 +42,7 @@
 /src
 /package.json
 /package-lock.json
+/.npmrc
 /.nvmrc
 /.eslintrc.cjs
 /stylelint.config.cjs

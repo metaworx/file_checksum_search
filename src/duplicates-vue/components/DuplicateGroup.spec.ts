@@ -7,7 +7,7 @@ import { afterEach, describe, expect, it } from 'vitest'
 import { flushPromises, mount, type VueWrapper } from '@vue/test-utils'
 import DuplicateGroup from './DuplicateGroup.vue'
 import type { DuplicateGroup as GroupType } from '../composables/useDuplicates'
-import { clickAction, hasAction, openActions } from '../../test-utils/ncActions'
+import { clickAction, hasAction, openActions } from '@metaworx/nextcloud-vue/testing'
 import { formatDateTime } from '../../l10n'
 
 function group(extra: Partial<GroupType> = {}): GroupType {

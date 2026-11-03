@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { flushPromises, mount } from '@vue/test-utils'
 import App from './App.vue'
-import { clickAction } from '../test-utils/ncActions'
+import { clickAction } from '@metaworx/nextcloud-vue/testing'
 
 // The rest of the router as it is: the real Nextcloud components read
 // `imagePath` and friends, and a mock that names one export hides the rest.

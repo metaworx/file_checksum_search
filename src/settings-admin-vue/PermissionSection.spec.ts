@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { flushPromises, mount } from '@vue/test-utils'
 import PermissionSection from './PermissionSection.vue'
-import { pickOption, selectedLabels } from '../test-utils/ncSelect'
+import { pickOption, selectedLabels } from '@metaworx/nextcloud-vue/testing'
 
 vi.mock('@nextcloud/router', () => ({
 	generateOcsUrl: (url: string) => url,

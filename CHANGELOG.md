@@ -17,6 +17,11 @@ the first stable release.
   *Select duplicates* deletes them, to the trash or `--permanent`, for
   `--user` or `--all`, after a question unless `-y`; `--dry-run` reports.
 
+### Changed
+
+- Frontend specs: the runner setup and the helpers driving `NcSelect`
+  and `NcActions` come from `@metaworx/nextcloud-vue/testing`.
+
 ### Fixed
 
 - `POST /api/v1/duplicates/delete`, and the Duplicates page's delete:

@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it } from 'vitest'
 import { mount, type VueWrapper } from '@vue/test-utils'
 import AlgorithmSelect from './AlgorithmSelect.vue'
-import { optionLabels, pickOption, selectedLabels } from '../test-utils/ncSelect'
+import { optionLabels, pickOption, selectedLabels } from '@metaworx/nextcloud-vue/testing'
 
 const ALGORITHMS = ['sha1', 'sha256', 'md5']
 

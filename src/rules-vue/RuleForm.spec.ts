@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { flushPromises, mount } from '@vue/test-utils'
 import RuleForm from './RuleForm.vue'
-import { optionLabels, pickOption } from '../test-utils/ncSelect'
+import { optionLabels, pickOption } from '@metaworx/nextcloud-vue/testing'
 
 describe('RuleForm', () => {
 	it('seeds defaults for a new rule and uses the admin element ids', () => {

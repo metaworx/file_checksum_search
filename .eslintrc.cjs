@@ -54,8 +54,8 @@ module.exports = {
 		{
 			// A spec mounts the real Nextcloud components. The runner inlines
 			// the library and defines what it needs (vitest.config.ts,
-			// vitest.setup.ts), and src/test-utils/ drives the controls that
-			// open menus; a stand-in written for a spec tests the author's idea
+			// vitest.setup.ts), and @metaworx/nextcloud-vue/testing drives the
+			// controls that open menus; a stand-in written for a spec tests the author's idea
 			// of the control, which is what forty-eight of them once did. A mock
 			// of the server or of the page — @nextcloud/router, @nextcloud/axios,
 			// @nextcloud/l10n — stays fair game.
@@ -66,17 +66,17 @@ module.exports = {
 					// vi.mock('@nextcloud/vue') and vi.mock('@nextcloud/vue/…'), and vi.doMock of either.
 					{
 						selector: 'CallExpression[callee.object.name="vi"][callee.property.name=/^(mock|doMock)$/] > Literal[value=/^@nextcloud\\u002fvue(\\u002f|$)/]',
-						message: 'Mount the real Nextcloud component; the runner can load it. See vitest.setup.ts and src/test-utils/.',
+						message: 'Mount the real Nextcloud component; the runner can load it. See vitest.setup.ts and @metaworx/nextcloud-vue/testing.',
 					},
 					// vi.mock(import('@nextcloud/vue/…')), the typed form.
 					{
 						selector: 'CallExpression[callee.object.name="vi"][callee.property.name=/^(mock|doMock)$/] > ImportExpression > Literal[value=/^@nextcloud\\u002fvue(\\u002f|$)/]',
-						message: 'Mount the real Nextcloud component; the runner can load it. See vitest.setup.ts and src/test-utils/.',
+						message: 'Mount the real Nextcloud component; the runner can load it. See vitest.setup.ts and @metaworx/nextcloud-vue/testing.',
 					},
 					// mount(X, { global: { stubs: { NcSelect: true } } }): a stand-in by another door.
 					{
 						selector: 'Property[key.name="stubs"] > ObjectExpression > Property[key.name=/^Nc[A-Z]/]',
-						message: 'Do not stub a Nextcloud component; mount it. See vitest.setup.ts and src/test-utils/.',
+						message: 'Do not stub a Nextcloud component; mount it. See vitest.setup.ts and @metaworx/nextcloud-vue/testing.',
 					},
 				],
 			},

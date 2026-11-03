@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { flushPromises, mount } from '@vue/test-utils'
 import RuleRow from './RuleRow.vue'
 import type { Rule } from './types'
-import { clickAction, hasAction, openActions } from '../test-utils/ncActions'
+import { clickAction, hasAction, openActions } from '@metaworx/nextcloud-vue/testing'
 
 function makeRule(overrides: Partial<Rule> = {}): Rule {
 	return {

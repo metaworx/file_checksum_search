@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { flushPromises, mount } from '@vue/test-utils'
 import App from './App.vue'
-import { clickAction, hasAction } from '../test-utils/ncActions'
+import { clickAction, hasAction } from '@metaworx/nextcloud-vue/testing'
 import { formatDateTime } from '../l10n'
 
 // The rest of the router as it is: the real Nextcloud components read

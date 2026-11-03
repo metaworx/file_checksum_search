@@ -6,7 +6,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { flushPromises, mount, type VueWrapper } from '@vue/test-utils'
 import TargetPicker from './TargetPicker.vue'
-import { openSelect, optionLabels, pickOption, selectedLabels, typeToSearch } from '../../test-utils/ncSelect'
+import { openSelect, optionLabels, pickOption, selectedLabels, typeToSearch } from '@metaworx/nextcloud-vue/testing'
 
 function jsonResponse(body: unknown): Response {
 	return new Response(JSON.stringify(body), { status: 200, headers: { 'Content-Type': 'application/json' } })

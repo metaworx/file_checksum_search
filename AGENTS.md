@@ -34,7 +34,7 @@ refer to linked documents for extended guidance.
   6. Commit Policy (STRICT)
   7. Additional References
   8. Document Governance
-- File Checksum Index & Search — Project Contract (v2.15.0)
+- File Checksum Index & Search — Project Contract (v2.16.0)
   1. Project Facts
   2. Primary References
   3. Project-Specific Conventions
@@ -415,7 +415,7 @@ Their values come from `GUIDELINES/config.ini`.
 ---
 
 
-# File Checksum Index & Search — Project Contract (v2.15.0)
+# File Checksum Index & Search — Project Contract (v2.16.0)
 
 What binds work in this project, for everyone working on it.
 Inlined into `/AGENTS.md` for agents and into `GUIDELINES/README.md` for people,
@@ -531,9 +531,9 @@ not here.
 A Vitest spec under `src/` mounts `@nextcloud/vue`'s components as they are,
 never a stand-in written for the spec:
 the runner inlines the library and defines what it needs (`vitest.config.ts`,
-`vitest.setup.ts`),
-and `src/test-utils/` drives the controls that open menus — `NcSelect`
-and `NcActions` — the way a person does.
+`vitest.setup.ts`, which calls `setupNextcloudDom()`),
+and `@metaworx/nextcloud-vue/testing` drives the controls that open menus
+— `NcSelect` and `NcActions` — the way a person does.
 `.eslintrc.cjs` refuses `vi.mock('@nextcloud/vue/…')` in a spec.
 A mock of the server or of the page (`@nextcloud/router`, `@nextcloud/axios`,
 `@nextcloud/l10n`, the app's own modules) is the spec's to write,
@@ -603,6 +603,7 @@ and CI's lint job runs `scripts/l10n.sh check`.
 
 | Version | Date       | Changed sections | Change type | Agent impact |
 |---------|------------|------------------|-------------|--------------|
+| v2.16.0 | 2026-11-03 | 3                | minor       | §3.6: the runner setup and the helpers that drive `NcSelect` and `NcActions` come from `@metaworx/nextcloud-vue/testing`; `src/test-utils/` is gone. |
 | v2.15.0 | 2026-10-01 | 1                | minor       | The shipped paths come from `project.shipped` in `config.ini`, rendered below the facts table, with the exempt paths beside them; `changelog.sh check --staged` now says which staged change owes a bullet. |
 | v2.14.0 | 2026-10-01 | 1                | minor       | The lint row: Rector runs, as the upgrade tool rather than a lint command — `composer rector:check` and `composer rector`, with Nextcloud's rules for the oldest supported version, in the harness container. |
 | v2.13.0 | 2026-10-01 | 1                | minor       | The lint row no longer names `composer rector`, which has never run: `rector.php` does not load on Rector 2. |

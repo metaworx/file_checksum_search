@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { mount } from '@vue/test-utils'
 import RuleTable from './RuleTable.vue'
 import type { Rule } from './types'
-import { clickAction } from '../test-utils/ncActions'
+import { clickAction } from '@metaworx/nextcloud-vue/testing'
 
 function makeRule(overrides: Partial<Rule> = {}): Rule {
 	return {

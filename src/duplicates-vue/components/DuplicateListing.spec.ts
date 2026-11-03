@@ -10,7 +10,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { flushPromises, mount, type VueWrapper } from '@vue/test-utils'
 import DuplicateListing from './DuplicateListing.vue'
-import { clickAction } from '../../test-utils/ncActions'
+import { clickAction } from '@metaworx/nextcloud-vue/testing'
 import type { RowResult } from '../duplicateActions'
 
 vi.mock('@nextcloud/router', async (importOriginal) => ({
