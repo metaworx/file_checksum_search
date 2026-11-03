@@ -11,6 +11,7 @@ namespace OCA\FileChecksumSearch\Tests\Unit\Service;
 
 use OCA\FileChecksumSearch\AppInfo\Application;
 use OCA\FileChecksumSearch\Service\AlgorithmCatalogue;
+use OCA\FileChecksumSearch\Tests\Unit\AppDoubles;
 use OCP\IAppConfig;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
@@ -19,6 +20,8 @@ class AlgorithmCatalogueTest
     extends
     TestCase
 {
+	use AppDoubles;
+
 
 //  private properties
 
@@ -31,7 +34,7 @@ class AlgorithmCatalogueTest
 	{
 		parent::setUp();
 
-		$this->appConfig = $this->createMock( IAppConfig::class );
+		$this->appConfig = $this->memoryAppConfig();
 	}
 
 
@@ -39,13 +42,14 @@ class AlgorithmCatalogueTest
 
 	private function withAllowlist( array $stored, string $default = '' ): AlgorithmCatalogue
 	{
+		$this->appValues[ AlgorithmCatalogue::CONFIG_KEY ]  = $stored;
+		$this->appValues[ AlgorithmCatalogue::DEFAULT_KEY ] = $default;
+
 		$this->appConfig->method( 'getValueArray' )
 		                ->with( Application::APP_ID, AlgorithmCatalogue::CONFIG_KEY, [] )
-		                ->willReturn( $stored )
 		;
 		$this->appConfig->method( 'getValueString' )
 		                ->with( Application::APP_ID, AlgorithmCatalogue::DEFAULT_KEY, '' )
-		                ->willReturn( $default )
 		;
 
 		return new AlgorithmCatalogue( $this->appConfig );

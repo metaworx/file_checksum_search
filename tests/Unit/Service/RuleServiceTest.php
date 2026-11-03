@@ -74,7 +74,7 @@ class RuleServiceTest
 	{
 		parent::setUp();
 
-		$this->appConfig         = $this->createMock( IAppConfig::class );
+		$this->appConfig         = $this->memoryAppConfig();
 		$this->rootFolder        = $this->createMock( IRootFolder::class );
 		$this->userManager       = $this->createMock( IUserManager::class );
 		$this->metadataService   = $this->createMock( MetadataService::class );
@@ -95,7 +95,7 @@ class RuleServiceTest
 			// Marking, so a test can tell a refusal a person reads from
 			// the English a log keeps.
 			$this->markingL10n(),
-			// Over the mocked config: the shipped allowlist.
+			// Over the config's double, nothing stored: the shipped allowlist.
 			new AlgorithmCatalogue( $this->appConfig ),
 		);
 	}
@@ -256,6 +256,8 @@ class RuleServiceTest
 	 */
 	private function setupRulesConfig( array $rules ): void
 	{
+		$this->appValues['rule_definitions'] = json_encode( $rules, JSON_THROW_ON_ERROR );
+
 		$this->appConfig->expects( $this->atLeastOnce() )
 		                ->method( 'getValueString' )
 		                ->with(
@@ -263,7 +265,6 @@ class RuleServiceTest
 			                'rule_definitions',
 			                '[]',
 		                )
-		                ->willReturn( json_encode( $rules, JSON_THROW_ON_ERROR ) )
 		;
 	}
 
@@ -850,7 +851,6 @@ class RuleServiceTest
 		// paid once per process, not once per file.
 		$this->appConfig->expects( $this->once() )
 		                ->method( 'getValueString' )
-		                ->willReturn( '[]' )
 		;
 
 		$this->service->loadRules();
@@ -861,7 +861,6 @@ class RuleServiceTest
 	{
 		$this->appConfig->expects( $this->exactly( 2 ) )
 		                ->method( 'getValueString' )
-		                ->willReturn( '[]' )
 		;
 
 		$this->service->loadRules();
@@ -878,7 +877,6 @@ class RuleServiceTest
 		// from what was actually persisted.
 		$this->appConfig->expects( $this->exactly( 2 ) )
 		                ->method( 'getValueString' )
-		                ->willReturn( '[]' )
 		;
 
 		$this->service->loadRules();
@@ -895,6 +893,8 @@ class RuleServiceTest
 
 	public function testLoadRulesHandlesInvalidJson(): void
 	{
+		$this->appValues['rule_definitions'] = '{invalid';
+
 		$this->appConfig->expects( $this->once() )
 		                ->method( 'getValueString' )
 		                ->with(
@@ -902,7 +902,6 @@ class RuleServiceTest
 			                'rule_definitions',
 			                '[]',
 		                )
-		                ->willReturn( '{invalid' )
 		;
 
 		$rules = $this->service->loadRules();
@@ -912,6 +911,8 @@ class RuleServiceTest
 
 	public function testLoadRulesHandlesCorruptedData(): void
 	{
+		$this->appValues['rule_definitions'] = '"just a string"';
+
 		$this->appConfig->expects( $this->once() )
 		                ->method( 'getValueString' )
 		                ->with(
@@ -919,7 +920,6 @@ class RuleServiceTest
 			                'rule_definitions',
 			                '[]',
 		                )
-		                ->willReturn( '"just a string"' )
 		;
 
 		$rules = $this->service->loadRules();
@@ -3931,19 +3931,16 @@ class RuleServiceTest
 		                       )
 		;
 
-		$this->appConfig->method( 'getValueString' )
-		                ->willReturn(
-			                $rule === null
-				                ? '[]'
-				                : json_encode(
-				                [
-					                $rule + [
-						                'path'     => '**',
-						                'selector' => '*',
-					                ],
-				                ],
-			                ),
-		                )
-		;
+		if ( $rule !== null )
+		{
+			$this->appValues['rule_definitions'] = json_encode(
+				[
+					$rule + [
+						'path'     => '**',
+						'selector' => '*',
+					],
+				],
+			);
+		}
 	}
 }

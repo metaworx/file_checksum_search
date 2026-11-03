@@ -23,8 +23,6 @@ use OCA\FileChecksumSearch\Service\PathPattern;
 use OCA\FileChecksumSearch\Service\PermissionService;
 use OCA\FileChecksumSearch\Service\RuleDefinitionValidator;
 use OCP\IGroupManager;
-use OCP\Config\IUserConfig;
-use OCP\IAppConfig;
 use OCP\IUserManager;
 use OCA\FileChecksumSearch\Service\RuleService;
 use OCA\FileChecksumSearch\Service\StatusService;
@@ -124,7 +122,7 @@ class ChecksumApiTest
 			$this->createMock( MetadataService::class ),
 			$this->createMock( JobStatsService::class ),
 			$this->createMock( ITimeFactory::class ),
-			$this->createMock( IAppConfig::class ),
+			$this->memoryAppConfig(),
 			$this->createMock( MimeTypeService::class ),
 		);
 
@@ -153,11 +151,11 @@ class ChecksumApiTest
 			$this->rootFolder,
 			$this->userSession,
 			$this->ruleService,
-			new RuleDefinitionValidator( $this->groupManager, $userManager, new AlgorithmCatalogue( $this->createMock( IAppConfig::class ) ), $this->englishL10n() ),
+			new RuleDefinitionValidator( $this->groupManager, $userManager, new AlgorithmCatalogue( $this->memoryAppConfig() ), $this->englishL10n() ),
 			$this->permissionService,
 			$this->groupManager,
-			new AlgorithmCatalogue( $this->createMock( IAppConfig::class ) ),
-			$this->createMock( IUserConfig::class ),
+			new AlgorithmCatalogue( $this->memoryAppConfig() ),
+			$this->memoryUserConfig(),
 			$this->userMountCache,
 			$this->userManager,
 			$this->reach,

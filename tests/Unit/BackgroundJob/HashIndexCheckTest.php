@@ -13,6 +13,7 @@ use OCA\FileChecksumSearch\AppInfo\Application;
 use OCA\FileChecksumSearch\BackgroundJob\HashIndexCheck;
 use OCA\FileChecksumSearch\Service\JobStatsService;
 use OCA\FileChecksumSearch\Service\MetadataService;
+use OCA\FileChecksumSearch\Tests\Unit\AppDoubles;
 use OCP\AppFramework\Utility\ITimeFactory;
 use OCP\BackgroundJob\IJobList;
 use OCP\IAppConfig;
@@ -33,6 +34,8 @@ class HashIndexCheckTest
     extends
     TestCase
 {
+	use AppDoubles;
+
 
 //  private properties
 
@@ -56,7 +59,7 @@ class HashIndexCheckTest
 		parent::setUp();
 
 		$this->metadataService = $this->createMock( MetadataService::class );
-		$this->appConfig       = $this->createMock( IAppConfig::class );
+		$this->appConfig       = $this->memoryAppConfig();
 		$this->jobList         = $this->createMock( IJobList::class );
 		$this->jobStats        = $this->createMock( JobStatsService::class );
 		$this->time            = $this->createMock( ITimeFactory::class );
@@ -81,7 +84,6 @@ class HashIndexCheckTest
 	{
 		$this->appConfig->method( 'hasKey' )
 		                ->with( Application::APP_ID, HashIndexCheck::CURSOR )
-		                ->willReturn( false )
 		;
 		$this->metadataService->expects( $this->once() )
 		                      ->method( 'hashIndexIsComplete' )
@@ -107,9 +109,6 @@ class HashIndexCheckTest
 	 */
 	public function testTheFirstRunWalksFromTheStartWhenSomethingIsMissing(): void
 	{
-		$this->appConfig->method( 'hasKey' )
-		                ->willReturn( false )
-		;
 		$this->metadataService->method( 'hashIndexIsComplete' )
 		                      ->willReturn( false )
 		;
@@ -140,12 +139,10 @@ class HashIndexCheckTest
 	 */
 	public function testALaterRunResumesWithoutAskingAgain(): void
 	{
-		$this->appConfig->method( 'hasKey' )
-		                ->willReturn( true )
-		;
+		$this->appValues[ HashIndexCheck::CURSOR ] = 8000;
+
 		$this->appConfig->method( 'getValueInt' )
 		                ->with( Application::APP_ID, HashIndexCheck::CURSOR, 0 )
-		                ->willReturn( 8000 )
 		;
 		$this->metadataService->expects( $this->never() )
 		                      ->method( 'hashIndexIsComplete' )
@@ -176,9 +173,8 @@ class HashIndexCheckTest
 	 */
 	public function testItStopsWalkingWhenItsTimeIsUp(): void
 	{
-		$this->appConfig->method( 'hasKey' )
-		                ->willReturn( true )
-		;
+		$this->appValues[ HashIndexCheck::CURSOR ] = 0;
+
 		$this->time->method( 'getTime' )
 		           ->willReturnOnConsecutiveCalls( 1000, 1000 + HashIndexCheck::TIME_BUDGET - 1, 1000 + HashIndexCheck::TIME_BUDGET )
 		;
@@ -207,9 +203,8 @@ class HashIndexCheckTest
 	 */
 	public function testAFailedRunKeepsItsPlace(): void
 	{
-		$this->appConfig->method( 'hasKey' )
-		                ->willReturn( true )
-		;
+		$this->appValues[ HashIndexCheck::CURSOR ] = 0;
+
 		$this->metadataService->method( 'reindexHashesAfter' )
 		                      ->willThrowException( new RuntimeException( 'database went away' ) )
 		;

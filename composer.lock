@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "77a3ee8f52ce7f91c3c021538763fffb",
+    "content-hash": "6820718f96da9370b0835b146a251131",
     "packages": [
         {
             "name": "bamarni/composer-bin-plugin",
@@ -241,16 +241,16 @@
         },
         {
             "name": "mwx/nextcloud-testing",
-            "version": "0.1.0",
+            "version": "0.2.0",
             "source": {
                 "type": "git",
                 "url": "https://gitlab.com/metaworx/open-source/php-library/nextcloud-testing.git",
-                "reference": "76970394909c20f34d82590730d5c21d1634908c"
+                "reference": "e8f84153e21fcbaa448d2a6f8b64978e10f01d9b"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://gitlab.com/api/v4/projects/metaworx%2Fopen-source%2Fphp-library%2Fnextcloud-testing/repository/archive.zip?sha=76970394909c20f34d82590730d5c21d1634908c",
-                "reference": "76970394909c20f34d82590730d5c21d1634908c",
+                "url": "https://gitlab.com/api/v4/projects/metaworx%2Fopen-source%2Fphp-library%2Fnextcloud-testing/repository/archive.zip?sha=e8f84153e21fcbaa448d2a6f8b64978e10f01d9b",
+                "reference": "e8f84153e21fcbaa448d2a6f8b64978e10f01d9b",
                 "shasum": ""
             },
             "require": {
@@ -276,12 +276,12 @@
                     "email": "martin.rueegg@metaworx.ch"
                 }
             ],
-            "description": "Test doubles for a Nextcloud app's unit tests: an in-memory IAppConfig, system config and ICache, an IL10N that answers in English, a MIME type detector, the Emitter stub, and a bootstrap that finds the server or falls back to nextcloud/ocp",
+            "description": "Test doubles for a Nextcloud app's unit tests: an in-memory IAppConfig, IUserConfig, system config and ICache, an IL10N that answers in English, a MIME type detector, the Emitter stub, and a bootstrap that finds the server or falls back to nextcloud/ocp",
             "support": {
                 "issues": "https://gitlab.com/metaworx/open-source/php-library/nextcloud-testing/-/issues",
-                "source": "https://gitlab.com/metaworx/open-source/php-library/nextcloud-testing/-/tree/v0.1.0"
+                "source": "https://gitlab.com/metaworx/open-source/php-library/nextcloud-testing/-/tree/v0.2.0"
             },
-            "time": "2026-11-03T03:48:34+00:00"
+            "time": "2026-11-03T12:14:06+00:00"
         },
         {
             "name": "mwx/tools",

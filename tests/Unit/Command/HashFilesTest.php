@@ -16,10 +16,10 @@ use OCA\FileChecksumSearch\Service\HashCalculationService;
 use OCA\FileChecksumSearch\Service\HashIndexService;
 use OCA\FileChecksumSearch\Service\RuleOverrides;
 use OCA\FileChecksumSearch\Service\RuleService;
+use OCA\FileChecksumSearch\Tests\Unit\AppDoubles;
 use OCP\Files\Folder;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
-use OCP\IAppConfig;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Tester\CommandTester;
@@ -28,6 +28,8 @@ class HashFilesTest
     extends
     TestCase
 {
+	use AppDoubles;
+
 
 //  private properties
 
@@ -54,7 +56,7 @@ class HashFilesTest
 		$this->filecacheService = $this->createMock( FilecacheService::class );
 		$this->ruleService      = $this->createMock( RuleService::class );
 		$this->logger           = $this->createMock( LoggerInterface::class );
-		$this->catalogue        = new AlgorithmCatalogue( $this->createMock( IAppConfig::class ) );
+		$this->catalogue        = new AlgorithmCatalogue( $this->memoryAppConfig() );
 
 		$command      = new HashFiles(
 			$this->hashIndexService,

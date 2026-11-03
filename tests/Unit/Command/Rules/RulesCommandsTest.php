@@ -20,7 +20,6 @@ use OCA\FileChecksumSearch\Service\RuleDefinitionValidator;
 use OCA\FileChecksumSearch\Service\RuleService;
 use OCA\FileChecksumSearch\Tests\Unit\AppDoubles;
 use OCP\IGroupManager;
-use OCP\IAppConfig;
 use OCP\IUserManager;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
@@ -65,7 +64,7 @@ class RulesCommandsTest
 		            ->willReturn( true )
 		;
 
-		$this->validator = new RuleDefinitionValidator( $groupManager, $userManager, new AlgorithmCatalogue( $this->createMock( IAppConfig::class ) ), $this->englishL10n() );
+		$this->validator = new RuleDefinitionValidator( $groupManager, $userManager, new AlgorithmCatalogue( $this->memoryAppConfig() ), $this->englishL10n() );
 	}
 
 

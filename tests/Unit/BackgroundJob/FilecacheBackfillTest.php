@@ -13,6 +13,7 @@ use OCA\FileChecksumSearch\AppInfo\Application;
 use OCA\FileChecksumSearch\BackgroundJob\FilecacheBackfill;
 use OCA\FileChecksumSearch\Service\HashIndexService;
 use OCA\FileChecksumSearch\Service\JobStatsService;
+use OCA\FileChecksumSearch\Tests\Unit\AppDoubles;
 use OCP\AppFramework\Utility\ITimeFactory;
 use OCP\BackgroundJob\IJobList;
 use OCP\IAppConfig;
@@ -31,6 +32,8 @@ class FilecacheBackfillTest
     extends
     TestCase
 {
+	use AppDoubles;
+
 
 //  private properties
 
@@ -54,7 +57,7 @@ class FilecacheBackfillTest
 		parent::setUp();
 
 		$this->hashIndexService = $this->createMock( HashIndexService::class );
-		$this->appConfig        = $this->createMock( IAppConfig::class );
+		$this->appConfig        = $this->memoryAppConfig();
 		$this->jobList          = $this->createMock( IJobList::class );
 		$this->time             = $this->createMock( ITimeFactory::class );
 		$this->jobStats         = $this->createMock( JobStatsService::class );
@@ -74,9 +77,10 @@ class FilecacheBackfillTest
 
 	public function testItResumesWhereTheLastRunStoppedAndQueuesTheNext(): void
 	{
+		$this->appValues[ FilecacheBackfill::CURSOR ] = 4000;
+
 		$this->appConfig->method( 'getValueInt' )
 		                ->with( Application::APP_ID, FilecacheBackfill::CURSOR, 0 )
-		                ->willReturn( 4000 )
 		;
 		$this->hashIndexService->expects( $this->once() )
 		                       ->method( 'backfillFromFilecache' )
@@ -97,9 +101,8 @@ class FilecacheBackfillTest
 
 	public function testItForgetsItsPlaceWhenItHasReadEverything(): void
 	{
-		$this->appConfig->method( 'getValueInt' )
-		                ->willReturn( 9000 )
-		;
+		$this->appValues[ FilecacheBackfill::CURSOR ] = 9000;
+
 		$this->hashIndexService->method( 'backfillFromFilecache' )
 		                       ->willReturn( [ 'files' => 0, 'hashes' => 0, 'last' => 9500, 'done' => true ] )
 		;

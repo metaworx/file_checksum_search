@@ -84,7 +84,7 @@ class SettingsControllerTest
 		$this->databaseService = $this->createMock( DatabaseService::class );
 		$this->metadataService = $this->createMock( MetadataService::class );
 		$this->jobStats        = $this->createMock( JobStatsService::class );
-		$this->appConfig       = $this->createMock( IAppConfig::class );
+		$this->appConfig       = $this->memoryAppConfig();
 
 		$this->statusService = new StatusService(
 			$this->databaseService,
@@ -114,7 +114,7 @@ class SettingsControllerTest
 			                         $this->metadataService,
 			                         $this->permissionService,
 			                         $this->appConfig,
-				new AlgorithmCatalogue( $this->createMock( IAppConfig::class ) ),
+				new AlgorithmCatalogue( $this->appConfig ),
 				$this->englishL10n(),
 				$this->mimeTypes = $this->createMock( MimeTypeService::class ),
 				$this->createMock( IUserSession::class ),
@@ -213,9 +213,6 @@ class SettingsControllerTest
 	 */
 	public function testGetStatusCountsRecountsOnlyWhenAsked(): void
 	{
-		$this->appConfig->method( 'getValueInt' )
-		                ->willReturnArgument( 2 )
-		;
 		$this->jobStats->method( 'lastRuns' )
 		               ->willReturn( [
 			               JobStatsService::JOB_CHECKSUM_COUNT => [
@@ -279,11 +276,7 @@ class SettingsControllerTest
 	// ── idle banner ──────────────────────────────────────────────────────
 	public function testGetStatusReportsTheIdleBannerAcknowledgement(): void
 	{
-		$this->appConfig->method( 'getValueBool' )
-		                ->willReturnCallback(
-			                static fn( string $app, string $key ): bool => $key === RuleService::CONFIG_KEY_IDLE_BANNER_ACK,
-		                )
-		;
+		$this->appValues[ RuleService::CONFIG_KEY_IDLE_BANNER_ACK ] = true;
 
 		$data = $this->controller->getStatus()
 		                         ->getData()
@@ -299,15 +292,8 @@ class SettingsControllerTest
 	 */
 	public function testGetStatusListsTheChecksumCountJobOnlyWhileItIsSwitchedOn(): void
 	{
-		$on = false;
-		$this->appConfig->method( 'getValueBool' )
-		                ->willReturnCallback(
-			                static function( string $app, string $key ) use ( &$on ): bool
-			                {
-				                return $key === ConfigLexicon::CHECKSUM_COUNT_BACKGROUND && $on;
-			                },
-		                )
-		;
+		$this->appValues[ ConfigLexicon::CHECKSUM_COUNT_BACKGROUND ] = false;
+
 		$this->jobStats->method( 'lastRuns' )
 		               ->willReturn( [
 			               JobStatsService::JOB_RULE_SWEEP     => [
@@ -326,7 +312,7 @@ class SettingsControllerTest
 			array_keys( $this->controller->getStatus()->getData()['jobs'] ),
 		);
 
-		$on = true;
+		$this->appValues[ ConfigLexicon::CHECKSUM_COUNT_BACKGROUND ] = true;
 
 		$this->assertArrayHasKey(
 			JobStatsService::JOB_CHECKSUM_COUNT,
@@ -454,18 +440,8 @@ class SettingsControllerTest
 	// ── the checksum count's tunables ────────────────────────────────────
 	public function testGetAdminOptionsGivesTheChecksumCountSettings(): void
 	{
-		$this->appConfig->method( 'getValueBool' )
-		                ->willReturnCallback(
-			                static fn( string $app, string $key ): bool => $key === ConfigLexicon::CHECKSUM_COUNT_BACKGROUND,
-		                )
-		;
-		$this->appConfig->method( 'getValueInt' )
-		                ->willReturnCallback(
-			                static fn( string $app, string $key, int $default = 0 ): int => $key === ConfigLexicon::CHECKSUM_COUNT_INTERVAL
-				                ? 7200
-				                : $default,
-		                )
-		;
+		$this->appValues[ ConfigLexicon::CHECKSUM_COUNT_BACKGROUND ] = true;
+		$this->appValues[ ConfigLexicon::CHECKSUM_COUNT_INTERVAL ]   = 7200;
 
 		$data = $this->controller->getAdminOptions()
 		                         ->getData()

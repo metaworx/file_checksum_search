@@ -14,6 +14,7 @@ use OCA\FileChecksumSearch\Service\JobStatsService;
 use OCA\FileChecksumSearch\Service\MetadataService;
 use OCA\FileChecksumSearch\Service\MimeTypeService;
 use OCA\FileChecksumSearch\Service\StatusService;
+use OCA\FileChecksumSearch\Tests\Unit\AppDoubles;
 use OCP\App\IAppManager;
 use OCP\AppFramework\Utility\ITimeFactory;
 use OCP\IAppConfig;
@@ -29,6 +30,8 @@ class StatusServiceTest
     extends
     TestCase
 {
+	use AppDoubles;
+
 
 //  private properties
 
@@ -66,11 +69,8 @@ class StatusServiceTest
 		           ->willReturn( 1_759_300_000 )
 		;
 
-		// The interval's default: an hour.
-		$this->appConfig = $this->createMock( IAppConfig::class );
-		$this->appConfig->method( 'getValueInt' )
-		                ->willReturnArgument( 2 )
-		;
+		// Nothing stored: the interval is its default, an hour.
+		$this->appConfig = $this->memoryAppConfig();
 
 		$this->mimeTypes = $this->createMock( MimeTypeService::class );
 
@@ -233,10 +233,11 @@ class StatusServiceTest
 	/** Off unless switched on: the status then counts when it is asked. */
 	public function testTheBackgroundCountIsReadFromItsSwitch(): void
 	{
+		$this->appValues['checksum_count_background'] = true;
+
 		$this->appConfig->expects( $this->once() )
 		                ->method( 'getValueBool' )
 		                ->with( 'file_checksum_search', 'checksum_count_background' )
-		                ->willReturn( true )
 		;
 
 		$this->assertTrue( $this->service->isHashRowCountInBackground() );

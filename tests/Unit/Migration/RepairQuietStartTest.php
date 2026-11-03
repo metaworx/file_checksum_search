@@ -66,7 +66,7 @@ class RepairQuietStartTest
 
 		$this->db               = $this->createMock( IDBConnection::class );
 		$this->ruleService      = $this->createMock( RuleService::class );
-		$this->appConfig        = $this->createMock( IAppConfig::class );
+		$this->appConfig        = $this->memoryAppConfig();
 		$this->metadataService  = $this->createMock( MetadataService::class );
 		$this->hashIndexService = $this->createMock( HashIndexService::class );
 		$this->jobList          = $this->createMock( IJobList::class );
@@ -764,21 +764,9 @@ class RepairQuietStartTest
 		                      ->method( 'purgeOrphanedMetadata' )
 		;
 
-		$set = [];
-		$this->appConfig->method( 'setValueInt' )
-		                ->willReturnCallback(
-			                static function( string $app, string $key, int $value ) use ( &$set ): bool
-			                {
-				                $set[ $key ] = $value;
-
-				                return true;
-			                },
-		                )
-		;
-
 		$this->step->run( $this->output );
 
-		$this->assertSame( 0, $set[ RuleProcessingJob::ORPHAN_PURGE_LAST_RUN ] ?? null, 'the daily purge is made due' );
+		$this->assertSame( 0, $this->appValues[ RuleProcessingJob::ORPHAN_PURGE_LAST_RUN ] ?? null, 'the daily purge is made due' );
 	}
 
 	/**

@@ -13,6 +13,7 @@ use OCA\FileChecksumSearch\Command\Queue\Drain;
 use OCA\FileChecksumSearch\Service\DrainOutcome;
 use OCA\FileChecksumSearch\Service\HashCalculationService;
 use OCA\FileChecksumSearch\Service\MetadataService;
+use OCA\FileChecksumSearch\Tests\Unit\AppDoubles;
 use OCP\IAppConfig;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\MockObject\MockObject;
@@ -29,6 +30,8 @@ class QueueDrainTest
     extends
     TestCase
 {
+	use AppDoubles;
+
 
 //  constants
 
@@ -59,7 +62,8 @@ class QueueDrainTest
 
 		$this->metadataService = $this->createMock( MetadataService::class );
 		$this->hashCalc        = $this->createMock( HashCalculationService::class );
-		$this->appConfig       = $this->createMock( IAppConfig::class );
+		// Nothing stored: the batch is the background job's default, 50.
+		$this->appConfig       = $this->memoryAppConfig();
 
 		$this->tester = new CommandTester(
 			new Drain(
@@ -80,9 +84,8 @@ class QueueDrainTest
 	 */
 	public function testTheConfiguredLimitIsUsedWhenNoFlagIsGiven(): void
 	{
-		$this->appConfig->method( 'getValueInt' )
-		                ->willReturn( 7 )
-		;
+		$this->appValues['pending_batch_limit'] = 7;
+
 		// One batch, in the queue's own order: no lower bound.
 		$this->metadataService->expects( $this->once() )
 		                      ->method( 'fetchPendingBatch' )
@@ -126,9 +129,6 @@ class QueueDrainTest
 	 */
 	public function testAFinishedQueueSaysNothingAboutLimits(): void
 	{
-		$this->appConfig->method( 'getValueInt' )
-		                ->willReturn( 50 )
-		;
 		$this->metadataService->method( 'fetchPendingBatch' )
 		                      ->willReturn( $this->pending( 1 ) )
 		;
@@ -147,9 +147,6 @@ class QueueDrainTest
 	 */
 	public function testAllDoesNotSuggestAll(): void
 	{
-		$this->appConfig->method( 'getValueInt' )
-		                ->willReturn( 50 )
-		;
 		$this->metadataService->method( 'fetchPendingBatch' )
 		                      ->willReturnOnConsecutiveCalls( $this->pending( 1 ), [] )
 		;
@@ -167,9 +164,6 @@ class QueueDrainTest
 
 	public function testAnEmptyQueueSaysSo(): void
 	{
-		$this->appConfig->method( 'getValueInt' )
-		                ->willReturn( 50 )
-		;
 		$this->metadataService->method( 'fetchPendingBatch' )
 		                      ->willReturn( [] )
 		;
@@ -334,9 +328,6 @@ class QueueDrainTest
 			'queued'  => $fileIds,
 		];
 
-		$this->appConfig->method( 'getValueInt' )
-		                ->willReturn( 50 )
-		;
 		$this->metadataService->method( 'fetchPendingBatch' )
 		                      ->willReturnCallback(
 			                      function(

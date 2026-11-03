@@ -60,7 +60,9 @@ class ShowStatusTest
 		$this->setUpQueryBuilderMock();
 
 		$this->metadataService = $this->createMock( MetadataService::class );
-		$this->appConfig       = $this->createMock( IAppConfig::class );
+		// Nothing stored: the interval is its default, an hour, the background
+		// count off, and the version unknown unless a test stores one.
+		$this->appConfig       = $this->memoryAppConfig();
 		$this->logger          = $this->createMock( LoggerInterface::class );
 		$this->jobStats        = $this->createMock( JobStatsService::class );
 		$this->jobStats->method( 'lastRuns' )
@@ -87,10 +89,6 @@ class ShowStatusTest
 				               JobStatsService::JOB_CHECKSUM_COUNT => [ 'lastRun' => 1700000499, 'counts' => [ 'rows' => 406419, 'mime_types' => 1234 ], 'attempt' => null ],
 			               ],
 		               )
-		;
-		// The interval's default, an hour; the background count off.
-		$this->appConfig->method( 'getValueInt' )
-		                ->willReturnArgument( 2 )
 		;
 
 		$result = $this->createMock( IResult::class );
@@ -133,9 +131,10 @@ class ShowStatusTest
 
 	public function testPlainOutputShowsCountsAndVersion(): void
 	{
+		$this->appValues['installed_version'] = '1.9.2';
+
 		$this->appConfig->method( 'getValueString' )
 		                ->with( 'file_checksum_search', 'installed_version', 'unknown' )
-		                ->willReturn( '1.9.2' )
 		;
 		$this->metadataService->method( 'getPendingStats' )
 		                      ->willReturn(
@@ -165,9 +164,8 @@ class ShowStatusTest
 	/** The database by name and version, in both outputs. */
 	public function testTheDatabaseIsShownByNameAndVersion(): void
 	{
-		$this->appConfig->method( 'getValueString' )
-		                ->willReturn( '1.9.2' )
-		;
+		$this->appValues['installed_version'] = '1.9.2';
+
 		$this->metadataService->method( 'getPendingStats' )
 		                      ->willReturn( [] )
 		;
@@ -182,9 +180,8 @@ class ShowStatusTest
 
 	public function testWithoutFullTheWholeTableCountsAreLeftOut(): void
 	{
-		$this->appConfig->method( 'getValueString' )
-		                ->willReturn( '1.9.2' )
-		;
+		$this->appValues['installed_version'] = '1.9.2';
+
 		$this->metadataService->method( 'getPendingStats' )
 		                      ->willReturn( [] )
 		;
@@ -214,9 +211,8 @@ class ShowStatusTest
 	/** --full counts the indexed checksums anew, whatever the kept count's age. */
 	public function testFullCountsTheChecksumsAnew(): void
 	{
-		$this->appConfig->method( 'getValueString' )
-		                ->willReturn( '1.9.2' )
-		;
+		$this->appValues['installed_version'] = '1.9.2';
+
 		$this->metadataService->method( 'getPendingStats' )
 		                      ->willReturn( [] )
 		;
@@ -235,9 +231,8 @@ class ShowStatusTest
 	/** The checksum count is a background job only while switched on, as on the page. */
 	public function testTheChecksumCountIsListedAsAJobOnlyWhileSwitchedOn(): void
 	{
-		$this->appConfig->method( 'getValueString' )
-		                ->willReturn( '1.9.2' )
-		;
+		$this->appValues['installed_version'] = '1.9.2';
+
 		$this->metadataService->method( 'getPendingStats' )
 		                      ->willReturn( [] )
 		;
@@ -253,9 +248,6 @@ class ShowStatusTest
 	 */
 	public function testPlainOutputListsTheBackgroundJobs(): void
 	{
-		$this->appConfig->method( 'getValueString' )
-		                ->willReturn( 'unknown' )
-		;
 		$this->metadataService->method( 'getPendingStats' )
 		                      ->willReturn( [] )
 		;
@@ -276,9 +268,6 @@ class ShowStatusTest
 	 */
 	public function testAFailedRunShowsItsReasonAndTheLastSuccess(): void
 	{
-		$this->appConfig->method( 'getValueString' )
-		                ->willReturn( 'unknown' )
-		;
 		$this->metadataService->method( 'getPendingStats' )
 		                      ->willReturn( [] )
 		;
@@ -298,9 +287,6 @@ class ShowStatusTest
 	 */
 	public function testTheFailingQueuedFilesAreCounted(): void
 	{
-		$this->appConfig->method( 'getValueString' )
-		                ->willReturn( 'unknown' )
-		;
 		$this->metadataService->method( 'getPendingStats' )
 		                      ->willReturn( [ 'pending:auto' => 5 ] )
 		;
@@ -317,9 +303,6 @@ class ShowStatusTest
 
 	public function testNoFailingQueuedFileNoLine(): void
 	{
-		$this->appConfig->method( 'getValueString' )
-		                ->willReturn( 'unknown' )
-		;
 		$this->metadataService->method( 'getPendingStats' )
 		                      ->willReturn( [ 'pending:auto' => 5 ] )
 		;
@@ -331,9 +314,6 @@ class ShowStatusTest
 
 	public function testJsonOutputCarriesTheJobsInThePagesShape(): void
 	{
-		$this->appConfig->method( 'getValueString' )
-		                ->willReturn( 'unknown' )
-		;
 		$this->metadataService->method( 'getPendingStats' )
 		                      ->willReturn( [] )
 		;
@@ -353,9 +333,6 @@ class ShowStatusTest
 
 	public function testPlainOutputOmitsPendingByModeWhenEmpty(): void
 	{
-		$this->appConfig->method( 'getValueString' )
-		                ->willReturn( 'unknown' )
-		;
 		$this->metadataService->method( 'getPendingStats' )
 		                      ->willReturn( [] )
 		;
@@ -367,9 +344,8 @@ class ShowStatusTest
 
 	public function testJsonOutputFormat(): void
 	{
-		$this->appConfig->method( 'getValueString' )
-		                ->willReturn( '1.9.2' )
-		;
+		$this->appValues['installed_version'] = '1.9.2';
+
 		$this->metadataService->method( 'getPendingStats' )
 		                      ->willReturn( [ 'pending:auto' => 2 ] )
 		;
@@ -444,9 +420,8 @@ class ShowStatusTest
 	 */
 	public function testUntrustedHashesAreReportedByReason(): void
 	{
-		$this->appConfig->method( 'getValueString' )
-		                ->willReturn( '1.9.2' )
-		;
+		$this->appValues['installed_version'] = '1.9.2';
+
 		$this->metadataService->method( 'getStaleStats' )
 		                      ->willReturn(
 			                      [
@@ -468,9 +443,8 @@ class ShowStatusTest
 
 	public function testUntrustedHashesAreInTheJsonToo(): void
 	{
-		$this->appConfig->method( 'getValueString' )
-		                ->willReturn( '1.9.2' )
-		;
+		$this->appValues['installed_version'] = '1.9.2';
+
 		$this->metadataService->method( 'getStaleStats' )
 		                      ->willReturn( [ MetadataService::STATE_REVOKED => 9 ] )
 		;
@@ -484,9 +458,6 @@ class ShowStatusTest
 
 	public function testNothingUntrustedOmitsTheBreakdown(): void
 	{
-		$this->appConfig->method( 'getValueString' )
-		                ->willReturn( 'unknown' )
-		;
 		$this->metadataService->method( 'getStaleStats' )
 		                      ->willReturn( [] )
 		;

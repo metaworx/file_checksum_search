@@ -54,10 +54,11 @@ abstract class FciasUnitTestCase
 	/**
 	 * Every LIKE pattern the query under test built, in order.
 	 *
-	 * Recorded here because the shared stubs are registered first and a test
-	 * that adds its own `like` expectation never sees a call: PHPUnit lets
-	 * the earliest matching stub answer. A test that cares about which
-	 * comparisons a query made reads this instead.
+	 * Recorded here because the shared stubs are registered first, and
+	 * PHPUnit answers a call with the earliest matching stub's value: a
+	 * test's own `like` expectation is counted and checked, but what it
+	 * returns is dropped. A test that cares about which comparisons a query
+	 * made reads this instead.
 	 *
 	 * @var list<string>
 	 */

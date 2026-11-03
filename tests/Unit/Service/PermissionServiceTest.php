@@ -12,6 +12,7 @@ namespace OCA\FileChecksumSearch\Tests\Unit\Service;
 use InvalidArgumentException;
 use OCA\FileChecksumSearch\AppInfo\Application;
 use OCA\FileChecksumSearch\Service\PermissionService;
+use OCA\FileChecksumSearch\Tests\Unit\AppDoubles;
 use OCP\IAppConfig;
 use OCP\IGroupManager;
 use PHPUnit\Framework\MockObject\MockObject;
@@ -29,6 +30,8 @@ class PermissionServiceTest
     extends
     TestCase
 {
+	use AppDoubles;
+
 
 //  private properties
 
@@ -45,7 +48,7 @@ class PermissionServiceTest
 	{
 		parent::setUp();
 
-		$this->appConfig    = $this->createMock( IAppConfig::class );
+		$this->appConfig    = $this->memoryAppConfig();
 		$this->groupManager = $this->createMock( IGroupManager::class );
 
 		$this->service = new PermissionService( $this->appConfig, $this->groupManager );
@@ -64,26 +67,14 @@ class PermissionServiceTest
 		array $groups = [],
 	): void
 	{
+		$this->appValues = [
+			'rule_editors_all_users' => $allUsers,
+			'rule_editors_users'     => json_encode( $users, JSON_THROW_ON_ERROR ),
+			'rule_editors_groups'    => json_encode( $groups, JSON_THROW_ON_ERROR ),
+		];
+
 		$this->appConfig->method( 'getValueBool' )
 		                ->with( Application::APP_ID, 'rule_editors_all_users', false )
-		                ->willReturn( $allUsers )
-		;
-
-		$this->appConfig->method( 'getValueString' )
-		                ->willReturnMap( [
-			                [
-				                Application::APP_ID,
-				                'rule_editors_users',
-				                '[]',
-				                json_encode( $users, JSON_THROW_ON_ERROR ),
-			                ],
-			                [
-				                Application::APP_ID,
-				                'rule_editors_groups',
-				                '[]',
-				                json_encode( $groups, JSON_THROW_ON_ERROR ),
-			                ],
-		                ] )
 		;
 	}
 
@@ -233,9 +224,7 @@ class PermissionServiceTest
 
 	public function testMalformedStoredListReadsAsEmpty(): void
 	{
-		$this->appConfig->method( 'getValueString' )
-		                ->willReturn( '{invalid' )
-		;
+		$this->appValues['rule_editors_users'] = '{invalid';
 
 		$this->assertSame(
 			[],
@@ -245,9 +234,7 @@ class PermissionServiceTest
 
 	public function testNonListStoredValueReadsAsEmpty(): void
 	{
-		$this->appConfig->method( 'getValueString' )
-		                ->willReturn( '"a string, not a list"' )
-		;
+		$this->appValues['rule_editors_groups'] = '"a string, not a list"';
 
 		$this->assertSame(
 			[],
@@ -260,20 +247,16 @@ class PermissionServiceTest
 	 */
 	public function testNonStringEntriesAreDroppedOnRead(): void
 	{
-		$this->appConfig->method( 'getValueString' )
-		                ->willReturn(
-			                json_encode(
-				                [
-					                'alice',
-					                42,
-					                '',
-					                null,
-					                'bob',
-				                ],
-				                JSON_THROW_ON_ERROR,
-			                ),
-		                )
-		;
+		$this->appValues['rule_editors_users'] = json_encode(
+			[
+				'alice',
+				42,
+				'',
+				null,
+				'bob',
+			],
+			JSON_THROW_ON_ERROR,
+		);
 
 		$this->assertSame(
 			[
@@ -292,26 +275,15 @@ class PermissionServiceTest
 	 */
 	public function testReadsTheHistoricalConfigKeys(): void
 	{
+		$this->appValues = [
+			'rule_editors_all_users' => true,
+			'rule_editors_groups'    => json_encode( [ 'staff' ], JSON_THROW_ON_ERROR ),
+			'rule_editors_users'     => json_encode( [ 'alice' ], JSON_THROW_ON_ERROR ),
+		];
+
 		$this->appConfig->expects( $this->once() )
 		                ->method( 'getValueBool' )
 		                ->with( Application::APP_ID, 'rule_editors_all_users', false )
-		                ->willReturn( true )
-		;
-		$this->appConfig->method( 'getValueString' )
-		                ->willReturnMap( [
-			                [
-				                Application::APP_ID,
-				                'rule_editors_groups',
-				                '[]',
-				                json_encode( [ 'staff' ], JSON_THROW_ON_ERROR ),
-			                ],
-			                [
-				                Application::APP_ID,
-				                'rule_editors_users',
-				                '[]',
-				                json_encode( [ 'alice' ], JSON_THROW_ON_ERROR ),
-			                ],
-		                ] )
 		;
 
 		$this->assertTrue(

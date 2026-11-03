@@ -15,6 +15,7 @@ use OCA\FileChecksumSearch\BackgroundJob\StampCheck;
 use OCA\FileChecksumSearch\Service\JobStatsService;
 use OCA\FileChecksumSearch\Service\MetadataService;
 use OCA\FileChecksumSearch\Service\RuleService;
+use OCA\FileChecksumSearch\Tests\Unit\AppDoubles;
 use OCP\AppFramework\Utility\ITimeFactory;
 use OCP\BackgroundJob\IJobList;
 use OCP\IAppConfig;
@@ -34,6 +35,8 @@ class StampCheckTest
     extends
     TestCase
 {
+	use AppDoubles;
+
 
 //  private properties
 
@@ -60,7 +63,7 @@ class StampCheckTest
 
 		$this->metadataService = $this->createMock( MetadataService::class );
 		$this->ruleService     = $this->createMock( RuleService::class );
-		$this->appConfig       = $this->createMock( IAppConfig::class );
+		$this->appConfig       = $this->memoryAppConfig();
 		$this->jobList         = $this->createMock( IJobList::class );
 		$this->jobStats        = $this->createMock( JobStatsService::class );
 		$this->time            = $this->createMock( ITimeFactory::class );
@@ -86,7 +89,6 @@ class StampCheckTest
 	{
 		$this->appConfig->method( 'getValueInt' )
 		                ->with( Application::APP_ID, StampCheck::CURSOR, 0 )
-		                ->willReturn( 0 )
 		;
 		$this->metadataService->expects( $this->once() )
 		                      ->method( 'stampUnstampedAfter' )
@@ -114,9 +116,8 @@ class StampCheckTest
 	 */
 	public function testTheLastRunResumesAndForgetsItsPlace(): void
 	{
-		$this->appConfig->method( 'getValueInt' )
-		                ->willReturn( 8000 )
-		;
+		$this->appValues[ StampCheck::CURSOR ] = 8000;
+
 		$this->metadataService->expects( $this->once() )
 		                      ->method( 'stampUnstampedAfter' )
 		                      ->with( 8000, StampCheck::PAGE_SIZE, $this->isInstanceOf( \Closure::class ) )

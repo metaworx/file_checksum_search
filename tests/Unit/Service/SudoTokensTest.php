@@ -35,9 +35,6 @@ class SudoTokensTest
 
 	private SudoTokens                     $sudoTokens;
 
-	/** What the store holds per user, as the mock answers and records it. */
-	private array $stored = [];
-
 
 //  getters / setters / is* / has*
 
@@ -45,21 +42,7 @@ class SudoTokensTest
 	{
 		parent::setUp();
 
-		$this->userConfig = $this->createMock( IUserConfig::class );
-		$this->userConfig->method( 'getValueArray' )
-		                 ->willReturnCallback( fn ( string $uid ): array => $this->stored[ $uid ] ?? [] );
-		$this->userConfig->method( 'setValueArray' )
-		                 ->willReturnCallback( function( string $uid, string $app, string $key, array $value ): bool
-		                 {
-			                 $this->stored[ $uid ] = $value;
-
-			                 return true;
-		                 } );
-		$this->userConfig->method( 'deleteUserConfig' )
-		                 ->willReturnCallback( function( string $uid ): void
-		                 {
-			                 unset( $this->stored[ $uid ] );
-		                 } );
+		$this->userConfig = $this->memoryUserConfig();
 
 		$this->tokens = $this->createMock( AuthTokenRepository::class );
 
@@ -101,7 +84,7 @@ class SudoTokensTest
 
 		$this->assertSame(
 			[ 7 => [ 'granted_by' => 'root', 'granted_at' => 1_700_000_000 ] ],
-			$this->stored['alice'],
+			$this->userValues['alice'][ ConfigLexicon::USER_SUDO_TOKENS ],
 		);
 		$this->assertTrue( $this->sudoTokens->isGranted( 'alice', 7 ) );
 		$this->assertFalse( $this->sudoTokens->isGranted( 'alice', 8 ) );
@@ -151,11 +134,11 @@ class SudoTokensTest
 
 	public function testRevokingTheLastGrantRemovesTheKeyEntirely(): void
 	{
-		$this->stored['alice'] = [ 7 => [ 'granted_by' => 'root', 'granted_at' => 1 ] ];
+		$this->userValues['alice'][ ConfigLexicon::USER_SUDO_TOKENS ] = [ 7 => [ 'granted_by' => 'root', 'granted_at' => 1 ] ];
 
 		$this->sudoTokens->revoke( 'alice', 7 );
 
-		$this->assertArrayNotHasKey( 'alice', $this->stored, 'nothing left means no key, not an empty one' );
+		$this->assertArrayNotHasKey( ConfigLexicon::USER_SUDO_TOKENS, $this->userValues['alice'], 'nothing left means no key, not an empty one' );
 		// And revoking what is not there is not an error.
 		$this->sudoTokens->revoke( 'alice', 7 );
 	}
@@ -166,7 +149,7 @@ class SudoTokensTest
 	 */
 	public function testTheListingShowsAppPasswordsWithTheirGrantsAndTidiesLeftovers(): void
 	{
-		$this->stored['alice'] = [
+		$this->userValues['alice'][ ConfigLexicon::USER_SUDO_TOKENS ] = [
 			7  => [ 'granted_by' => 'root', 'granted_at' => 1 ],
 			99 => [ 'granted_by' => 'root', 'granted_at' => 2 ],
 		];
@@ -184,7 +167,7 @@ class SudoTokensTest
 		$this->assertTrue( $rows[0]['granted'] );
 		$this->assertSame( 'root', $rows[0]['granted_by'] );
 		$this->assertFalse( $rows[1]['granted'] );
-		$this->assertSame( [ 7 ], array_keys( $this->stored['alice'] ), 'the grant on the deleted token 99 is gone' );
+		$this->assertSame( [ 7 ], array_keys( $this->userValues['alice'][ ConfigLexicon::USER_SUDO_TOKENS ] ), 'the grant on the deleted token 99 is gone' );
 	}
 
 	/**
@@ -193,7 +176,7 @@ class SudoTokensTest
 	 */
 	public function testAnUnreadableTableDoesNotWipeTheGrants(): void
 	{
-		$this->stored['alice'] = [ 7 => [ 'granted_by' => 'root', 'granted_at' => 1 ] ];
+		$this->userValues['alice'][ ConfigLexicon::USER_SUDO_TOKENS ] = [ 7 => [ 'granted_by' => 'root', 'granted_at' => 1 ] ];
 		$this->tokens->method( 'listForUser' )
 		             ->willReturn( [] )
 		;
@@ -202,7 +185,7 @@ class SudoTokensTest
 		;
 
 		$this->assertSame( [], $this->sudoTokens->listForUser( 'alice' ) );
-		$this->assertArrayHasKey( 7, $this->stored['alice'] );
+		$this->assertArrayHasKey( 7, $this->userValues['alice'][ ConfigLexicon::USER_SUDO_TOKENS ] );
 		$this->assertFalse( $this->sudoTokens->listingAvailable(), 'and the pages are told it was no answer' );
 	}
 
@@ -212,7 +195,7 @@ class SudoTokensTest
 	 */
 	public function testAnEmptyAnswerIsAnAnswer(): void
 	{
-		$this->stored['alice'] = [ 7 => [ 'granted_by' => 'root', 'granted_at' => 1 ] ];
+		$this->userValues['alice'][ ConfigLexicon::USER_SUDO_TOKENS ] = [ 7 => [ 'granted_by' => 'root', 'granted_at' => 1 ] ];
 		$this->tokens->method( 'listForUser' )
 		             ->willReturn( [] )
 		;
@@ -221,18 +204,19 @@ class SudoTokensTest
 		;
 
 		$this->assertSame( [], $this->sudoTokens->listForUser( 'alice' ) );
-		$this->assertArrayNotHasKey( 'alice', $this->stored, 'the last grant went with its token, and the key with it' );
+		$this->assertArrayNotHasKey( ConfigLexicon::USER_SUDO_TOKENS, $this->userValues['alice'], 'the last grant went with its token, and the key with it' );
 		$this->assertTrue( $this->sudoTokens->listingAvailable() );
 	}
 
 	public function testTheAdministratorSeesEveryGrantAgainstTheLiveTable(): void
 	{
+		$this->userValues = [
+			'alice' => [ ConfigLexicon::USER_SUDO_TOKENS => [ 7 => [ 'granted_by' => 'root', 'granted_at' => 1 ] ] ],
+			'bob'   => [ ConfigLexicon::USER_SUDO_TOKENS => [ 42 => [ 'granted_by' => 'root', 'granted_at' => 2 ] ] ],
+		];
+
 		$this->userConfig->method( 'getValuesByUsers' )
 		                 ->with( Application::APP_ID, ConfigLexicon::USER_SUDO_TOKENS )
-		                 ->willReturn( [
-			                 'alice' => [ 7 => [ 'granted_by' => 'root', 'granted_at' => 1 ] ],
-			                 'bob'   => [ 42 => [ 'granted_by' => 'root', 'granted_at' => 2 ] ],
-		                 ] )
 		;
 		$this->tokens->method( 'byIds' )
 		             ->with( [ 7, 42 ] )

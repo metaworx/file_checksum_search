@@ -9,6 +9,7 @@ declare( strict_types=1 );
 
 namespace OCA\FileChecksumSearch\Tests\Unit\Controller;
 
+use OCA\FileChecksumSearch\Config\ConfigLexicon;
 use OCA\FileChecksumSearch\Controller\PublicApiController;
 use OCA\FileChecksumSearch\Service\AlgorithmCatalogue;
 use OCA\FileChecksumSearch\Service\DuplicateActionService;
@@ -80,7 +81,7 @@ class PublicApiControllerTest
 		$this->userSession  = $this->createMock( IUserSession::class );
 		$this->groupManager = $this->createMock( IGroupManager::class );
 		$this->logger       = $this->createMock( LoggerInterface::class );
-		$this->userConfig   = $this->createMock( IUserConfig::class );
+		$this->userConfig   = $this->memoryUserConfig();
 		$request            = $this->createMock( IRequest::class );
 
 		// The default caller is a member of the admin group, which grants
@@ -108,10 +109,10 @@ class PublicApiControllerTest
 		$this->confirmation->method( 'isConfirmed' )
 		                   ->willReturn( true )
 		;
-		$this->appConfig = $this->createMock( IAppConfig::class );
-		$this->appConfig->method( 'getValueInt' )
-		                ->willReturn( 21 )
-		;
+		$this->appConfig = $this->memoryAppConfig();
+
+		$this->appValues[ ConfigLexicon::CROSS_ACCOUNT_PREFILL_LIMIT ] = 21;
+
 		$this->duplicateActions = $this->createMock( DuplicateActionService::class );
 
 		$adminUser = $this->createMock( IUser::class );
@@ -1871,7 +1872,7 @@ class PublicApiControllerTest
 			$session,
 			$this->groupManager,
 			$this->logger,
-			new AlgorithmCatalogue( $this->createMock( IAppConfig::class ) ),
+			new AlgorithmCatalogue( $this->memoryAppConfig() ),
 			$this->userConfig,
 			$this->lockdown,
 			$this->sudo,
@@ -1906,9 +1907,7 @@ class PublicApiControllerTest
 	 */
 	public function testReadingThePreferenceSaysWhichOneIsActive(): void
 	{
-		$this->userConfig->method( 'getValueString' )
-		                 ->willReturn( 'sha256' )
-		;
+		$this->userValues['alice']['preferred_algorithm'] = 'sha256';
 
 		$data = $this->preferenceController( 'alice' )->getPreference( 'preferred_algorithm' )->getData();
 
@@ -1924,9 +1923,7 @@ class PublicApiControllerTest
 	 */
 	public function testAStoredPreferenceNoLongerInForceYieldsToTheDefault(): void
 	{
-		$this->userConfig->method( 'getValueString' )
-		                 ->willReturn( 'whirlpool' )
-		;
+		$this->userValues['alice']['preferred_algorithm'] = 'whirlpool';
 
 		$data = $this->preferenceController( 'alice' )->getPreference( 'preferred_algorithm' )->getData();
 

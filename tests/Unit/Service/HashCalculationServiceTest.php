@@ -28,7 +28,6 @@ use OCP\Lock\ILockingProvider;
 use OCP\Lock\LockedException;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\MockObject\MockObject;
-use OCP\IAppConfig;
 use Psr\Log\LoggerInterface;
 use Psr\Log\LogLevel;
 use RuntimeException;
@@ -133,9 +132,9 @@ class HashCalculationServiceTest
 		$this->metadataService  = $this->createMock( MetadataService::class );
 		$this->ruleService      = $this->createMock( RuleService::class );
 		$this->logger           = $this->createMock( LoggerInterface::class );
-		// Real catalogue over a mocked app config: [] stored, so the shipped
-		// default list is in force — what an untouched instance has.
-		$this->catalogue = new AlgorithmCatalogue( $this->createMock( IAppConfig::class ) );
+		// Real catalogue over the app config's double: nothing stored, so the
+		// shipped default list is in force — what an untouched instance has.
+		$this->catalogue = new AlgorithmCatalogue( $this->memoryAppConfig() );
 		$this->mimeTypes = $this->createMock( MimeTypeService::class );
 
 		// These tests stub a document's stamp and the file's mtime, not the

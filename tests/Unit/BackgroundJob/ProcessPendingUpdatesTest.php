@@ -10,12 +10,12 @@ declare( strict_types=1 );
 namespace OCA\FileChecksumSearch\Tests\Unit\BackgroundJob;
 
 use OCA\FileChecksumSearch\Service\JobStatsService;
-use OCA\FileChecksumSearch\AppInfo\Application;
 use OCA\FileChecksumSearch\BackgroundJob\ProcessPendingUpdates;
 use OCA\FileChecksumSearch\Service\DrainOutcome;
 use OCA\FileChecksumSearch\Service\HashCalculationService;
 use OCA\FileChecksumSearch\Service\MetadataService;
 use OCA\FileChecksumSearch\Service\RuleService;
+use OCA\FileChecksumSearch\Tests\Unit\AppDoubles;
 use OCP\AppFramework\Utility\ITimeFactory;
 use OCP\BackgroundJob\IJobList;
 use OCP\IAppConfig;
@@ -30,6 +30,8 @@ class ProcessPendingUpdatesTest
     extends
     TestCase
 {
+	use AppDoubles;
+
 
 //  private properties
 
@@ -62,29 +64,11 @@ class ProcessPendingUpdatesTest
 		$this->hashCalc        = $this->createMock( HashCalculationService::class );
 		$this->metadataService = $this->createMock( MetadataService::class );
 		$this->ruleService     = $this->createMock( RuleService::class );
-		$this->appConfig       = $this->createMock( IAppConfig::class );
+		// Nothing stored: the interval and the batch limit are their defaults.
+		$this->appConfig       = $this->memoryAppConfig();
 		$this->jobList         = $this->createMock( IJobList::class );
 		$this->jobStats        = $this->createMock( JobStatsService::class );
 		$this->logger          = $this->createMock( LoggerInterface::class );
-
-		$this->appConfig->method( 'getValueInt' )
-		                ->willReturnMap(
-			                [
-				                [
-					                Application::APP_ID,
-					                'process_pending_interval',
-					                60,
-					                60,
-				                ],
-				                [
-					                Application::APP_ID,
-					                'pending_batch_limit',
-					                50,
-					                50,
-				                ],
-			                ],
-		                )
-		;
 
 		$this->job = new ProcessPendingUpdates(
 			$this->time,

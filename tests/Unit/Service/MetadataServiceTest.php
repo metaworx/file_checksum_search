@@ -20,7 +20,6 @@ use OCA\FileChecksumSearch\Tests\Unit\FciasUnitTestCase;
 use OCP\DB\Exception;
 use OCP\DB\IResult;
 use OCP\FilesMetadata\IFilesMetadataManager;
-use OCP\IAppConfig;
 use OCP\FilesMetadata\Model\IFilesMetadata;
 use OCP\FilesMetadata\Model\IMetadataValueWrapper;
 use OCP\IDBConnection;
@@ -69,10 +68,10 @@ class MetadataServiceTest
 
 		$this->setUpQueryBuilderMock();
 
-		// A real catalogue over a mocked app config: getValueArray() answers
-		// [] and the catalogue falls back to the shipped default, which is
-		// what an instance that never touched the allowlist has.
-		$this->catalogue = new AlgorithmCatalogue( $this->createMock( IAppConfig::class ) );
+		// A real catalogue over the app config's double: nothing stored, so
+		// the catalogue falls back to the shipped default, which is what an
+		// instance that never touched the allowlist has.
+		$this->catalogue = new AlgorithmCatalogue( $this->memoryAppConfig() );
 		$this->mimeTypes = $this->createMock( MimeTypeService::class );
 
 		$this->service = new MetadataService(

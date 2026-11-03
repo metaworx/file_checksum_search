@@ -12,6 +12,8 @@ namespace OCA\FileChecksumSearch\Tests\Unit\Service;
 use OCA\FileChecksumSearch\AppInfo\Application;
 use OCA\FileChecksumSearch\Config\ConfigLexicon;
 use OCA\FileChecksumSearch\Service\AppConfigService;
+use OCA\FileChecksumSearch\Tests\Unit\AppDoubles;
+use OCP\Config\ValueType;
 use OCP\IAppConfig;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
@@ -26,6 +28,8 @@ class AppConfigServiceTest
     extends
     TestCase
 {
+	use AppDoubles;
+
 
 //  private properties
 
@@ -40,7 +44,7 @@ class AppConfigServiceTest
 	{
 		parent::setUp();
 
-		$this->appConfig = $this->createMock( IAppConfig::class );
+		$this->appConfig = $this->memoryAppConfig();
 		$this->service   = new AppConfigService(
 			$this->appConfig,
 			new ConfigLexicon(),
@@ -236,36 +240,20 @@ class AppConfigServiceTest
 	 */
 	public function testReplaceDeletesOwnedKeysTheImportDoesNotMention(): void
 	{
-		$this->appConfig->method( 'hasKey' )
-		                ->willReturn( true )
-		;
-
-		$deleted = [];
-		$this->appConfig->method( 'deleteKey' )
-		                ->willReturnCallback(
-			                static function(
-				                string $app,
-				                string $key,
-			                ) use
-			                (
-				                &
-				                $deleted,
-			                ): void
-			                {
-				                $deleted[] = $key;
-			                },
-		                )
-		;
+		$this->givenSet( array_fill_keys( $this->service->ownedKeys(), '1' ) );
 
 		$this->service->import( [ 'rule_definitions' => '[]' ], replace: true );
 
-		$this->assertNotContains( 'rule_definitions', $deleted );
-		$this->assertContains( 'rule_processing_interval', $deleted );
+		$this->assertSame( '[]', $this->appValues['rule_definitions'] );
+		$this->assertArrayNotHasKey( 'rule_processing_interval', $this->appValues );
 
 		// Only the keys that could have been in the file. History was never
 		// exported, so its absence from one says nothing about it.
-		$this->assertNotContains( 'stats_rule_sweep_last_run', $deleted );
-		$this->assertCount( count( $this->service->portableKeys() ) - 1, $deleted );
+		$this->assertArrayHasKey( 'stats_rule_sweep_last_run', $this->appValues );
+		$this->assertEqualsCanonicalizing(
+			[ 'rule_definitions', ...array_diff( $this->service->ownedKeys(), $this->service->portableKeys() ) ],
+			array_keys( $this->appValues ),
+		);
 	}
 
 	public function testAMergingImportLeavesUnmentionedKeysAlone(): void
@@ -340,9 +328,8 @@ class AppConfigServiceTest
 	 */
 	public function testClearDeletesEveryKeyThatIsSet(): void
 	{
-		$this->appConfig->method( 'hasKey' )
-		                ->willReturn( true )
-		;
+		$this->givenSet( array_fill_keys( $this->service->ownedKeys(), '1' ) );
+
 		$this->appConfig->expects( $this->never() )
 		                ->method( 'setValueString' )
 		;
@@ -355,9 +342,6 @@ class AppConfigServiceTest
 
 	public function testClearSkipsKeysThatAreNotSet(): void
 	{
-		$this->appConfig->method( 'hasKey' )
-		                ->willReturn( false )
-		;
 		$this->appConfig->expects( $this->never() )
 		                ->method( 'deleteKey' )
 		;
@@ -372,9 +356,8 @@ class AppConfigServiceTest
 	 */
 	public function testOneFailedDeletionDoesNotAbortTheRest(): void
 	{
-		$this->appConfig->method( 'hasKey' )
-		                ->willReturn( true )
-		;
+		$this->givenSet( array_fill_keys( $this->service->ownedKeys(), '1' ) );
+
 		$this->appConfig->method( 'deleteKey' )
 		                ->willReturnCallback(
 			                static function(
@@ -394,44 +377,28 @@ class AppConfigServiceTest
 	}
 
 	/**
-	 * Stand in for an instance where exactly these keys are set, answering
-	 * each typed getter from the same stored strings.
+	 * Stand in for an instance where exactly these keys are set: each string
+	 * stored as the type the lexicon declares for its key, which is what the
+	 * typed getters answer.
 	 *
 	 * @param  array<string, string>  $set
 	 */
 	private function givenSet( array $set ): void
 	{
-		$this->appConfig->method( 'hasKey' )
-		                ->willReturnCallback(
-			                static fn(
-				                string $app,
-				                string $key,
-			                ): bool => isset( $set[ $key ] ),
-		                )
-		;
-		$this->appConfig->method( 'getValueString' )
-		                ->willReturnCallback(
-			                static fn(
-				                string $app,
-				                string $key,
-			                ): string => $set[ $key ] ?? '',
-		                )
-		;
-		$this->appConfig->method( 'getValueInt' )
-		                ->willReturnCallback(
-			                static fn(
-				                string $app,
-				                string $key,
-			                ): int => (int) ( $set[ $key ] ?? 0 ),
-		                )
-		;
-		$this->appConfig->method( 'getValueBool' )
-		                ->willReturnCallback(
-			                static fn(
-				                string $app,
-				                string $key,
-			                ): bool => ( $set[ $key ] ?? '' ) === '1',
-		                )
-		;
+		$types = [];
+		foreach ( ( new ConfigLexicon() )->getAppConfigs() as $entry )
+		{
+			$types[ $entry->getKey() ] = $entry->getValueType();
+		}
+
+		foreach ( $set as $key => $value )
+		{
+			$this->appValues[ $key ] = match ( $types[ $key ] ?? null )
+			{
+				ValueType::INT  => (int) $value,
+				ValueType::BOOL => $value === '1',
+				default         => $value,
+			};
+		}
 	}
 }

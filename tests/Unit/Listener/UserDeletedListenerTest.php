@@ -12,6 +12,7 @@ namespace OCA\FileChecksumSearch\Tests\Unit\Listener;
 use OCA\FileChecksumSearch\AppInfo\Application;
 use OCA\FileChecksumSearch\BackgroundJob\RuleProcessingJob;
 use OCA\FileChecksumSearch\Listener\UserDeletedListener;
+use OCA\FileChecksumSearch\Tests\Unit\AppDoubles;
 use OCP\App\Events\AppDisableEvent;
 use OCP\IAppConfig;
 use OCP\User\Events\UserDeletedEvent;
@@ -24,6 +25,8 @@ class UserDeletedListenerTest
     extends
     TestCase
 {
+	use AppDoubles;
+
 
 //  private properties
 
@@ -40,7 +43,7 @@ class UserDeletedListenerTest
 	{
 		parent::setUp();
 
-		$this->appConfig = $this->createMock( IAppConfig::class );
+		$this->appConfig = $this->memoryAppConfig();
 		$this->logger    = $this->createMock( LoggerInterface::class );
 		$this->listener  = new UserDeletedListener( $this->appConfig, $this->logger );
 	}

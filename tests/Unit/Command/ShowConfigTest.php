@@ -11,6 +11,7 @@ namespace OCA\FileChecksumSearch\Tests\Unit\Command;
 
 use OCA\FileChecksumSearch\AppInfo\Application;
 use OCA\FileChecksumSearch\Command\ShowConfig;
+use OCA\FileChecksumSearch\Tests\Unit\AppDoubles;
 use OCP\IAppConfig;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
@@ -22,6 +23,8 @@ class ShowConfigTest
     extends
     TestCase
 {
+	use AppDoubles;
+
 
 //  private properties
 
@@ -39,7 +42,7 @@ class ShowConfigTest
 	{
 		parent::setUp();
 
-		$this->appConfig  = $this->createMock( IAppConfig::class );
+		$this->appConfig  = $this->memoryAppConfig();
 		$this->logger     = $this->createMock( LoggerInterface::class );
 
 		$command      = new ShowConfig( $this->appConfig, $this->logger );
@@ -51,12 +54,13 @@ class ShowConfigTest
 
 	public function testPlainOutputListsKeyValuePairs(): void
 	{
+		$this->appValues = [
+			'installed_version' => '1.9.2',
+			'rule_definitions'  => [ 'a', 'b' ],
+		];
+
 		$this->appConfig->method( 'getAllValues' )
 		                ->with( Application::APP_ID )
-		                ->willReturn( [
-			                'installed_version'  => '1.9.2',
-			                'rule_definitions'   => [ 'a', 'b' ],
-		                ] )
 		;
 
 		$exitCode = $this->tester->execute( [] );
@@ -70,9 +74,7 @@ class ShowConfigTest
 
 	public function testPlainOutputFormatsBooleansAsWords(): void
 	{
-		$this->appConfig->method( 'getAllValues' )
-		                ->willReturn( [ 'lazy_enabled' => true, 'strict_mode' => false ] )
-		;
+		$this->appValues = [ 'lazy_enabled' => true, 'strict_mode' => false ];
 
 		$this->tester->execute( [] );
 
@@ -83,10 +85,6 @@ class ShowConfigTest
 
 	public function testPlainOutputReportsNoConfigValues(): void
 	{
-		$this->appConfig->method( 'getAllValues' )
-		                ->willReturn( [] )
-		;
-
 		$exitCode = $this->tester->execute( [] );
 
 		$this->assertSame( Command::SUCCESS, $exitCode );
@@ -95,9 +93,7 @@ class ShowConfigTest
 
 	public function testJsonOutputFormat(): void
 	{
-		$this->appConfig->method( 'getAllValues' )
-		                ->willReturn( [ 'installed_version' => '1.9.2' ] )
-		;
+		$this->appValues = [ 'installed_version' => '1.9.2' ];
 
 		$this->tester->execute( [ '--output' => 'json' ] );
 
@@ -108,9 +104,7 @@ class ShowConfigTest
 
 	public function testJsonPrettyOutputIsIndented(): void
 	{
-		$this->appConfig->method( 'getAllValues' )
-		                ->willReturn( [ 'installed_version' => '1.9.2' ] )
-		;
+		$this->appValues = [ 'installed_version' => '1.9.2' ];
 
 		$this->tester->execute( [ '--output' => 'json_pretty' ] );
 

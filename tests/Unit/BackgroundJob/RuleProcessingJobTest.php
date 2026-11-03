@@ -19,7 +19,9 @@ use OCA\FileChecksumSearch\AppInfo\Application;
 use OCA\FileChecksumSearch\BackgroundJob\ProcessPendingUpdates;
 use OCA\FileChecksumSearch\BackgroundJob\RuleProcessingJob;
 use OCA\FileChecksumSearch\BackgroundJob\StampCheck;
+use OCA\FileChecksumSearch\Config\ConfigLexicon;
 use OCA\FileChecksumSearch\Service\RuleService;
+use OCA\FileChecksumSearch\Tests\Unit\AppDoubles;
 use OCP\AppFramework\Utility\ITimeFactory;
 use OCP\BackgroundJob\IJobList;
 use OCP\IAppConfig;
@@ -33,6 +35,8 @@ class RuleProcessingJobTest
     extends
     TestCase
 {
+	use AppDoubles;
+
 
 //  private properties
 
@@ -59,15 +63,6 @@ class RuleProcessingJobTest
 	 */
 	private ?int                       $countLastRun = 0;
 
-	/** The background count's switch, as the config mock reports it. */
-	private bool                       $countInBackground = false;
-
-	/**
-	 * When the stamp check was last queued, as the config mock reports it:
-	 * far ahead of any mocked clock, so that it is not due.
-	 */
-	private int                        $stampCheckQueuedAt = PHP_INT_MAX;
-
 
 //  getters / setters / is* / has*
 
@@ -78,30 +73,18 @@ class RuleProcessingJobTest
 		$this->time            = $this->createMock( ITimeFactory::class );
 		$this->ruleService     = $this->createMock( RuleService::class );
 		$this->metadataService = $this->createMock( MetadataService::class );
-		$this->appConfig       = $this->createMock( IAppConfig::class );
+		$this->appConfig       = $this->memoryAppConfig();
 		$this->jobList         = $this->createMock( IJobList::class );
 		$this->jobStats        = $this->createMock( JobStatsService::class );
 		$this->logger          = $this->createMock( LoggerInterface::class );
 
-		// Answered by key rather than pinned with with(): the purge gate in
-		// run() reads its own clock and interval through the same method, and
-		// the mocked clock stands at zero, so by default the purge is never
-		// due and the rule-sweep tests below see exactly what they always did.
-		// The stamp check's clock stands at "just queued" instead, so that it
-		// is never due unless a test sets $stampCheckQueuedAt.
-		$this->appConfig->method( 'getValueInt' )
-		                ->willReturnCallback(
-			                fn( string $app, string $key, int $default ): int => $key === RuleProcessingJob::STAMP_CHECK_LAST_QUEUED
-				                ? $this->stampCheckQueuedAt
-				                : $default,
-		                )
-		;
-		$this->appConfig->method( 'getValueBool' )
-		                ->willReturnCallback(
-			                fn( string $app, string $key ): bool => $key === 'checksum_count_background'
-				                && $this->countInBackground,
-		                )
-		;
+		// The purge gate in run() reads its own clock and interval, nothing
+		// stored, and the mocked clock stands at zero, so by default the purge
+		// is never due and the rule-sweep tests below see exactly what they
+		// always did. The stamp check's clock stands far ahead of any mocked
+		// clock instead, so that it is never due unless a test stores another.
+		// The background count is off unless a test switches it on.
+		$this->appValues[ RuleProcessingJob::STAMP_CHECK_LAST_QUEUED ] = PHP_INT_MAX;
 
 		// The same for the checksum count: not due unless a test says so,
 		// so the tests above it see only the stats they always did.
@@ -411,8 +394,8 @@ class RuleProcessingJobTest
 	 */
 	public function testADueChecksumCountIsTakenAndKept(): void
 	{
-		$this->countInBackground = true;
-		$this->countLastRun      = null;
+		$this->appValues[ ConfigLexicon::CHECKSUM_COUNT_BACKGROUND ] = true;
+		$this->countLastRun                                          = null;
 		$this->ruleService->method( 'evaluateRules' )
 		                  ->willReturn( [ 'marked' => 0, 'matched' => 0 ] )
 		;
@@ -465,8 +448,8 @@ class RuleProcessingJobTest
 	 */
 	public function testAChecksumCountWithinItsIntervalIsNotTakenAgain(): void
 	{
-		$this->countInBackground = true;
-		$this->countLastRun      = 1_700_100_000 - 60;
+		$this->appValues[ ConfigLexicon::CHECKSUM_COUNT_BACKGROUND ] = true;
+		$this->countLastRun                                          = 1_700_100_000 - 60;
 		$this->time->method( 'getTime' )
 		           ->willReturn( 1_700_100_000 )
 		;
@@ -487,7 +470,7 @@ class RuleProcessingJobTest
 	 */
 	public function testADueStampCheckIsQueuedAndBooked(): void
 	{
-		$this->stampCheckQueuedAt = 0;
+		$this->appValues[ RuleProcessingJob::STAMP_CHECK_LAST_QUEUED ] = 0;
 
 		$this->ruleService->method( 'evaluateRules' )
 		                  ->willReturn( [ 'marked' => 0, 'matched' => 0 ] )
@@ -501,21 +484,9 @@ class RuleProcessingJobTest
 		              ->with( StampCheck::class, [ 'walk' => StampCheck::WALK_FILECACHE ] )
 		;
 
-		$booked = [];
-		$this->appConfig->method( 'setValueInt' )
-		                ->willReturnCallback(
-			                static function( string $app, string $key, int $value ) use ( &$booked ): bool
-			                {
-				                $booked[ $key ] = $value;
-
-				                return true;
-			                },
-		                )
-		;
-
 		( new ReflectionMethod( RuleProcessingJob::class, 'run' ) )->invoke( $this->job, null );
 
-		$this->assertSame( RuleProcessingJob::STAMP_CHECK_DEFAULT_INTERVAL, $booked[ RuleProcessingJob::STAMP_CHECK_LAST_QUEUED ] ?? null );
+		$this->assertSame( RuleProcessingJob::STAMP_CHECK_DEFAULT_INTERVAL, $this->appValues[ RuleProcessingJob::STAMP_CHECK_LAST_QUEUED ] );
 	}
 
 	/**
@@ -524,7 +495,7 @@ class RuleProcessingJobTest
 	 */
 	public function testADueStampCheckWaitsForAPendingEtagWalk(): void
 	{
-		$this->stampCheckQueuedAt = 0;
+		$this->appValues[ RuleProcessingJob::STAMP_CHECK_LAST_QUEUED ] = 0;
 
 		$this->ruleService->method( 'evaluateRules' )
 		                  ->willReturn( [ 'marked' => 0, 'matched' => 0 ] )
@@ -545,20 +516,8 @@ class RuleProcessingJobTest
 		              ->method( 'add' )
 		;
 
-		$booked = [];
-		$this->appConfig->method( 'setValueInt' )
-		                ->willReturnCallback(
-			                static function( string $app, string $key, int $value ) use ( &$booked ): bool
-			                {
-				                $booked[ $key ] = $value;
-
-				                return true;
-			                },
-		                )
-		;
-
 		( new ReflectionMethod( RuleProcessingJob::class, 'run' ) )->invoke( $this->job, null );
 
-		$this->assertArrayNotHasKey( RuleProcessingJob::STAMP_CHECK_LAST_QUEUED, $booked );
+		$this->assertSame( 0, $this->appValues[ RuleProcessingJob::STAMP_CHECK_LAST_QUEUED ] );
 	}
 }

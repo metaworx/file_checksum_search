@@ -20,7 +20,6 @@ use OCA\FileChecksumSearch\Service\RuleDefinitionValidator;
 use OCA\FileChecksumSearch\Service\RuleService;
 use OCA\FileChecksumSearch\Tests\Unit\FciasUnitTestCase;
 use OCP\AppFramework\Http;
-use OCP\IAppConfig;
 use OCP\BackgroundJob\IJobList;
 use OCP\IGroupManager;
 use OCP\IRequest;
@@ -58,9 +57,6 @@ class RulesControllerTest
 
 	private MockObject|LoggerInterface    $logger;
 
-	/** The configuration the controller's algorithm catalogue reads. */
-	private MockObject|IAppConfig         $catalogueConfig;
-
 	private RulesController               $controller;
 
 
@@ -97,13 +93,13 @@ class RulesControllerTest
 			                         // validation through the controller door.
 			                         // Both translate marking, so a test can
 			                         // see a refusal went through IL10N.
-			                         new RuleDefinitionValidator( $this->groupManager, $this->userManager, new AlgorithmCatalogue( $this->createMock( IAppConfig::class ) ), $this->markingL10n() ),
+			                         new RuleDefinitionValidator( $this->groupManager, $this->userManager, new AlgorithmCatalogue( $this->memoryAppConfig() ), $this->markingL10n() ),
 			                         $this->userManager,
 			                         $this->jobList,
 			                         $this->groupFolderService,
 			                         $this->filecacheService,
 			                         $this->logger,
-					new AlgorithmCatalogue( $this->catalogueConfig = $this->createMock( IAppConfig::class ) ),
+					new AlgorithmCatalogue( $this->memoryAppConfig() ),
 				$this->markingL10n(),
 			] )
 		                         ->getMock()
@@ -401,9 +397,7 @@ class RulesControllerTest
 	{
 		$this->signIn( 'alice' );
 		$this->scope( 'own' );
-		$this->catalogueConfig->method( 'getValueString' )
-		                      ->willReturn( 'sha256' )
-		;
+		$this->appValues[ AlgorithmCatalogue::DEFAULT_KEY ] = 'sha256';
 		$this->ruleService->method( 'listRulesFor' )
 		                  ->willReturn( [] )
 		;

@@ -15,6 +15,7 @@ use OCA\FileChecksumSearch\BackgroundJob\MimeTypeDelete;
 use OCA\FileChecksumSearch\BackgroundJob\MimeTypeRefresh;
 use OCA\FileChecksumSearch\Config\ConfigLexicon;
 use OCA\FileChecksumSearch\Service\MimeTypeService;
+use OCA\FileChecksumSearch\Tests\Unit\AppDoubles;
 use OCP\AppFramework\Utility\ITimeFactory;
 use OCP\BackgroundJob\IJobList;
 use OCP\Files\IMimeTypeDetector;
@@ -31,6 +32,8 @@ class MimeTypeServiceTest
     extends
     TestCase
 {
+	use AppDoubles;
+
 
 //  private properties
 
@@ -51,7 +54,7 @@ class MimeTypeServiceTest
 	{
 		parent::setUp();
 
-		$this->appConfig = $this->createMock( IAppConfig::class );
+		$this->appConfig = $this->memoryAppConfig();
 		$this->detector  = $this->createMock( IMimeTypeDetector::class );
 		$this->loader    = $this->createMock( IMimeTypeLoader::class );
 		$this->jobList   = $this->createMock( IJobList::class );
@@ -72,10 +75,11 @@ class MimeTypeServiceTest
 		$this->appConfig->expects( $this->exactly( 2 ) )
 		                ->method( 'getValueBool' )
 		                ->with( Application::APP_ID, ConfigLexicon::MIMETYPE_DETECTION )
-		                ->willReturnOnConsecutiveCalls( false, true )
 		;
 
+		$this->appValues[ ConfigLexicon::MIMETYPE_DETECTION ] = false;
 		$this->assertFalse( $this->service->isEnabled() );
+		$this->appValues[ ConfigLexicon::MIMETYPE_DETECTION ] = true;
 		$this->assertTrue( $this->service->isEnabled() );
 	}
 
@@ -87,11 +91,9 @@ class MimeTypeServiceTest
 	{
 		$this->assertTrue( $this->service->isAvailable() );
 
-		$this->appConfig->method( 'getValueBool' )
-		                ->willReturnOnConsecutiveCalls( false, true )
-		;
-
+		$this->appValues[ ConfigLexicon::MIMETYPE_DETECTION ] = false;
 		$this->assertFalse( $this->service->isActive() );
+		$this->appValues[ ConfigLexicon::MIMETYPE_DETECTION ] = true;
 		$this->assertTrue( $this->service->isActive() );
 	}
 
@@ -102,12 +104,10 @@ class MimeTypeServiceTest
 	 */
 	public function testNothingIsDetectedWhileADeletionIsRequested(): void
 	{
-		$this->appConfig->method( 'getValueBool' )
-		                ->willReturn( true )
-		;
+		$this->given( true, 1_759_300_000 );
+
 		$this->appConfig->method( 'getValueInt' )
 		                ->with( Application::APP_ID, ConfigLexicon::MIMETYPE_DELETE_REQUESTED_AT )
-		                ->willReturn( 1_759_300_000 )
 		;
 
 		$this->assertFalse( $this->service->isActive() );
@@ -117,10 +117,11 @@ class MimeTypeServiceTest
 	{
 		$this->appConfig->method( 'getValueInt' )
 		                ->with( Application::APP_ID, ConfigLexicon::MIMETYPE_DELETE_REQUESTED_AT )
-		                ->willReturnOnConsecutiveCalls( 0, 1_759_300_000 )
 		;
 
+		$this->appValues[ ConfigLexicon::MIMETYPE_DELETE_REQUESTED_AT ] = 0;
 		$this->assertNull( $this->service->getDeleteRequestedAt() );
+		$this->appValues[ ConfigLexicon::MIMETYPE_DELETE_REQUESTED_AT ] = 1_759_300_000;
 		$this->assertSame( 1_759_300_000, $this->service->getDeleteRequestedAt() );
 	}
 
@@ -323,11 +324,7 @@ class MimeTypeServiceTest
 		int  $deleteRequestedAt,
 	): void
 	{
-		$this->appConfig->method( 'getValueBool' )
-		                ->willReturn( $enabled )
-		;
-		$this->appConfig->method( 'getValueInt' )
-		                ->willReturn( $deleteRequestedAt )
-		;
+		$this->appValues[ ConfigLexicon::MIMETYPE_DETECTION ]           = $enabled;
+		$this->appValues[ ConfigLexicon::MIMETYPE_DELETE_REQUESTED_AT ] = $deleteRequestedAt;
 	}
 }
