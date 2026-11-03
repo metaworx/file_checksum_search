@@ -754,6 +754,4 @@ Opening the status counts again when the kept count is older than the interval
 set under **Tunables** (an hour by default),
 unless **Tunables** have a background job keep it that fresh.
 
-<!-- BEGIN GENERATED RELEASE-PIN - do not edit; run "changelog.sh cut" -->
-[shot-admin-advanced]: https://gitlab.com/metaworx/open-source/nextcloud/file_checksum_search/-/raw/v0.30.0/docs/Screenshots/Admin-Advanced.png
-<!-- END GENERATED RELEASE-PIN -->
+[shot-admin-advanced]: Screenshots/Admin-Advanced.png

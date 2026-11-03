@@ -41,8 +41,6 @@ computes one file's checksum when you ask for it.
 
 Open **Duplicates** from the top navigation (or the URL
 `/apps/file_checksum_search/duplicates`) to browse files that share the same checksum.
-The pictures in this guide load from the project's site,
-so they need a connection to it; the words stand without them.
 
 ![The Duplicates page on Mine: one group opened to its files,
 each with the date it last changed and a menu][shot-duplicates-page]
@@ -524,10 +522,8 @@ To move a rule somewhere else entirely, change what it *is*: its **Scope**, or,
 for an administrator, its **Enforced** setting.
 Reordering currently needs a pointer; there is no keyboard equivalent.
 
-<!-- BEGIN GENERATED RELEASE-PIN - do not edit; run "changelog.sh cut" -->
-[shot-duplicates-page]: https://gitlab.com/metaworx/open-source/nextcloud/file_checksum_search/-/raw/v0.30.0/docs/Screenshots/Duplicates-Page.png
-[shot-duplicates-others]: https://gitlab.com/metaworx/open-source/nextcloud/file_checksum_search/-/raw/v0.30.0/docs/Screenshots/Duplicates-Others.png
-[shot-unified-search]: https://gitlab.com/metaworx/open-source/nextcloud/file_checksum_search/-/raw/v0.30.0/docs/Screenshots/Unified_Search.png
-[shot-file-detail-pane]: https://gitlab.com/metaworx/open-source/nextcloud/file_checksum_search/-/raw/v0.30.0/docs/Screenshots/File-Detail-Pane.png
-[shot-user-settings]: https://gitlab.com/metaworx/open-source/nextcloud/file_checksum_search/-/raw/v0.30.0/docs/Screenshots/User-Settings.png
-<!-- END GENERATED RELEASE-PIN -->
+[shot-duplicates-page]: Screenshots/Duplicates-Page.png
+[shot-duplicates-others]: Screenshots/Duplicates-Others.png
+[shot-unified-search]: Screenshots/Unified_Search.png
+[shot-file-detail-pane]: Screenshots/File-Detail-Pane.png
+[shot-user-settings]: Screenshots/User-Settings.png

@@ -9,6 +9,7 @@ declare( strict_types=1 );
 
 namespace OCA\FileChecksumSearch\Controller;
 
+use OCA\FileChecksumSearch\Service\DocumentImages;
 use OCP\AppFramework\Controller;
 use OCP\AppFramework\Http\Attribute\ApiRoute;
 use OCP\AppFramework\Http\Attribute\FrontpageRoute;
@@ -33,6 +34,7 @@ class PageController
 		string   $appName,
 		IRequest $request,
 		private readonly IL10N $l10n,
+		private readonly DocumentImages $documentImages,
 	)
 	{
 		parent::__construct( $appName, $request );
@@ -148,6 +150,7 @@ class PageController
 
 	/**
 	 * Read the given bundled doc files and return label/name/path/content entries.
+	 * A markdown file's images come from the app itself ({@see DocumentImages}).
 	 *
 	 * @param  array<int, array{label: string, name: string, path: string}>  $files
 	 *
@@ -167,6 +170,11 @@ class PageController
 			if ( is_file( $fullPath ) )
 			{
 				$content = file_get_contents( $fullPath );
+			}
+
+			if ( is_string( $content ) && str_ends_with( $file['path'], '.md' ) )
+			{
+				$content = $this->documentImages->servedByTheApp( $content, $file['path'], $appRoot );
 			}
 
 			$docs[] = [

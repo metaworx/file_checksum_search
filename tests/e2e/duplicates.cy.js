@@ -539,6 +539,22 @@ describe( 'FCIAS Duplicates page', () => {
 		cy.location( 'hash' ).should( 'eq', '#mine?limit=500' )
 	} )
 
+	// The guide's pictures are the app's own: the server's image policy
+	// admits the server alone, so one from the project's site never shows.
+	it( 'shows the guide on the Help tab with its pictures', () => {
+		cy.visit( `${ DUPLICATES_URL }#help` )
+		cy.get( '.fcias-docs-content img', { timeout: FIND_TIMEOUT } ).should( 'have.length', 5 )
+		cy.get( '.fcias-docs-content img' ).each( ( img ) => {
+			cy.wrap( img )
+			  .should( 'have.attr', 'src' )
+			  .and( 'match', /apps\/file_checksum_search\/docs\/Screenshots\// )
+			cy.wrap( img ).should( ( $img ) => {
+				expect( $img[0].complete, 'loaded' ).to.be.true
+				expect( $img[0].naturalWidth, 'its width' ).to.be.greaterThan( 0 )
+			} )
+		} )
+	} )
+
 	it( 'does not offer the Others tab to an account nobody named', () => {
 		cy.env( [ 'NC_ADMIN_USER', 'NC_ADMIN_PASSWORD' ] ).then( ( env ) => {
 			const admin = { user: env.NC_ADMIN_USER || 'admin', password: env.NC_ADMIN_PASSWORD || 'admin' }

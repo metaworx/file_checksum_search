@@ -1398,10 +1398,8 @@ see [docs/FAQ.md § Troubleshooting](docs/FAQ.md#troubleshooting).
 AGPL-3.0-or-later.
 See [LICENSE](LICENSE) for details.
 
-<!-- BEGIN GENERATED RELEASE-PIN - do not edit; run "changelog.sh cut" -->
-[shot-admin-rules]: https://gitlab.com/metaworx/open-source/nextcloud/file_checksum_search/-/raw/v0.30.0/docs/Screenshots/Admin-Rules.png
-[shot-duplicates-page]: https://gitlab.com/metaworx/open-source/nextcloud/file_checksum_search/-/raw/v0.30.0/docs/Screenshots/Duplicates-Page.png
-[shot-duplicates-others]: https://gitlab.com/metaworx/open-source/nextcloud/file_checksum_search/-/raw/v0.30.0/docs/Screenshots/Duplicates-Others.png
-[shot-file-detail-pane]: https://gitlab.com/metaworx/open-source/nextcloud/file_checksum_search/-/raw/v0.30.0/docs/Screenshots/File-Detail-Pane.png
-[shot-admin-settings]: https://gitlab.com/metaworx/open-source/nextcloud/file_checksum_search/-/raw/v0.30.0/docs/Screenshots/Admin-Settings.png
-<!-- END GENERATED RELEASE-PIN -->
+[shot-admin-rules]: docs/Screenshots/Admin-Rules.png
+[shot-duplicates-page]: docs/Screenshots/Duplicates-Page.png
+[shot-duplicates-others]: docs/Screenshots/Duplicates-Others.png
+[shot-file-detail-pane]: docs/Screenshots/File-Detail-Pane.png
+[shot-admin-settings]: docs/Screenshots/Admin-Settings.png

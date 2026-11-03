@@ -10,8 +10,10 @@ declare( strict_types=1 );
 namespace OCA\FileChecksumSearch\Tests\Unit\Controller;
 
 use OCA\FileChecksumSearch\Controller\PageController;
+use OCA\FileChecksumSearch\Service\DocumentImages;
 use OCA\FileChecksumSearch\Tests\Unit\FciasUnitTestCase;
 use OCP\IRequest;
+use OCP\IURLGenerator;
 
 class PageControllerTest
     extends
@@ -29,10 +31,16 @@ class PageControllerTest
 	{
 		parent::setUp();
 
+		$urlGenerator = $this->createMock( IURLGenerator::class );
+		$urlGenerator->method( 'linkTo' )
+		             ->willReturnCallback( fn( string $app, string $file ): string => '/apps/' . $app . '/' . $file )
+		;
+
 		$this->controller = new PageController(
 			'file_checksum_search',
 			$this->createMock( IRequest::class ),
 			$this->englishL10n(),
+			new DocumentImages( $urlGenerator ),
 		);
 	}
 
@@ -104,6 +112,33 @@ class PageControllerTest
 			$this->assertArrayHasKey( 'content', $doc );
 			$this->assertIsString( $doc['content'] );
 			$this->assertNotSame( '', $doc['content'] );
+		}
+	}
+
+	/**
+	 * Every screenshot a document shows comes from the app itself: the
+	 * server's image policy refuses one from anywhere else.
+	 */
+	public function testTheDocumentsShowTheAppsOwnScreenshots(): void
+	{
+		$docs = array_column( $this->controller->getDocs()->getData()['docs'], 'content', 'name' );
+
+		$this->assertStringContainsString(
+			'[shot-duplicates-page]: /apps/file_checksum_search/docs/Screenshots/Duplicates-Page.png',
+			$docs['docs/user-guide.md'],
+		);
+		$this->assertStringContainsString(
+			'[shot-admin-rules]: /apps/file_checksum_search/docs/Screenshots/Admin-Rules.png',
+			$docs['README.md'],
+		);
+		$this->assertStringContainsString(
+			'[shot-admin-advanced]: /apps/file_checksum_search/docs/Screenshots/Admin-Advanced.png',
+			$docs['docs/FAQ.md'],
+		);
+
+		foreach ( [ 'docs/FAQ.md', 'docs/user-guide.md', 'README.md' ] as $name )
+		{
+			$this->assertDoesNotMatchRegularExpression( '~^\[shot-[^\]]+\]: (?!/apps/)~m', $docs[ $name ], $name );
 		}
 	}
 }

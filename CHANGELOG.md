@@ -31,6 +31,9 @@ the first stable release.
 - `POST /api/v1/duplicates/delete`, and the Duplicates page's delete:
   copies sharing a name, deleted together, all reach the trash.
 
+- In-app user guide, FAQ and README: the screenshots show, served by the
+  app rather than from GitLab, which the server's image policy refuses.
+
 ## [0.30.0] - 2026-10-22
 
 ### Added
