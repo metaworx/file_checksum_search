@@ -36,7 +36,7 @@
 	-->
 	<stubs>
 		<!-- OCP\Files\IRootFolder extends it, and the OCP package does not ship it. -->
-		<file name="tests/stubs/OC/Hooks/Emitter.php" />
+		<file name="vendor/mwx/nextcloud-testing/stubs/OC/Hooks/Emitter.php" />
 	</stubs>
 
 	<issueHandlers>

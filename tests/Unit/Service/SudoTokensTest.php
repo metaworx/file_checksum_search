@@ -14,7 +14,7 @@ use OCA\FileChecksumSearch\AppInfo\Application;
 use OCA\FileChecksumSearch\Config\ConfigLexicon;
 use OCA\FileChecksumSearch\Service\AuthTokenRepository;
 use OCA\FileChecksumSearch\Service\SudoTokens;
-use OCA\FileChecksumSearch\Tests\Unit\EnglishL10n;
+use OCA\FileChecksumSearch\Tests\Unit\AppDoubles;
 use OCP\AppFramework\Utility\ITimeFactory;
 use OCP\Config\IUserConfig;
 use PHPUnit\Framework\MockObject\MockObject;
@@ -24,7 +24,7 @@ class SudoTokensTest
     extends
     TestCase
 {
-	use EnglishL10n;
+	use AppDoubles;
 
 
 //  private properties

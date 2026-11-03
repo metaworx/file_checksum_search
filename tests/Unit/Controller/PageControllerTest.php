@@ -10,7 +10,6 @@ declare( strict_types=1 );
 namespace OCA\FileChecksumSearch\Tests\Unit\Controller;
 
 use OCA\FileChecksumSearch\Controller\PageController;
-use OCA\FileChecksumSearch\Tests\Unit\EnglishL10n;
 use OCA\FileChecksumSearch\Tests\Unit\FciasUnitTestCase;
 use OCP\IRequest;
 
@@ -18,8 +17,6 @@ class PageControllerTest
     extends
     FciasUnitTestCase
 {
-	use EnglishL10n;
-
 
 //  private properties
 

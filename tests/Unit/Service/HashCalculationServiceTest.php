@@ -19,7 +19,6 @@ use OCA\FileChecksumSearch\Service\MetadataService;
 use OCA\FileChecksumSearch\Service\MimeTypeService;
 use OCA\FileChecksumSearch\Service\RuleOverrides;
 use OCA\FileChecksumSearch\Service\RuleService;
-use OCA\FileChecksumSearch\Tests\Unit\EnglishL10n;
 use OCA\FileChecksumSearch\Tests\Unit\FciasUnitTestCase;
 use OCP\Files\File;
 use OCP\Files\Folder;
@@ -46,8 +45,6 @@ class HashCalculationServiceTest
     extends
     FciasUnitTestCase
 {
-	use EnglishL10n;
-
 
 //  constants
 

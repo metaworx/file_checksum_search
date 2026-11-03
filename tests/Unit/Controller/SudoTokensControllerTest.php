@@ -13,7 +13,7 @@ use InvalidArgumentException;
 use OCA\FileChecksumSearch\Controller\SudoTokensController;
 use OCA\FileChecksumSearch\Service\PermissionService;
 use OCA\FileChecksumSearch\Service\SudoTokens;
-use OCA\FileChecksumSearch\Tests\Unit\EnglishL10n;
+use OCA\FileChecksumSearch\Tests\Unit\AppDoubles;
 use OCP\AppFramework\Http;
 use OCP\IGroupManager;
 use OCP\IRequest;
@@ -26,7 +26,7 @@ class SudoTokensControllerTest
     extends
     TestCase
 {
-	use EnglishL10n;
+	use AppDoubles;
 
 
 //  private properties

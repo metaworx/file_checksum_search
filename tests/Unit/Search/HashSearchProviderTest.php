@@ -12,7 +12,7 @@ namespace OCA\FileChecksumSearch\Tests\Unit\Search;
 use OCA\FileChecksumSearch\Search\HashSearchProvider;
 use OCA\FileChecksumSearch\Service\HashIndexService;
 use OCA\FileChecksumSearch\Service\MetadataService;
-use OCA\FileChecksumSearch\Tests\Unit\EnglishL10n;
+use OCA\FileChecksumSearch\Tests\Unit\AppDoubles;
 use OCP\Files\File;
 use OCP\Files\Folder;
 use OCP\Files\IRootFolder;
@@ -27,7 +27,7 @@ class HashSearchProviderTest
     extends
     TestCase
 {
-	use EnglishL10n;
+	use AppDoubles;
 
 
 //  private properties

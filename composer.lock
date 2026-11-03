@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "2e25173c76e3118a989823c7e31f7cd7",
+    "content-hash": "77a3ee8f52ce7f91c3c021538763fffb",
     "packages": [
         {
             "name": "bamarni/composer-bin-plugin",
@@ -238,6 +238,50 @@
                 "source": "https://gitlab.com/metaworx/open-source/php-library/lib/-/tree/v0.1.1"
             },
             "time": "2026-09-24T10:29:57+00:00"
+        },
+        {
+            "name": "mwx/nextcloud-testing",
+            "version": "0.1.0",
+            "source": {
+                "type": "git",
+                "url": "https://gitlab.com/metaworx/open-source/php-library/nextcloud-testing.git",
+                "reference": "76970394909c20f34d82590730d5c21d1634908c"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://gitlab.com/api/v4/projects/metaworx%2Fopen-source%2Fphp-library%2Fnextcloud-testing/repository/archive.zip?sha=76970394909c20f34d82590730d5c21d1634908c",
+                "reference": "76970394909c20f34d82590730d5c21d1634908c",
+                "shasum": ""
+            },
+            "require": {
+                "php": "^8.2"
+            },
+            "suggest": {
+                "nextcloud/ocp": "The OCP interfaces the doubles stand in for; the app under test has it",
+                "phpunit/phpunit": "The traits call createMock() on the TestCase that uses them; 9.6 and 10.5 both do"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "mwx\\Nextcloud\\Testing\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Martin Rüegg",
+                    "email": "martin.rueegg@metaworx.ch"
+                }
+            ],
+            "description": "Test doubles for a Nextcloud app's unit tests: an in-memory IAppConfig, system config and ICache, an IL10N that answers in English, a MIME type detector, the Emitter stub, and a bootstrap that finds the server or falls back to nextcloud/ocp",
+            "support": {
+                "issues": "https://gitlab.com/metaworx/open-source/php-library/nextcloud-testing/-/issues",
+                "source": "https://gitlab.com/metaworx/open-source/php-library/nextcloud-testing/-/tree/v0.1.0"
+            },
+            "time": "2026-11-03T03:48:34+00:00"
         },
         {
             "name": "mwx/tools",

@@ -12,7 +12,7 @@ namespace OCA\FileChecksumSearch\Tests\Unit\Service;
 use InvalidArgumentException;
 use OCA\FileChecksumSearch\Service\RuleDefinitionValidator;
 use OCA\FileChecksumSearch\Service\AlgorithmCatalogue;
-use OCA\FileChecksumSearch\Tests\Unit\EnglishL10n;
+use OCA\FileChecksumSearch\Tests\Unit\AppDoubles;
 use OCP\IGroupManager;
 use OCP\IAppConfig;
 use OCP\IUserManager;
@@ -27,7 +27,7 @@ class RuleDefinitionValidatorTest
     extends
     TestCase
 {
-	use EnglishL10n;
+	use AppDoubles;
 
 
 //  private properties

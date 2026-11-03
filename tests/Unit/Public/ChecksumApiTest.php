@@ -28,7 +28,7 @@ use OCP\IAppConfig;
 use OCP\IUserManager;
 use OCA\FileChecksumSearch\Service\RuleService;
 use OCA\FileChecksumSearch\Service\StatusService;
-use OCA\FileChecksumSearch\Tests\Unit\EnglishL10n;
+use OCA\FileChecksumSearch\Tests\Unit\AppDoubles;
 use OCP\App\IAppManager;
 use OCP\AppFramework\Utility\ITimeFactory;
 use OCP\Files\File;
@@ -46,7 +46,7 @@ class ChecksumApiTest
     extends
     TestCase
 {
-	use EnglishL10n;
+	use AppDoubles;
 
 
 //  private properties

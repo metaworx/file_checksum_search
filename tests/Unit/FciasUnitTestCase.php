@@ -23,7 +23,8 @@ use PHPUnit\Framework\TestCase;
  * Provides a pre-wired QueryBuilder mock with default stubs for all
  * chainable methods.  Tests only override methods that need specific
  * return values (e.g. executeQuery → IResult mock) or explicit
- * call-count assertions.
+ * call-count assertions.  The package's doubles come with it
+ * ({@see AppDoubles}).
  *
  * Usage:
  *   protected function setUp(): void {
@@ -37,6 +38,8 @@ abstract class FciasUnitTestCase
     extends
     TestCase
 {
+	use AppDoubles;
+
 
 //  protected properties
 

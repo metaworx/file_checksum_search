@@ -19,7 +19,6 @@ use OCA\FileChecksumSearch\Service\MetadataService;
 use OCA\FileChecksumSearch\Service\PermissionService;
 use OCA\FileChecksumSearch\Service\RuleService;
 use OCA\FileChecksumSearch\Service\Selector;
-use OCA\FileChecksumSearch\Tests\Unit\EnglishL10n;
 use OCA\FileChecksumSearch\Tests\Unit\FciasUnitTestCase;
 use OCP\Files\File;
 use OCP\Files\Folder;
@@ -47,8 +46,6 @@ class RuleServiceTest
     extends
     FciasUnitTestCase
 {
-	use EnglishL10n;
-
 
 //  private properties
 

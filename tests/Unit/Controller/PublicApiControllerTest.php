@@ -27,7 +27,7 @@ use OCP\Lockdown\ILockdownManager;
 use OCA\FileChecksumSearch\Service\SudoScope;
 use OCA\FileChecksumSearch\Service\SudoConfirmation;
 use OCA\FileChecksumSearch\Service\PermissionService;
-use OCA\FileChecksumSearch\Tests\Unit\EnglishL10n;
+use OCA\FileChecksumSearch\Tests\Unit\AppDoubles;
 use OCP\ISession;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\MockObject\MockObject;
@@ -38,7 +38,7 @@ class PublicApiControllerTest
     extends
     TestCase
 {
-	use EnglishL10n;
+	use AppDoubles;
 
 
 //  private properties
