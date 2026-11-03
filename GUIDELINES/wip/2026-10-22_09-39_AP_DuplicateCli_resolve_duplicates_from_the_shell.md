@@ -1,4 +1,4 @@
-# AP DuplicateCli v1.1: resolve duplicates from the shell
+# AP DuplicateCli v1.2: resolve duplicates from the shell
 
 ## TL;DR
 
@@ -17,12 +17,16 @@ for one account, several, or every one.
 - Versions → the copy that stays; `--no-merge` lets them go (D4)
 - Every row the account may delete but the copy that stays (D6)
 - The choice rules in PHP, held to the TypeScript by a shared fixture
+- A name the trash took this second → back of the queue, the rest go first;
+  the clock waited on only when nothing else is left (D10);
+  the queue spans a request's groups (D11)
 
 ### Blocks
 
 1. The command: selection, the choice, the report
 2. Acting: the question, `--permanent`, the merge, `--remove-last`
-3. Documentation
+3. Same-named copies trashed apart
+4. Documentation
 
 ## Discussion
 
@@ -74,6 +78,29 @@ for one account, several, or every one.
     giving the app two confirmation flags;
     leaving a group alone where the paths take every copy (D9-B),
     the page's guard for *Select by path*.
+- **Found in Block 2** (2026-11-03): of two files sharing a name
+  trashed in one second, the trash keeps one (*Analysis*, *The trash*).
+  The page's batch delete, released in 0.30.0, loses them the same way.
+- **Decided on 2026-11-03:**
+  - D10-A, as the user amended it: a file to go to the trash
+    whose name the trash took this second goes to the back of the queue,
+    worked off while the other rows go;
+    the clock is waited on only when nothing else is left,
+    for what remains of the second.
+  - Rejected: holding the trash's lock on the name it used (D10-B),
+    which rests on the trash app's naming and on file locking being on;
+    leaving it, said in the report and the docs (D10-C).
+- **Open:**
+  - D11, how far the queue reaches:
+    - A (recommended): every group of one request,
+      the page's batch of up to 500 rows and the command's run of an account,
+      through a `deleteGroups()` the batch route and the command call;
+      `delete()` is one group of it.
+      Copies of one group, which mostly share a name,
+      go between other groups' rows.
+    - B: one group, behind `delete()` as it is:
+      no new method, but a group of copies sharing a name,
+      the usual duplicate, waits a second for every copy past the first.
 
 ## Analysis
 
@@ -123,6 +150,31 @@ A table per group, or `--output=json`, as `find-duplicates` offers.
 Exit 0 where every row went or would go, 1 where one was refused or the
 question was answered no, 2 where the command could not run.
 
+**The trash** (`files_trashbin`, `Trashbin::move2trash()`):
+a file goes to `files_trashbin/files/<name>.d<second>`,
+the second from `ITimeFactory`;
+where that name is taken, the file there is deleted first.
+Only a deletion running at the same moment, holding its lock,
+moves the second on.
+So two files of one name trashed in one second leave one in the trash,
+both rows of `files_trash` naming it;
+the other is gone, its place and its versions with it.
+Duplicates mostly share a name; the content survives in the copy that stays.
+
+**The queue (D10, D11):**
+- only a file going to the trash waits:
+  a version and a trashed row go for good, a file with `--permanent` too;
+- the names taken are kept for the service's life, a request or a run,
+  so a call following in the same second waits too;
+- keyed by the name alone: of two owners' trashes, it waits once too often,
+  never too seldom; a team folder's trash is treated the same;
+- a row's versions and its merge stay before the file, as now;
+  the order of the results is the order the rows went in,
+  which the page does not rely on: it reads them by file id and status;
+- a dry run trashes nothing, and nothing waits;
+- the clock is the trash's, `ITimeFactory`;
+  the wait goes through a sleep the tests replace.
+
 **Constraints:**
 - the SQL stays backend-agnostic, through `IQueryBuilder`;
 - the command takes no lock the page does not take;
@@ -149,7 +201,18 @@ question was answered no, 2 where the command could not run.
    - Tests: to the trash, for good, versions merged and not,
      every copy gone, a row changed since the listing refused,
      the question answered no, the exit codes.
-3. **Documentation.**
+3. **Same-named copies trashed apart.**
+   - `DuplicateActionService`: the queue (D10), the names taken, the wait.
+   - With D11-A, `deleteGroups()`, several groups and one queue;
+     the batch route and the command call it,
+     a group the service cannot open answering for its rows alone, as now.
+   - Tests: the order rows go in with a name repeated,
+     and the wait only where the queue is all that is left,
+     over a mocked clock and sleep;
+     against an instance, copies of one name trashed in one call,
+     through the service and through the batch route, each in the trash.
+   - `CHANGELOG.md`, *Fixed*: the batch delete keeps every copy in the trash.
+4. **Documentation.**
    The README's command table and the admin guide.
 
 **Verification**, per block: its tests; the PHPUnit suites on 33 and 34,
@@ -157,8 +220,10 @@ ECS and Psalm; for Block 1 Vitest; `GUIDELINES/shared/tools/check`.
 
 ## Proposed commit messages
 
-Written per block: `[TASK]`, each with its tests and CHANGELOG bullet,
-citing `AP DuplicateCli v<X.Y>, Block <n>`.
+Written per block, each with its tests and CHANGELOG bullet,
+citing `AP DuplicateCli v<X.Y>, Block <n>`:
+`[TASK]` for Blocks 1, 2 and 4; `[FIX]` for Block 3,
+a defect of the released page.
 
 ## Change History
 
@@ -167,3 +232,7 @@ citing `AP DuplicateCli v<X.Y>, Block <n>`.
   D2 acts, with `--dry-run` and a question;
   `--path` repeatable, `--no-path` and `--remove-last` added;
   D6-A put as the page's rule, which keeps no copy where one stays anyway.
+- v1.2 (2026-11-03): Blocks 1 and 2 done;
+  the trash's loss of same-named files found in Block 2,
+  D10-A decided as a queue, D11 open;
+  Block 3 fixes it, the documentation becomes Block 4.
