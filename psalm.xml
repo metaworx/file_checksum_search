@@ -8,6 +8,11 @@
 	appinfo/info.xml, controllers through their routes, and the repair steps
 	through a method table, none of which Psalm can see, so it reports every
 	one of them as unused.
+
+	lib/Vendor is scanned, not analysed: it is mwx/nextcloud-app copied into
+	the app's namespace by Strauss and placed by PSR-4 (composer vendor:scope),
+	and is analysed and tested where it is written.
+	Edited here it would differ from what Strauss writes, which CI fails on.
 -->
 <psalm
 	errorLevel="4"
@@ -22,10 +27,12 @@
 		<directory name="lib" />
 		<ignoreFiles>
 			<directory name="vendor" />
+			<directory name="lib/Vendor" />
 		</ignoreFiles>
 	</projectFiles>
 	<extraFiles>
 		<directory name="vendor" />
+		<directory name="lib/Vendor" />
 	</extraFiles>
 
 	<!--
@@ -33,6 +40,11 @@
 		these classes; the nextcloud/ocp package it is analysed against does
 		not. Each use is deliberate, and each is a question for every new
 		Nextcloud version: this list is that inventory.
+
+		One needs no entry: OC\Installer, which occ fcias:update drives
+		through the scoped package in lib/Vendor. The package names it as a
+		string, resolved from the server's container, so analysis never looks
+		for it; tests/Integration/InstallerPinTest.php pins its two methods.
 	-->
 	<stubs>
 		<!-- OCP\Files\IRootFolder extends it, and the OCP package does not ship it. -->

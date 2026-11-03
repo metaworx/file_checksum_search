@@ -100,6 +100,14 @@ jobs:
       - name: PHP coding style
         run: composer cs:check
 
+      # lib/Vendor is mwx/nextcloud-app scoped into the app's namespace by
+      # Strauss and placed by PSR-4 (scripts/vendor-scope.php), tracked so
+      # that a checkout runs without a build. Both run again from the locked
+      # package, Strauss's phar fetched at the version composer.json pins,
+      # and a file changed, deleted or new in lib/Vendor fails.
+      - name: Vendored package
+        run: composer vendor:check
+
       # Level 4, no baseline (psalm.xml): a finding fails the job.
       - name: Psalm
         run: composer psalm -- --no-progress --output-format=github

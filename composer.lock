@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "6820718f96da9370b0835b146a251131",
+    "content-hash": "e203a8349ca293af4555f2307b3dac45",
     "packages": [
         {
             "name": "bamarni/composer-bin-plugin",
@@ -238,6 +238,50 @@
                 "source": "https://gitlab.com/metaworx/open-source/php-library/lib/-/tree/v0.1.1"
             },
             "time": "2026-09-24T10:29:57+00:00"
+        },
+        {
+            "name": "mwx/nextcloud-app",
+            "version": "0.1.1",
+            "source": {
+                "type": "git",
+                "url": "https://gitlab.com/metaworx/open-source/nextcloud/nextcloud-app.git",
+                "reference": "7e26455efc2559c0f42cb1fdba1f798effea2ac9"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://gitlab.com/api/v4/projects/metaworx%2Fopen-source%2Fnextcloud%2Fnextcloud-app/repository/archive.zip?sha=7e26455efc2559c0f42cb1fdba1f798effea2ac9",
+                "reference": "7e26455efc2559c0f42cb1fdba1f798effea2ac9",
+                "shasum": ""
+            },
+            "require": {
+                "php": "^8.2",
+                "symfony/console": "^7.3"
+            },
+            "suggest": {
+                "nextcloud/ocp": "The OCP interfaces the command is built on; the server provides them at runtime"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "mwx\\Nextcloud\\App\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Martin Rüegg",
+                    "email": "martin.rueegg@metaworx.ch"
+                }
+            ],
+            "description": "An app's own update command: reads the store, clears the fetcher's cache, and lets the server's installer take a stable or nightly release",
+            "support": {
+                "issues": "https://gitlab.com/metaworx/open-source/nextcloud/nextcloud-app/-/issues",
+                "source": "https://gitlab.com/metaworx/open-source/nextcloud/nextcloud-app/-/tree/v0.1.1"
+            },
+            "time": "2026-11-03T18:01:24+00:00"
         },
         {
             "name": "mwx/nextcloud-testing",

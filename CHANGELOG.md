@@ -17,6 +17,9 @@ the first stable release.
   *Select duplicates* deletes them, to the trash or `--permanent`, for
   `--user` or `--all`, after a question unless `-y`; `--dry-run` reports.
 
+- `occ fcias:update`: the app updates itself from the store, nightlies
+  included.
+
 ### Changed
 
 - Frontend: the help popover, the toasts, `t()` and the specs' helpers
