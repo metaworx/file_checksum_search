@@ -102,8 +102,8 @@ database?](docs/FAQ.md#what-am-i-looking-at-in-the-database).
 - **The trash** — a deleted file keeps its checksums, is found where it was,
   and comes back with them (see [The trash](#the-trash))
 - **Public API v1** — HTTP REST and PHP surfaces with an OpenAPI spec
-- **21 CLI commands** for search, rule management, MIME types, administration,
-  and maintenance
+- **22 CLI commands** for search, duplicates, rule management, MIME types,
+  administration, and maintenance
 - **User guide & FAQ** — served in-app,
   split by audience (see [Documentation](#documentation))
 
@@ -144,7 +144,7 @@ hashing happens](#how-hashing-happens).
 
 ## CLI Reference
 
-FCIAS provides 21 `occ` commands — four for files and search, five for rules,
+FCIAS provides 22 `occ` commands — five for files and search, five for rules,
 two for status, five for MIME types, three for the state the app owns,
 one for repair, and one for the queue.
 Run them as `php occ <command>`.
@@ -156,6 +156,7 @@ Run them as `php occ <command>`.
 | `file-checksum-search:search <query> [--local-path]` | Search files by hash value or `algo:hash` pair; a version is printed with its date ([File versions](#file-versions)); `--local-path` adds where each lives on the server's disk |
 | `file-checksum-search:hash [options]` | Compute checksums for user files, or mark them for background processing |
 | `file-checksum-search:find-duplicates [options]` | Find files with duplicate hash values; empty files only with `--include-empty` |
+| `file-checksum-search:resolve-duplicates [options]` | Delete an account's duplicate copies as the Duplicates page's *Select duplicates* does, keeping one of each ([`resolve-duplicates`](#resolve-duplicates)) |
 | `file-checksum-search:test-perf` | Benchmark indexed lookup vs unindexed LIKE scan |
 
 #### `hash` and the rules
@@ -187,6 +188,42 @@ to avoid does not earn its place in a cron line nobody is watching.
 `--ignore-rule` names what is being set aside,
 so it is legible in shell history; it may set aside an admin-enforced rule,
 and logs a warning naming that rule when it does.
+
+#### `resolve-duplicates`
+
+`resolve-duplicates` deletes an account's duplicates
+as the Duplicates page's *Select duplicates* does,
+through the same service, which opens each copy through the account's own reach
+and deletes nothing whose content changed since it was listed.
+Every copy of a group goes but one:
+the oldest by when it last changed, the first path where two are as old.
+A copy is a file outside the trash;
+a group of versions alone keeps its oldest version.
+Where the account may not delete one of a group's copies,
+that one stays, and no other is kept.
+
+| Option | Effect |
+|--------|--------|
+| `-u`, `--user=<uid>` / `--all` | The accounts, `--user` repeatable, or every one. Each in turn, through its own reach: a file two of them reach is listed for both, and copies in two accounts are not compared. |
+| `-a`, `--algo`, `--hash`, `-m`, `--min-count` | Only the groups of an algorithm, of one checksum, of at least so many copies (default 2). |
+| `--path=<pattern>` | Only the copies the pattern matches may go. Repeatable. Patterns as the page's *Path* ([Path patterns](docs/api-v1.md#path-patterns)). |
+| `--no-path=<pattern>` | The copies the pattern matches stay. Repeatable. Where both match a copy, the pattern naming more folders wins — `/Backup/keep` over `/Backup`, either over `*.bak` — and a tie keeps it. |
+| `--keep=<oldest\|newest\|first>` | Where the paths take every copy of a group, the one that stays: by when it last changed, or first by its path. Default `oldest`. |
+| `--remove-last` | Keep no copy: every copy the paths let go, goes. Not with `--keep`. |
+| `--permanent` | Delete for good. Without it, a file goes to the trash; a version and anything in the trash always go for good. |
+| `--no-merge` | Let a deleted file's versions go. Without it, they are merged into the copy that stays, the most recently changed where several stay. |
+| `--dry-run` | Report what would go, and delete nothing. |
+| `-y`, `--yes` | Delete without asking. |
+| `-o`, `--output=<plain\|json\|json_pretty>` | The report's format. |
+
+On a terminal it shows each account's copies that would go and asks first;
+without one, the answer is no and nothing goes, unless `-y`.
+Copies sharing a name go to the trash a second apart,
+the trash naming what it keeps by its name and the second it went;
+the others go in between, so a run waits only where nothing else is left.
+The exit code is 0 where every copy went, or would,
+1 where one was refused or failed, or the question was answered no,
+and 2 where the command could not run.
 
 ### Rule Management Commands
 
@@ -325,6 +362,12 @@ php occ fcias:rules:apply <rule-id>
 
 # Find SHA-1 duplicates (min 2 files per group) and verify from content
 php occ file-checksum-search:find-duplicates --algo=sha1 --min-count=2 --verify
+
+# See which of alice's copies would go, keeping the oldest of each group
+php occ fcias:resolve-duplicates -u alice --dry-run
+
+# Delete her copies under Backup, except those under Backup/keep, without asking
+php occ fcias:resolve-duplicates -u alice --path=/Backup --no-path=/Backup/keep -y
 
 # Show app config as JSON
 php occ file-checksum-search:show-config --output=json_pretty

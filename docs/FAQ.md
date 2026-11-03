@@ -395,6 +395,28 @@ never for the page:
 reading a file's bytes takes time on slow storage and costs money on metered storage,
 so the scope stays with whoever chooses to pay it.
 
+## Can duplicates be resolved from the shell?
+
+Yes: `occ fcias:resolve-duplicates` deletes an account's duplicates
+as the Duplicates page's *Select duplicates* does,
+for one account, several, or every one,
+keeping the oldest copy of each group
+([README.md § resolve-duplicates](../README.md#resolve-duplicates)).
+It runs through the page's own service:
+each copy is opened through the account's reach,
+and one whose content changed since it was listed is refused.
+
+`--dry-run` reports what would go.
+Without it, on a terminal, it shows that and asks;
+without a terminal it deletes nothing unless `-y` is given,
+so a cron line has to say so.
+
+Copies go to the trash unless `--permanent`,
+and their versions are merged into the copy that stays unless `--no-merge`.
+The trash keeps a file under its name and the second it went,
+so copies sharing a name, which duplicates mostly do,
+go to it a second apart, the rest of the run going in between.
+
 ## How are MIME types detected?
 
 **From the content, and only where you switch it on.**
