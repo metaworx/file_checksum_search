@@ -102,7 +102,7 @@ database?](docs/FAQ.md#what-am-i-looking-at-in-the-database).
 - **The trash** — a deleted file keeps its checksums, is found where it was,
   and comes back with them (see [The trash](#the-trash))
 - **Public API v1** — HTTP REST and PHP surfaces with an OpenAPI spec
-- **22 CLI commands** for search, duplicates, rule management, MIME types,
+- **23 CLI commands** for search, duplicates, rule management, MIME types,
   administration, and maintenance
 - **User guide & FAQ** — served in-app,
   split by audience (see [Documentation](#documentation))
@@ -144,8 +144,8 @@ hashing happens](#how-hashing-happens).
 
 ## CLI Reference
 
-FCIAS provides 22 `occ` commands — five for files and search, five for rules,
-two for status, five for MIME types, three for the state the app owns,
+FCIAS provides 23 `occ` commands — five for files and search, five for rules,
+two for status, five for MIME types, four for the state the app owns,
 one for repair, and one for the queue.
 Run them as `php occ <command>`.
 
