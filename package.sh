@@ -8,7 +8,8 @@
 #   1. Builds the frontend assets (npm ci + npm run build) if needed.
 #   2. Copies the app into a clean staging directory.
 #   3. Removes dev-only files listed in .nc.publish.ignore.
-#   4. Installs production Composer dependencies.
+#   4. Installs production Composer dependencies, where composer.json requires
+#      a package beyond PHP itself and its extensions.
 #   5. Creates build/<app_id>.tar.gz and a versioned copy.
 #   6. Signs the versioned archive (see "Signing" below).
 #
@@ -43,14 +44,15 @@
 #   KEEP_STAGING=1 bash package.sh  # keep the unpacked staging tree
 #
 # Requires: bash, openssl always; curl additionally for --appstore; rsync,
-# tar, npm, composer, php additionally for a full build (no flags). PHP is
+# tar, npm, php additionally for a full build (no flags), and composer where
+# composer.json requires a runtime package. PHP is
 # auto-detected as php8.2 (falling back to php) and can be overridden via the
 # PHP env var. The App Store API token is read from the API_TOKEN env var or
 # ~/.nextcloud/API_TOKEN.txt.
 
 set -euo pipefail
 
-SCRIPT_VERSION="1.0.0"
+SCRIPT_VERSION="1.1.0"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 echo "==> Packaging script"
@@ -88,8 +90,9 @@ REQUIRED_BINS=(bash openssl)
 if [ "$APPSTORE" = true ]; then
 	REQUIRED_BINS+=(curl)
 fi
+NEED_COMPOSER=false
 if [ "$NEED_FULL_BUILD" = true ]; then
-	REQUIRED_BINS+=(rsync tar npm composer)
+	REQUIRED_BINS+=(rsync tar npm)
 
 	# Resolve the PHP binary: $PHP env override, else php8.2, else php.
 	PHP_BIN="${PHP:-$(command -v php8.2 || command -v php || true)}"
@@ -98,6 +101,28 @@ if [ "$NEED_FULL_BUILD" = true ]; then
 		exit 1
 	fi
 	echo "    $PHP_BIN"
+
+	# Composer only where composer.json requires a runtime package. The
+	# server loads the app's lib/ by PSR-4, so an app requiring nothing but
+	# Composer's platform packages - php, ext-*, lib-* - would ship an
+	# autoloader for vendor/ that nothing loads.
+	if [ -f composer.json ]; then
+		rc=0
+		"$PHP_BIN" -r '
+			$j = json_decode(file_get_contents("composer.json"), true);
+			if (!is_array($j)) exit(2);
+			$platform = "/^(php(-64bit|-ipv6|-zts|-debug)?|hhvm|composer(-plugin|-runtime)?-api|composer|ext-.+|lib-.+)$/i";
+			foreach (array_keys($j["require"] ?? []) as $name) {
+				if (!preg_match($platform, $name)) exit(0);
+			}
+			exit(1);
+		' || rc=$?
+		case "$rc" in
+			0) NEED_COMPOSER=true; REQUIRED_BINS+=(composer) ;;
+			1) ;;
+			*) echo "ERROR: composer.json is not valid JSON." >&2; exit 1 ;;
+		esac
+	fi
 fi
 
 for bin in "${REQUIRED_BINS[@]}"; do
@@ -398,11 +423,15 @@ rsync -a \
 # ---------------------------------------------------------------------------
 # 3. Production dependencies
 # ---------------------------------------------------------------------------
-echo "==> Installing production Composer dependencies (PHP: ${PHP_BIN})"
-(
-	cd "$STAGING_DIR"
-	"$PHP_BIN" "$(command -v composer)" install --no-dev --no-scripts --optimize-autoloader --no-interaction
-)
+if [ "$NEED_COMPOSER" = true ]; then
+	echo "==> Installing production Composer dependencies (PHP: ${PHP_BIN})"
+	(
+		cd "$STAGING_DIR"
+		"$PHP_BIN" "$(command -v composer)" install --no-dev --no-scripts --optimize-autoloader --no-interaction
+	)
+else
+	echo "==> No runtime dependencies: vendor/ not installed"
+fi
 
 # ---------------------------------------------------------------------------
 # 4. Archive

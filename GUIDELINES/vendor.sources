@@ -1,4 +1,4 @@
-# The shared guidelines v4.47.1, copied by tools/sync-vendor.sh: edit them
+# The shared guidelines v4.47.2, copied by tools/sync-vendor.sh: edit them
 # there, not here. <git blob id>  <project path>  <shared path>
 2a712c3585fb62b6382423ab4a641e21862bf7fe  .github/actions/release-meta/action.yml  platform/nextcloud/actions/release-meta/action.yml
 543544c597b3921efcc61d6af9d9b6de798c3805  .github/actions/node-deps/action.yml  platform/nextcloud/actions/node-deps/action.yml
@@ -9,7 +9,7 @@
 bfd1bd15a50fea724b1851b366af58557caed587  .github/actions/app-store/action.yml  platform/nextcloud/actions/app-store/action.yml
 5abf8afd23e4c0cde604c280bdc564201850da8e  .github/workflows/publish.yml  platform/nextcloud/workflows/publish.yml
 f196538770d19d707698a3910b1ff4dfa6639e9b  .github/workflows/install-check.yml  platform/nextcloud/workflows/install-check.yml
-170d6914292da9689e13d8ef2ff921a208e9d667  package.sh  platform/nextcloud/scripts/package.sh
+1e56ae7b22ad228ac131f83988b48e4f6568c94b  package.sh  platform/nextcloud/scripts/package.sh
 7ca7c780939b1e8c20eb14f18fa362274a057e50  scripts/l10n.py  platform/nextcloud/scripts/l10n.py
 cbb165d0bdb63a0d3d4c2ee4e4b0da076522532f  scripts/l10n.sh  platform/nextcloud/scripts/l10n.sh
 5b9619f86ea4d026714e64c527163874d8fc6c62  tests/e2e/store/appstore.py  platform/nextcloud/store/appstore.py
