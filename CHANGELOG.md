@@ -11,6 +11,8 @@ the first stable release.
 
 ## [Unreleased]
 
+## [0.31.0] - 2026-11-04
+
 ### Added
 
 - `occ fcias:resolve-duplicates`: an account's duplicates deleted as
