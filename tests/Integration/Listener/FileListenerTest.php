@@ -92,6 +92,11 @@ class FileListenerTest
 		// the instance this runs against are somebody's configuration.
 		$this->preserveStoredRules();
 		$this->resetRules();
+
+		// Signed in as admin, whose files these tests make: the trash keeps a
+		// deleted file only for the account the filesystem was set up for
+		// first, and a class before this one may have left another's.
+		self::actAs( 'admin' );
 	}
 
 
@@ -127,6 +132,8 @@ class FileListenerTest
 		$this->cleanup = [];
 
 		$this->resetRules();
+
+		self::actAs( null );
 
 		parent::tearDown();
 	}
@@ -344,11 +351,11 @@ class FileListenerTest
 	 */
 	public function testARecipientsWriteIsJudgedByTheOwnersRule(): void
 	{
-		[
-			$ownerUid,
-			$ownerPassword,
-		]
-			 = self::makeAccount( 'fcias_listener_owner' );
+		// The owner is admin, signed in, as a sharer is: the Activity app's
+		// share listener fails for a sharer other than the account signed
+		// in (on Nextcloud 33, the first the process saw), and the share then
+		// never reaches the recipient's folder.
+		$ownerUid = 'admin';
 
 		[
 			$recipientUid,
@@ -381,7 +388,10 @@ class FileListenerTest
 		] );
 
 		// The recipient's own view of the same folder, which is a different
-		// path in a different user's tree.
+		// path in a different user's tree, written with the recipient signed
+		// in, as a request of theirs is.
+		self::actAs( $recipientUid );
+
 		$recipientView = $rootFolder->getUserFolder( $recipientUid )
 		                            ->get( $sharedDirName )
 		;
