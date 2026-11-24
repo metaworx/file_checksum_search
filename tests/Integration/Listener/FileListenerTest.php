@@ -354,7 +354,10 @@ class FileListenerTest
 		// The owner is admin, signed in, as a sharer is: the Activity app's
 		// share listener fails for a sharer other than the account signed
 		// in (on Nextcloud 33, the first the process saw), and the share then
-		// never reaches the recipient's folder.
+		// never reaches the recipient's folder. On 33 this still fails after
+		// a class whose first file event came with another account signed
+		// in: Activity keeps that account for the process, and no test can
+		// reset it. CI's server, built from git, has no Activity app.
 		$ownerUid = 'admin';
 
 		[
