@@ -32,6 +32,40 @@ Cypress.on( 'uncaught:exception', ( err ) => {
 	return ours
 } )
 
+// No service worker, on any page a test opens. Nextcloud's Files app
+// registers one for the whole server (preview-service-worker.js, scope `/`)
+// whenever it opens, and cy.login()'s validate() opens it on every restore.
+// Cypress clears the page, the cookies and the storage between tests but
+// leaves the worker registered, and the browser then fetches its script on
+// its own schedule: after a navigation, through index.php, which starts a
+// session. A fetch sent while the jar is empty, or half-way through
+// cy.clearCookies(), comes back with a session cookie no step asked for. On
+// CI a fresh account's MKCOL then carried a lone session cookie and was
+// refused 412 by the strict-cookie check, and a login form was submitted
+// with another session than the one it was rendered in and failed its CSRF
+// check. Without the property the pages register nothing: Files, Photos and
+// Notifications all ask for it first.
+Cypress.on( 'window:before:load', ( win ) => {
+	delete Object.getPrototypeOf( win.navigator ).serviceWorker
+} )
+
+// And none left from before: a profile kept between runs, as `cypress open`
+// keeps one, may hold a registration from a run without the line above.
+// Through the spec frame, which is on the server's origin and keeps its
+// navigator whole.
+const unregisterServiceWorkers = () => {
+	const container = window.navigator.serviceWorker
+
+	if ( ! container ) {
+		return
+	}
+	cy.wrap(
+		container.getRegistrations()
+			.then( ( registrations ) => Promise.all( registrations.map( ( registration ) => registration.unregister() ) ) ),
+		{ log: false },
+	)
+}
+
 // Every account this spec logs in as. A form login mints a browser token in
 // oc_authtoken, and nothing in a test run ever ends that session: the suite
 // had left 918 of them on the administrator before anyone looked. Throwaway
@@ -179,8 +213,9 @@ const reapE2eAccounts = () => {
 }
 
 before( () => {
-	// What an earlier run left: its accounts, and its tokens on the account
-	// every spec uses.
+	// What an earlier run left: a service worker, its accounts, and its
+	// tokens on the account every spec uses.
+	unregisterServiceWorkers()
 	reapE2eAccounts()
 	sweepCypressTokens( [ 'admin' ] )
 } )
@@ -501,47 +536,31 @@ Cypress.Commands.add( 'fciasMakeAccount', ( admin, base ) => {
 			`creating the test account ${ account.user }`,
 		).to.eq( 200 )
 
-		// The account exists; its home does not until the server first
-		// serves it, and a PUT that arrives before then is answered 404 or
-		// 412 on a slow instance. One PROPFIND on its WebDAV root, as the
-		// account, is that first request — asked again until it answers.
+		// The account exists once that answers 200. Its home is made by the
+		// first WebDAV request it authenticates, within that request: the
+		// files root asks for the user folder, and asking creates it. One
+		// PROPFIND on that root, as the account, makes the home and says it
+		// is there before a spec writes to it. Not asked twice: nothing on
+		// the server completes later, so a home that does not answer 207
+		// here is a defect, and the status says which.
 		cy.clearCookies()
 
-		return warmHomeOf( account, 1 )
-	} )
-} )
+		return cy.request( {
+			method: 'PROPFIND',
+			url: `/remote.php/dav/files/${ account.user }/`,
+			auth: { user: account.user, pass: account.password },
+			headers: { Depth: '0' },
+			failOnStatusCode: false,
+		} ).then( ( home ) => {
+			expect( home.status, `the home of the test account ${ account.user }` ).to.eq( 207 )
 
-/**
- * A PROPFIND on the account's WebDAV root, repeated until it answers 207,
- * so that a spec's first write lands in a home that exists. Yields the
- * account, with the browser's cookie jar cleared of its session.
- *
- * @param {{user: string, password: string}} account
- * @param {number} attempt
- * @returns {Cypress.Chainable<{user: string, password: string}>}
- */
-function warmHomeOf( account, attempt )
-{
-	return cy.request( {
-		method: 'PROPFIND',
-		url: `/remote.php/dav/files/${ account.user }/`,
-		auth: { user: account.user, pass: account.password },
-		headers: { Depth: '0' },
-		failOnStatusCode: false,
-	} ).then( ( response ) => {
-		if ( response.status === 207 )
-		{
+			// The account is handed over with none of this request's session.
 			cy.clearCookies()
 
 			return cy.wrap( account, { log: false } )
-		}
-
-		expect( attempt, `waiting for the home of ${ account.user } (last answer ${ response.status })` ).to.be.lessThan( 10 )
-		cy.wait( 500, { log: false } )
-
-		return warmHomeOf( account, attempt + 1 )
+		} )
 	} )
-}
+} )
 
 /**
  * Delete an account this suite made.
