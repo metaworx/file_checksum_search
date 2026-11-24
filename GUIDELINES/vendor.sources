@@ -1,4 +1,4 @@
-# The shared guidelines v4.47.2, copied by tools/sync-vendor.sh: edit them
+# The shared guidelines v4.58.0, copied by tools/sync-vendor.sh: edit them
 # there, not here. <git blob id>  <project path>  <shared path>
 2a712c3585fb62b6382423ab4a641e21862bf7fe  .github/actions/release-meta/action.yml  platform/nextcloud/actions/release-meta/action.yml
 543544c597b3921efcc61d6af9d9b6de798c3805  .github/actions/node-deps/action.yml  platform/nextcloud/actions/node-deps/action.yml
